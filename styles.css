@@ -172,3 +172,18 @@ button:active {
     background-color: var(--danger-color);
     color: white;
 }
+
+/* Game Styles */
+.answers-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 16px;
+    margin-top: 24px;
+}
+
+.feedback-msg {
+    margin-top: 24px;
+    font-size: 1.5rem;
+    font-weight: bold;
+    min-height: 2rem;
+}

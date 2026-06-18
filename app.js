@@ -4,6 +4,11 @@ const store = {
         { id: 1, name: "Aspirin", dose: "81mg", notes: "Take with food" },
         { id: 2, name: "Lisinopril", dose: "10mg", notes: "Take in the morning" }
     ],
+    appointments: [
+        { id: 1, date: "Tomorrow", time: "10:00 AM", doctor_name: "Dr. Smith", location: "City Clinic", reason: "Checkup" },
+        { id: 2, date: "Next Tuesday", time: "2:00 PM", doctor_name: "Dr. Jones", location: "Eye Center", reason: "Vision Test" }
+    ],
+    game_results: [],
     // Generating mock doses for today
     doses: []
 };
@@ -119,6 +124,84 @@ const app = {
             // Re-render
             this.init_medications();
         }
+    },
+
+    init_appointments() {
+        const listEl = document.getElementById('appts-list');
+        listEl.innerHTML = '';
+
+        if (store.appointments.length === 0) {
+            listEl.innerHTML = '<p style="text-align:center;">No upcoming appointments.</p>';
+            return;
+        }
+
+        store.appointments.forEach(appt => {
+            const item = document.createElement('div');
+            item.className = 'list-item';
+            
+            item.innerHTML = `
+                <h3>${appt.doctor_name}</h3>
+                <p><strong>${appt.date} at ${appt.time}</strong></p>
+                <p>Location: ${appt.location}</p>
+                <p>Reason: ${appt.reason}</p>
+            `;
+            listEl.appendChild(item);
+        });
+    },
+
+    init_games() {
+        // Nothing special needed for the menu yet
+    },
+
+    init_gameOrientation() {
+        const questions = [
+            { q: "What day of the week is it?", a: new Date().toLocaleDateString('en-US', {weekday: 'long'}), options: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"] },
+            // Could add month, season etc.
+        ];
+        
+        // Simple random question (just one for now)
+        const qData = questions[0];
+        
+        document.getElementById('orientation-question').textContent = qData.q;
+        const answersContainer = document.getElementById('orientation-answers');
+        answersContainer.innerHTML = '';
+        
+        // Render buttons
+        qData.options.forEach(opt => {
+            const btn = document.createElement('button');
+            btn.className = 'nav-btn';
+            btn.textContent = opt;
+            btn.onclick = () => {
+                const feedback = document.getElementById('orientation-feedback');
+                if (opt === qData.a) {
+                    feedback.textContent = "Great job! That's correct.";
+                    feedback.className = "feedback-msg good";
+                    btn.classList.add('action-btn'); // Turn green
+                } else {
+                    feedback.textContent = "Not quite, try again!";
+                    feedback.className = "feedback-msg bad";
+                }
+            };
+            answersContainer.appendChild(btn);
+        });
+    }
+};
+
+// Handle route formatting for dynamic calls
+app.navigate = function(route) {
+    this.currentRoute = route;
+    const template = document.getElementById(`tpl-${route}`);
+    if (!template) return;
+    
+    this.container.innerHTML = '';
+    this.container.appendChild(template.content.cloneNode(true));
+
+    // Convert route-name to routeName
+    const funcName = 'init_' + route.replace(/-([a-z])/g, function (g) { return g[1].toUpperCase(); });
+    
+    // Call route specific initializer
+    if (this[funcName]) {
+        this[funcName]();
     }
 };
 

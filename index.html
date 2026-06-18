@@ -43,6 +43,40 @@
         </div>
     </template>
 
+    <template id="tpl-appointments">
+        <header class="top-bar with-back">
+            <button class="back-btn" data-route="home">← Back</button>
+            <h1>Appointments</h1>
+        </header>
+        <div class="list-container" id="appts-list">
+            <!-- Appointments will be injected here -->
+        </div>
+    </template>
+
+    <template id="tpl-games">
+        <header class="top-bar with-back">
+            <button class="back-btn" data-route="home">← Back</button>
+            <h1>Brain Games</h1>
+        </header>
+        <div class="list-container">
+            <button class="nav-btn primary" data-route="game-orientation">Daily Orientation</button>
+            <button class="nav-btn" data-route="game-match">Match the Pairs</button>
+            <button class="nav-btn" data-route="game-words">Word Puzzle</button>
+        </div>
+    </template>
+
+    <template id="tpl-game-orientation">
+        <header class="top-bar with-back">
+            <button class="back-btn" data-route="games">← Back</button>
+            <h1>Orientation</h1>
+        </header>
+        <div class="game-container status-card" id="orientation-game">
+            <h2 id="orientation-question">Loading...</h2>
+            <div id="orientation-answers" class="answers-grid"></div>
+            <p id="orientation-feedback" class="feedback-msg"></p>
+        </div>
+    </template>
+
     <script src="app.js"></script>
 </body>
 </html>
