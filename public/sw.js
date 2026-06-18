@@ -1,10 +1,10 @@
 // MyDay service worker: app-shell caching for PWA/offline + web-push handling.
-const CACHE = 'myday-v1';
+const CACHE = 'myday-v2';
 const SHELL = [
-  './', './index.html', './styles.css',
-  './app.js', './config.js', './db.js', './ui.js', './nav.js',
-  './medications.js', './appointments.js', './games.js', './settings.js', './push.js',
-  './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png',
+  './', './index.html', './styles.css', './manifest.webmanifest',
+  './main.js', './app.js', './react.js', './ui.js', './config.js', './db.js', './push.js',
+  './home.js', './meds.js', './appts.js', './games.js', './gamedata.js', './settings.js',
+  './icons/icon-192.png', './icons/icon-512.png',
 ];
 
 self.addEventListener('install', (e) => {
@@ -28,11 +28,10 @@ self.addEventListener('fetch', (e) => {
     e.respondWith(fetch(req).catch(() => caches.match('./index.html')));
     return;
   }
-
   // Supabase REST/RPC must always hit the network (fresh data); don't cache.
   if (url.origin.includes('supabase.co')) return;
 
-  // Same-origin assets + esm.sh modules: cache-first, fill cache in background.
+  // Same-origin assets + esm.sh modules (React/htm/supabase): cache-first.
   if (url.origin === location.origin || url.hostname === 'esm.sh') {
     e.respondWith(
       caches.match(req).then((hit) =>

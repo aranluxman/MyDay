@@ -6,8 +6,13 @@ patient himself, with a family member able to help and to be alerted if a dose i
 missed.
 
 It is a **PWA** (add it to the phone's Home Screen — no app store), built with
-**vanilla HTML/CSS/JS**, backed by **Supabase** (Postgres + Edge Functions + cron),
+**React in plain JavaScript with no build step** (React + [htm](https://github.com/developit/htm)
+loaded from a CDN), backed by **Supabase** (Postgres + Edge Functions + cron),
 and deployable to **Cloudflare Pages**.
+
+> **No build step.** React and htm are imported from a CDN at runtime, so the app
+> is still just static files — open `public/index.html` over http, or deploy the
+> `public/` folder to Cloudflare Pages as-is. There is nothing to compile.
 
 ---
 
@@ -71,23 +76,31 @@ and deployable to **Cloudflare Pages**.
 
 ```
 public/                 -> static site (deploy this folder to Cloudflare Pages)
-  index.html            -> app shell + top bar
-  styles.css            -> senior-friendly design system
-  app.js                -> service-worker registration, hash router, Home screen
+  index.html            -> app shell with the #root mount point
+  main.js               -> mounts React + registers the service worker
+  react.js              -> single React/htm setup (one React instance, class+style shims)
+  app.js                -> App root: providers, hash router, app bar, transitions
+  ui.js                 -> design-system components, icons, toast/confirm/prompt, hooks
+  home.js               -> Home: today's status + the three big menu buttons
+  meds.js               -> today's doses, the Done tap, add/edit/remove medicines
+  appts.js              -> appointments: upcoming list + add/edit/remove
+  games.js / gamedata.js-> the four games (UI / pure logic) + adaptive difficulty
+  settings.js           -> family alert (web-push) registration + settings
   db.js                 -> all Supabase reads/writes + date/timezone helpers
-  ui.js, nav.js         -> tiny DOM + navigation helpers
-  medications.js        -> today's doses, the Done tap, add/edit/remove medicines
-  appointments.js       -> upcoming list + add/edit/remove
-  games.js              -> the four games + adaptive difficulty + progress view
-  push.js, settings.js  -> family alert (web-push) registration + settings
+  push.js               -> web-push subscription helper
   sw.js                 -> PWA offline shell + push/notification handling
-  manifest.webmanifest, icons/
+  styles.css            -> senior-friendly design system
   config.js             -> Supabase URL + publishable key + VAPID public key
+  manifest.webmanifest, icons/
 
 supabase/
   migrations/           -> SQL for the schema, dose functions, push config + cron
   functions/missed-dose-check/index.ts  -> the cron Edge Function (web push)
 ```
+
+The UI is built as small React function components written with `htm` tagged
+templates (no JSX, no bundler). `react.js` binds htm to a thin `createElement`
+wrapper so templates can use plain `class` and string `style` attributes.
 
 ### Data model (Supabase, all `myday_`-prefixed)
 | table | purpose |
