@@ -1,6 +1,4 @@
-// Web-push subscription for a family member's device. The resulting
-// subscription is stored in Supabase; the missed-dose Edge Function sends to it.
-import { VAPID_PUBLIC_KEY } from './config.js';
+import { VAPID_PUBLIC_KEY } from './supabase.js';
 
 export function pushSupported() {
   return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
@@ -9,11 +7,9 @@ export function pushSupported() {
 export async function enablePush() {
   if (!pushSupported()) throw new Error('This phone does not support alerts.');
   const reg = await navigator.serviceWorker.ready;
-
   let perm = Notification.permission;
   if (perm === 'default') perm = await Notification.requestPermission();
   if (perm !== 'granted') throw new Error('Alerts were not allowed. Please allow notifications and try again.');
-
   let sub = await reg.pushManager.getSubscription();
   if (!sub) {
     sub = await reg.pushManager.subscribe({
