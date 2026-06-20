@@ -15,10 +15,10 @@ export async function ensureProfile(user) {
   let prof = await getProfile();
   if (!prof) {
     const full_name = user?.user_metadata?.full_name || (user?.email ? user.email.split('@')[0] : '');
-    const { data, error } = await supabase.from('myday_profiles')
-      .insert({ user_id: user.id, full_name, timezone: tz }).select().single();
-    if (error) throw error;
-    prof = data;
+    // conflict-safe: sign-up may create this row concurrently
+    await supabase.from('myday_profiles')
+      .upsert({ user_id: user.id, full_name, timezone: tz }, { onConflict: 'user_id', ignoreDuplicates: true });
+    prof = await getProfile();
   } else if (prof.timezone !== tz) {
     await supabase.from('myday_profiles').update({ timezone: tz }).eq('user_id', user.id);
     prof.timezone = tz;

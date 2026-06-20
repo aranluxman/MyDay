@@ -51,7 +51,7 @@ export function AppProvider({ children }) {
     const { error } = await supabase.auth.signInWithPassword({ email: email.trim().toLowerCase(), password });
     if (error) throw new Error(error.message === 'Invalid login credentials' ? 'Email or password is incorrect.' : error.message);
   }
-  async function signUp(email, password, full_name) {
+  async function signUp(email, password, full_name, onboarding = {}) {
     const { data, error } = await supabase.functions.invoke('signup', { body: { email, password, full_name } });
     if (error) {
       let msg = 'Could not create the account.';
@@ -59,7 +59,21 @@ export function AppProvider({ children }) {
       throw new Error(msg);
     }
     if (data?.error) throw new Error(data.error);
-    await signIn(email, password);
+    const { data: si, error: e2 } = await supabase.auth.signInWithPassword({ email: email.trim().toLowerCase(), password });
+    if (e2) throw new Error(e2.message);
+    // Persist the onboarding answers on the profile (upsert ensures the row exists).
+    if (si?.user) {
+      try {
+        await supabase.from('myday_profiles').upsert({
+          user_id: si.user.id,
+          full_name: (full_name || '').trim() || null,
+          for_whom: onboarding.for_whom || null,
+          age: onboarding.age ?? null,
+          sex: onboarding.sex || null,
+          timezone: deviceTimezone(),
+        }, { onConflict: 'user_id' });
+      } catch (e) { console.warn('onboarding upsert failed', e); }
+    }
   }
   async function signOut() { await supabase.auth.signOut(); setProfile(null); }
 

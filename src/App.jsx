@@ -3,7 +3,9 @@ import { AppProvider, useApp } from './context/AppContext.jsx';
 import { UIProvider } from './context/UIContext.jsx';
 import { AppShell } from './components/AppShell.jsx';
 import { Spinner } from './components/ui.jsx';
-import Auth from './screens/Auth.jsx';
+import Landing from './screens/Landing.jsx';
+import Onboarding from './screens/Onboarding.jsx';
+import SignIn from './screens/SignIn.jsx';
 import Home from './screens/Home.jsx';
 import Updates from './screens/Updates.jsx';
 import Medication from './screens/Medication.jsx';
@@ -14,7 +16,15 @@ import Games from './screens/Games.jsx';
 function Root() {
   const { user, loading } = useApp();
   if (loading) return <div className="boot"><Spinner label="MyDay" /></div>;
-  if (!user) return <Auth />;
+  if (!user) {
+    return (
+      <Routes>
+        <Route path="/get-started" element={<Onboarding />} />
+        <Route path="/signin" element={<SignIn />} />
+        <Route path="*" element={<Landing />} />
+      </Routes>
+    );
+  }
   return (
     <Routes>
       <Route element={<AppShell />}>
