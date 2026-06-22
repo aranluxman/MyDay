@@ -8,12 +8,17 @@ import { saveGameResult, recentResults } from '../lib/db.js';
 import {
   GAME_NAMES, GAME_SUB, LEVELS, resolveLevel, adapt,
   buildWordQuestions, buildNumberQuestions, buildOrientationQuestions, buildMatchDeck,
+  buildMathQuestions, buildOddOneOut,
 } from '../lib/games.js';
 
-const BUILDERS = { word_puzzle: buildWordQuestions, number_pattern: buildNumberQuestions, orientation: buildOrientationQuestions };
+const BUILDERS = {
+  word_puzzle: buildWordQuestions, number_pattern: buildNumberQuestions,
+  quick_math: buildMathQuestions, odd_one_out: buildOddOneOut, orientation: buildOrientationQuestions,
+};
 const CHEERS = ['Great job!', 'Well done!', 'Nicely done!', 'You got it!', "That's right!", 'Excellent!'];
 const cheer = () => CHEERS[Math.floor(Math.random() * CHEERS.length)];
-const GAMES = ['match_pairs', 'word_puzzle', 'number_pattern', 'orientation'];
+const GAMES = ['match_pairs', 'word_puzzle', 'number_pattern', 'quick_math', 'odd_one_out', 'orientation'];
+const GAME_ICONS = { match_pairs: 'brain', word_puzzle: 'notes', number_pattern: 'pulse', quick_math: 'plus', odd_one_out: 'eye', orientation: 'calendar' };
 
 export default function Games() {
   const navigate = useNavigate();
@@ -42,7 +47,7 @@ function Menu({ onPick, onProgress, onHome }) {
       <div className="game-grid">
         {GAMES.map((g) => (
           <button key={g} className="game-card" onClick={() => onPick(g)}>
-            <span className="game-card__icon"><Icon name="brain" size={28} /></span>
+            <span className="game-card__icon"><Icon name={GAME_ICONS[g] || 'brain'} size={28} /></span>
             <span className="game-card__title">{GAME_NAMES[g]}</span>
             <span className="game-card__sub">{GAME_SUB[g]}</span>
           </button>

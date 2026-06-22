@@ -346,3 +346,58 @@ h3.subsection { font-size: 21px; margin: 8px 0 0; }
 :focus-visible { outline: 3px solid color-mix(in srgb, var(--primary) 60%, transparent); outline-offset: 2px; }
 @media (prefers-reduced-motion: reduce) { *, .stack, .toast, .sheet, .sheet-overlay, .result__badge { animation: none !important; transition: none !important; } }
 @media (min-width: 560px) { .add-grid { grid-template-columns: repeat(4, 1fr); } }
+
+/* ---------- extra appearance themes ---------- */
+[data-theme='contrast'] {
+  --bg: #ffffff; --surface: #ffffff; --surface-2: #eef1f6; --ink: #000000; --ink-soft: #1f2937; --line: #0b1220;
+  --primary: #0a3aa6; --primary-2: #1247c8; --on-primary: #ffffff;
+  --good: #0a7d2c; --good-bg: #ddf6e4; --good-ink: #0a6e27;
+  --warn: #8a4b00; --warn-bg: #fdeccd; --warn-ink: #7a4200;
+  --bad: #b00000; --bad-bg: #fbdada; --bad-ink: #a30000;
+  --shadow: 0 2px 0 rgba(11, 18, 32, 0.18); --shadow-lg: 0 6px 0 rgba(11, 18, 32, 0.18);
+}
+[data-theme='warm'] {
+  --bg: #fbf3e8; --surface: #fffaf3; --surface-2: #f3e7d6; --ink: #3a2a1a; --ink-soft: #6b5640; --line: #e7d8c4;
+  --primary: #c2691f; --primary-2: #d9852f; --on-primary: #fff;
+}
+[data-theme='fresh'] {
+  --bg: #eef6ef; --surface: #ffffff; --surface-2: #e3f0e6; --ink: #16302a; --ink-soft: #4a6b5f; --line: #d6e6da;
+  --primary: #1f8a5a; --primary-2: #2faa72; --on-primary: #fff;
+}
+[data-theme='ocean'] {
+  --bg: #eaf3fb; --surface: #ffffff; --surface-2: #e0eefb; --ink: #0f2747; --ink-soft: #4a6080; --line: #d8e7f5;
+  --primary: #2563eb; --primary-2: #3b82f6; --on-primary: #fff;
+}
+[data-theme='rose'] {
+  --bg: #fbeef4; --surface: #ffffff; --surface-2: #f6e0eb; --ink: #3a1f2e; --ink-soft: #6b4a5a; --line: #efd6e2;
+  --primary: #c43d77; --primary-2: #db5a90; --on-primary: #fff;
+}
+[data-theme='midnight'] {
+  --bg: #0b1020; --surface: #141a2e; --surface-2: #1e2742; --ink: #e8ecff; --ink-soft: #a3acd0; --line: #2a3358;
+  --primary: #8b9cff; --primary-2: #a6b3ff; --on-primary: #0b1020;
+  --good: #46c178; --good-bg: rgba(70,193,120,.16); --good-ink: #73d79b;
+  --warn: #e0a83a; --warn-bg: rgba(224,168,58,.16); --warn-ink: #f0bf5e;
+  --bad: #ef6a5e; --bad-bg: rgba(239,106,94,.16); --bad-ink: #ff8b80;
+  --shadow: 0 10px 28px rgba(0,0,0,.5); --shadow-lg: 0 16px 44px rgba(0,0,0,.6);
+}
+
+/* ---------- display size (whole-UI zoom for low vision) ---------- */
+html[data-text='large'] { zoom: 1.12; }
+html[data-text='xlarge'] { zoom: 1.25; }
+
+/* ---------- profile-completeness + appearance picker + avatar ---------- */
+.complete { display: flex; align-items: center; gap: 16px; }
+.complete__ring { --p: 0; width: 64px; height: 64px; border-radius: 50%; flex: none; display: grid; place-items: center;
+  background: conic-gradient(var(--good) calc(var(--p) * 1%), var(--surface-2) 0); }
+.complete__ring b { width: 50px; height: 50px; border-radius: 50%; background: var(--surface); display: grid; place-items: center; font-size: 16px; font-weight: 800; }
+.complete__t { font-weight: 800; font-size: 18px; }
+.theme-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.theme-swatch { border: 2px solid var(--line); border-radius: 14px; padding: 8px 6px 9px; background: var(--surface); cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.theme-swatch.is-active { border-color: var(--primary); }
+.theme-swatch__c { width: 100%; height: 34px; border-radius: 9px; position: relative; overflow: hidden; }
+.theme-swatch__c i { position: absolute; right: 6px; bottom: 6px; width: 14px; height: 14px; border-radius: 50%; }
+.theme-swatch span { font-size: 12px; font-weight: 700; color: var(--ink-soft); }
+.avatar-edit { position: relative; }
+.avatar-edit__btn { position: absolute; right: -2px; bottom: -2px; width: 28px; height: 28px; border-radius: 50%; border: 2px solid var(--surface); background: var(--primary); color: var(--on-primary); display: grid; place-items: center; cursor: pointer; }
+.avatar img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
+.install-btn { display: inline-flex; align-items: center; gap: 7px; height: 40px; padding: 0 14px; border-radius: 12px; border: 0; cursor: pointer; font-weight: 700; font-size: 14px; color: var(--on-primary); background: var(--primary); }

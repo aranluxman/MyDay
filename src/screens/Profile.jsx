@@ -1,14 +1,15 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useApp } from '../context/AppContext.jsx';
 import { useUI } from '../context/UIContext.jsx';
 import { useAsync } from '../hooks/useAsync.js';
 import { Card, Button, Spinner, Modal, Field, Input, Textarea, EmptyState, SegmentedControl, Avatar } from '../components/ui.jsx';
 import { Icon } from '../components/Icon.jsx';
-import { listContacts, saveContact, deleteContact, listFamilyDevices, saveFamilyDevice } from '../lib/db.js';
+import { listContacts, saveContact, deleteContact, listFamilyDevices, saveFamilyDevice, uploadAvatar } from '../lib/db.js';
 import { supabase } from '../lib/supabase.js';
 import { pushSupported, enablePush } from '../lib/push.js';
 import { ageFromBirthday } from '../lib/format.js';
+import { THEMES, TEXT_SIZES, profileCompleteness } from '../lib/appearance.js';
 
 const CONTACT_TYPES = [
   { value: 'pharmacy', label: 'Pharmacy', icon: 'cross' },
@@ -21,11 +22,28 @@ const CONTACT_TYPES = [
 const typeMeta = (t) => CONTACT_TYPES.find((x) => x.value === t) || CONTACT_TYPES[5];
 
 export default function Profile() {
-  const { profile, theme, setTheme, signOut, updateProfile, reloadProfile } = useApp();
+  const { user, profile, theme, setTheme, textSize, setTextSize, signOut, updateProfile, reloadProfile } = useApp();
   const ui = useUI();
   const location = useLocation();
+  const fileRef = useRef(null);
+  const [uploading, setUploading] = useState(false);
   const [editProfile, setEditProfile] = useState(false);
   const [editContact, setEditContact] = useState(null);
+  const completeness = profileCompleteness(profile);
+
+  async function onPickPhoto(e) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    if (file.size > 6 * 1024 * 1024) { ui.toast('Please choose an image under 6 MB.', 'bad'); return; }
+    setUploading(true);
+    try {
+      const url = await uploadAvatar(user.id, file);
+      await updateProfile({ avatar_url: url });
+      ui.toast('Photo updated.');
+    } catch { ui.toast('Could not upload the photo.', 'bad'); }
+    setUploading(false);
+  }
   const contacts = useAsync(() => listContacts(), []);
   const devices = useAsync(() => (pushSupported() ? listFamilyDevices() : Promise.resolve([])), []);
 
@@ -64,12 +82,28 @@ export default function Profile() {
     <div className="stack">
       {/* identity */}
       <Card className="profile-head">
-        <Avatar name={profile?.full_name} color={profile?.avatar_color} size={66} />
+        <div className="avatar-edit">
+          <Avatar name={profile?.full_name} color={profile?.avatar_color} size={72} src={profile?.avatar_url} />
+          <button className="avatar-edit__btn" aria-label="Change photo" disabled={uploading} onClick={() => fileRef.current?.click()}>
+            <Icon name={uploading ? 'clock' : 'plus'} size={16} />
+          </button>
+          <input ref={fileRef} type="file" accept="image/*" hidden onChange={onPickPhoto} />
+        </div>
         <div>
           <div className="profile-head__name">{profile?.full_name || 'Your profile'}</div>
           {age != null && <div className="muted">{age} years old</div>}
         </div>
       </Card>
+
+      {completeness.pct < 100 && (
+        <Card className="complete">
+          <div className="complete__ring" style={{ '--p': completeness.pct }}><b>{completeness.pct}%</b></div>
+          <div>
+            <div className="complete__t">Your profile is {completeness.pct}% complete</div>
+            <div className="muted">Add a few more details to finish it.</div>
+          </div>
+        </Card>
+      )}
 
       {/* about me */}
       <Card>
@@ -114,8 +148,17 @@ export default function Profile() {
       {/* appearance */}
       <Card>
         <SectionTitle icon="sun" title="Appearance" />
-        <p className="muted" style={{ margin: '0 0 10px' }}>Choose a light or dark look.</p>
-        <SegmentedControl value={theme} onChange={setTheme} options={[{ value: 'light', label: 'Light' }, { value: 'dark', label: 'Dark' }]} />
+        <p className="muted" style={{ margin: '0 0 12px' }}>Pick a look that's comfortable for you.</p>
+        <div className="theme-grid">
+          {THEMES.map((t) => (
+            <button key={t.id} className={`theme-swatch${theme === t.id ? ' is-active' : ''}`} onClick={() => setTheme(t.id)}>
+              <span className="theme-swatch__c" style={{ background: t.bg }}><i style={{ background: t.primary }} /></span>
+              <span>{t.name}</span>
+            </button>
+          ))}
+        </div>
+        <p className="muted" style={{ margin: '18px 0 8px' }}>Display size</p>
+        <SegmentedControl value={textSize} onChange={setTextSize} options={TEXT_SIZES.map((s) => ({ value: s.id, label: s.name }))} />
       </Card>
 
       {/* alerts */}

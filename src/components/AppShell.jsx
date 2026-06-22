@@ -4,6 +4,7 @@ import { BottomNav } from './BottomNav.jsx';
 import { Icon } from './Icon.jsx';
 import { Modal } from './ui.jsx';
 import { useApp } from '../context/AppContext.jsx';
+import { useInstallPrompt } from '../hooks/useInstallPrompt.js';
 
 const TITLES = {
   '/': 'MyDay',
@@ -23,10 +24,12 @@ const ADD_ACTIONS = [
 
 export function AppShell() {
   const { theme, setTheme } = useApp();
+  const { canInstall, install } = useInstallPrompt();
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const [addOpen, setAddOpen] = useState(false);
   const title = TITLES[pathname] || 'MyDay';
+  const isDark = theme === 'dark' || theme === 'midnight';
 
   function doAdd(a) {
     setAddOpen(false);
@@ -37,10 +40,14 @@ export function AppShell() {
     <div className="app-shell">
       <header className="topbar">
         <h1 className="topbar__title">{title}</h1>
-        <button className="topbar__btn" aria-label="Switch theme"
-          onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
-          <Icon name={theme === 'dark' ? 'sun' : 'moon'} size={24} />
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {canInstall && (
+            <button className="install-btn" onClick={install}><Icon name="plus" size={18} /> Install</button>
+          )}
+          <button className="topbar__btn" aria-label="Switch theme" onClick={() => setTheme(isDark ? 'light' : 'dark')}>
+            <Icon name={isDark ? 'sun' : 'moon'} size={24} />
+          </button>
+        </div>
       </header>
 
       <main className="content"><Outlet /></main>

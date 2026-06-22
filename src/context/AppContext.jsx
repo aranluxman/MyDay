@@ -11,12 +11,15 @@ export function AppProvider({ children }) {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [theme, setThemeState] = useState(() => localStorage.getItem('myday_theme') || 'light');
+  const [textSize, setTextSizeState] = useState(() => localStorage.getItem('myday_text') || 'normal');
 
   useEffect(() => { document.documentElement.setAttribute('data-theme', theme); }, [theme]);
+  useEffect(() => { document.documentElement.setAttribute('data-text', textSize); }, [textSize]);
 
   const applyProfile = useCallback((p) => {
     setProfile(p);
     if (p?.theme) { setThemeState(p.theme); localStorage.setItem('myday_theme', p.theme); }
+    if (p?.text_size) { setTextSizeState(p.text_size); localStorage.setItem('myday_text', p.text_size); }
   }, []);
 
   // initial session + auth subscription
@@ -78,6 +81,7 @@ export function AppProvider({ children }) {
   async function signOut() { await supabase.auth.signOut(); setProfile(null); }
 
   function setTheme(t) { setThemeState(t); localStorage.setItem('myday_theme', t); saveProfile({ theme: t }).catch(() => {}); }
+  function setTextSize(s) { setTextSizeState(s); localStorage.setItem('myday_text', s); saveProfile({ text_size: s }).catch(() => {}); }
 
   async function updateProfile(patch) {
     await saveProfile(patch);
@@ -87,8 +91,8 @@ export function AppProvider({ children }) {
   async function reloadProfile() { const p = await getProfile(); applyProfile(p); return p; }
 
   const value = {
-    session, user: session?.user || null, profile, loading, theme,
-    signIn, signUp, signOut, setTheme, updateProfile, reloadProfile,
+    session, user: session?.user || null, profile, loading, theme, textSize,
+    signIn, signUp, signOut, setTheme, setTextSize, updateProfile, reloadProfile,
   };
   return <AppCtx.Provider value={value}>{children}</AppCtx.Provider>;
 }

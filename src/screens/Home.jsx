@@ -7,6 +7,7 @@ import { Card, Button, Spinner, Avatar } from '../components/ui.jsx';
 import { Icon } from '../components/Icon.jsx';
 import { todaysDoses, upcomingAppointments, playedTodayCount, markDoseTaken } from '../lib/db.js';
 import { prettyTime, prettyDate, localDateStr } from '../lib/format.js';
+import { profileCompleteness } from '../lib/appearance.js';
 
 export default function Home() {
   const { profile } = useApp();
@@ -46,9 +47,17 @@ export default function Home() {
           <p className="hello__date">{prettyDate(localDateStr())}</p>
         </div>
         <button className="hello__avatar" onClick={() => navigate('/profile')} aria-label="Profile">
-          <Avatar name={profile?.full_name} color={profile?.avatar_color} size={52} />
+          <Avatar name={profile?.full_name} color={profile?.avatar_color} size={52} src={profile?.avatar_url} />
         </button>
       </div>
+
+      {profileCompleteness(profile).pct < 100 && (
+        <Card className="nudge" onClick={() => navigate('/profile')}>
+          <Icon name="user" size={26} />
+          <span>Your profile is {profileCompleteness(profile).pct}% complete — tap to finish it.</span>
+          <Icon name="chevron" size={24} />
+        </Card>
+      )}
 
       {dueNow && (
         <Card accent="due" className="reminder">

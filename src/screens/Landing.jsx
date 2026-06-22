@@ -1,8 +1,10 @@
 import { useNavigate } from 'react-router-dom';
 import { Icon } from '../components/Icon.jsx';
+import { useInstallPrompt } from '../hooks/useInstallPrompt.js';
 
 export default function Landing() {
   const navigate = useNavigate();
+  const { canInstall, install } = useInstallPrompt();
   const start = () => navigate('/get-started');
   const signin = () => navigate('/signin');
 
@@ -17,6 +19,7 @@ export default function Landing() {
             <a href="#trust">Trust</a>
           </nav>
           <div className="mkt-head-cta">
+            {canInstall && <button className="mkt-btn mkt-btn--ghost" style={{ height: 46 }} onClick={install}><Icon name="plus" size={18} /> Install</button>}
             <button className="mkt-btn mkt-btn--ghost" style={{ height: 46 }} onClick={signin}>Sign in</button>
             <button className="mkt-btn mkt-btn--primary" style={{ height: 46 }} onClick={start}>Get started</button>
           </div>

@@ -47,10 +47,12 @@ export function Field({ label, children, hint }) {
 export function Input(props) { return <input className="input" {...props} />; }
 export function Textarea(props) { return <textarea className="input input--area" {...props} />; }
 
-export function Avatar({ name, color = '#2563a8', size = 44 }) {
+export function Avatar({ name, color = '#2563a8', size = 44, src }) {
   const init = (name || 'M').trim().split(/\s+/).map((p) => p[0]).slice(0, 2).join('').toUpperCase() || 'M';
   return (
-    <span className="avatar" style={{ width: size, height: size, background: color, fontSize: size * 0.4 }}>{init}</span>
+    <span className="avatar" style={{ width: size, height: size, background: src ? 'transparent' : color, fontSize: size * 0.4 }}>
+      {src ? <img src={src} alt={name || 'Profile'} /> : init}
+    </span>
   );
 }
 
