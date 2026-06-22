@@ -81,12 +81,17 @@ function LevelPicker({ game, onStart, onBack }) {
 }
 
 function Play({ game, level, onComplete, onQuit }) {
+  const ui = useUI();
+  async function quit() {
+    const ok = await ui.confirm({ title: 'Leave this game?', message: 'Your progress in this round will not be saved.', confirmLabel: 'Leave game', cancelLabel: 'Keep playing', danger: true });
+    if (ok) onQuit();
+  }
   return (
-    <div className="stack">
+    <div className="stack play">
       <div className="play-head">
-        <button className="icon-btn" aria-label="Quit" onClick={onQuit}><Icon name="close" size={22} /></button>
-        <span>{GAME_NAMES[game]} · Level {level}</span>
-        <span style={{ width: 40 }} />
+        <button className="play-quit" aria-label="Quit this game" onClick={quit}><Icon name="back" size={20} /> Quit</button>
+        <span className="play-head__title">{GAME_NAMES[game]} · Level {level}</span>
+        <span style={{ width: 64 }} />
       </div>
       {game === 'match_pairs'
         ? <Match level={level} onComplete={onComplete} />

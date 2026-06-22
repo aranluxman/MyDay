@@ -28,6 +28,10 @@ const PATHS = {
   cross: 'M9 3h6v6h6v6h-6v6H9v-6H3V9h6z',
   star: 'M12 4l2.4 5 5.6.8-4 3.9 1 5.6-5-2.6-5 2.6 1-5.6-4-3.9 5.6-.8z',
   eye: 'M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7zM12 9a3 3 0 100 6 3 3 0 000-6z',
+  download: 'M12 3v12m0 0l4-4m-4 4l-4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2',
+  share: 'M12 16V4m0 0L8 8m4-4l4 4M6 12H5a1 1 0 00-1 1v6a1 1 0 001 1h14a1 1 0 001-1v-6a1 1 0 00-1-1h-1',
+  dots: 'M12 6h.01M12 12h.01M12 18h.01',
+  sparkle: 'M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8zM19 15l.9 2.1L22 18l-2.1.9L19 21l-.9-2.1L16 18l2.1-.9z',
 };
 
 export function Icon({ name, size = 24, stroke = 2.1, className = '', style }) {
