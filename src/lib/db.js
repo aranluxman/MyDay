@@ -25,6 +25,16 @@ export async function ensureProfile(user) {
   }
   return prof;
 }
+// Uploads a profile photo to the user's own folder and returns a public URL.
+export async function uploadAvatar(userId, file) {
+  const path = `${userId}/avatar`;
+  const { error } = await supabase.storage.from('myday-avatars')
+    .upload(path, file, { upsert: true, contentType: file.type || 'image/jpeg' });
+  if (error) throw error;
+  const { data } = supabase.storage.from('myday-avatars').getPublicUrl(path);
+  return `${data.publicUrl}?t=${Date.now()}`;
+}
+
 export async function saveProfile(patch) {
   const { error } = await supabase.from('myday_profiles').update(patch).neq('user_id', '00000000-0000-0000-0000-000000000000');
   if (error) throw error;

@@ -6,16 +6,20 @@ export const GAME_NAMES = {
   match_pairs: 'Match the Pairs',
   word_puzzle: 'Word Puzzle',
   number_pattern: 'Number Patterns',
+  quick_math: 'Quick Math',
+  odd_one_out: 'Odd One Out',
   orientation: 'Today',
 };
 export const GAME_SUB = {
   match_pairs: 'Find the matching pairs',
   word_puzzle: 'Fill in the missing word',
   number_pattern: 'Find the next number',
+  quick_math: 'Solve simple sums',
+  odd_one_out: 'Spot the word that does not belong',
   orientation: 'Gentle questions about today',
 };
-export const MAX_LEVEL = 7;
-export const LEVELS = [1, 2, 3, 4, 5, 6, 7];
+export const MAX_LEVEL = 10;
+export const LEVELS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 
 export function shuffle(arr) {
   const a = [...arr];
@@ -104,7 +108,7 @@ const WORD_BANK = {
   ],
 };
 export function buildWordQuestions(level) {
-  const pool = WORD_BANK[clampLevel(level)] || WORD_BANK[1];
+  const pool = WORD_BANK[Math.min(clampLevel(level), 7)] || WORD_BANK[1];
   const picks = shuffle(pool).slice(0, 5);
   const nOptions = level >= 3 ? 4 : 3;
   return picks.map(([sentence, answer, distractors]) => ({
@@ -127,7 +131,10 @@ function makeNumberQuestion(level) {
   else if (level === 4) { let c = 1 + r(6), d = 1; seq = [c]; for (let i = 0; i < 3; i++) { c += d; d++; seq.push(c); } answer = c + d; }
   else if (level === 5) { const st = 2 + r(5), s = 40 + r(20); seq = [s, s - st, s - 2 * st, s - 3 * st]; answer = s - 4 * st; }
   else if (level === 6) { let a = 1 + r(3), b = 1 + r(4); seq = [a, b]; for (let i = 0; i < 2; i++) { const n = a + b; seq.push(n); a = b; b = n; } answer = a + b; }
-  else { const s = 1 + r(3); seq = [s, s * 3, s * 9, s * 27]; answer = s * 81; }
+  else if (level === 7) { const s = 1 + r(3); seq = [s, s * 3, s * 9, s * 27]; answer = s * 81; }
+  else if (level === 8) { const s = 1 + r(3); seq = [s * s, (s + 1) ** 2, (s + 2) ** 2, (s + 3) ** 2]; answer = (s + 4) ** 2; }
+  else if (level === 9) { let a = 1 + r(4); seq = [a]; for (let i = 0; i < 3; i++) { a = a * 2 + 1; seq.push(a); } answer = a * 2 + 1; }
+  else { let a = 2 + r(3); const k = 2 + r(3); seq = [a]; for (let i = 0; i < 3; i++) { a = a * 2 + k; seq.push(a); } answer = a * 2 + k; }
   const baseStep = Math.abs((seq[1] - seq[0]) || 5);
   const distractors = new Set();
   for (const d of shuffle([1, -1, 2, -2, 3, baseStep, -baseStep, Math.round(baseStep / 2) || 4])) {
@@ -168,7 +175,47 @@ export function buildOrientationQuestions(level = 1) {
 // ---------- match the pairs ----------
 const PAIR_WORDS = ['SUN', 'CAT', 'DOG', 'HAT', 'CUP', 'BUS', 'PEN', 'KEY', 'BOX', 'FAN', 'MAP', 'CAR', 'BED', 'EGG'];
 export function buildMatchDeck(level) {
-  const pairs = 3 + clampLevel(level); // L1 -> 4 pairs, L7 -> 10 pairs
+  const pairs = Math.min(3 + clampLevel(level), PAIR_WORDS.length); // L1 -> 4 pairs, L10 -> 13 pairs
   const words = shuffle(PAIR_WORDS).slice(0, pairs);
   return { pairs, deck: shuffle([...words, ...words]) };
+}
+
+// ---------- quick math ----------
+export function buildMathQuestions(level) {
+  return Array.from({ length: 5 }, () => makeMath(clampLevel(level)));
+}
+function makeMath(level) {
+  const r = (n) => Math.floor(Math.random() * n);
+  let a, b, sym, answer;
+  if (level <= 2) { a = 2 + r(9); b = 1 + r(9); sym = '+'; answer = a + b; }
+  else if (level <= 4) { a = 10 + r(30); b = 1 + r(9 + level * 2); sym = Math.random() < 0.5 ? '+' : '-'; if (sym === '-' && b > a) { [a, b] = [b, a]; } answer = sym === '+' ? a + b : a - b; }
+  else if (level <= 6) { a = 20 + r(70); b = 5 + r(40); sym = '-'; if (b > a) [a, b] = [b, a]; answer = a - b; }
+  else if (level <= 8) { a = 2 + r(8 + level); b = 2 + r(9); sym = '×'; answer = a * b; }
+  else { a = 11 + r(40); b = 2 + r(11); sym = '×'; answer = a * b; }
+  const distractors = new Set();
+  for (const d of shuffle([1, -1, 2, -2, 3, -3, 5, 10, -10])) { if (answer + d >= 0 && answer + d !== answer) distractors.add(answer + d); if (distractors.size >= 3) break; }
+  return { lead: 'What is the answer?', big: `${a}  ${sym}  ${b}`, prompt: '', options: shuffle([answer, ...[...distractors].slice(0, 3)]).map(String), answer: String(answer) };
+}
+
+// ---------- odd one out ----------
+const ODD_GROUPS = [
+  ['Apple', 'Banana', 'Orange', 'Grape', 'Pear', 'Peach'],
+  ['Dog', 'Cat', 'Horse', 'Cow', 'Sheep', 'Rabbit'],
+  ['Red', 'Blue', 'Green', 'Yellow', 'Purple', 'Pink'],
+  ['Car', 'Bus', 'Train', 'Truck', 'Bicycle', 'Boat'],
+  ['Rose', 'Tulip', 'Daisy', 'Lily', 'Orchid', 'Violet'],
+  ['Hammer', 'Saw', 'Drill', 'Wrench', 'Screwdriver', 'Pliers'],
+  ['Chair', 'Table', 'Sofa', 'Bed', 'Desk', 'Shelf'],
+  ['Eye', 'Nose', 'Ear', 'Hand', 'Foot', 'Knee'],
+  ['Coffee', 'Tea', 'Juice', 'Water', 'Milk', 'Soda'],
+  ['Piano', 'Guitar', 'Violin', 'Drums', 'Flute', 'Trumpet'],
+];
+export function buildOddOneOut(level) {
+  const n = clampLevel(level) >= 6 ? 4 : 3; // more same-category words = trickier
+  return Array.from({ length: 5 }, () => {
+    const [g, other] = shuffle(ODD_GROUPS);
+    const items = shuffle(g).slice(0, n);
+    const odd = shuffle(other)[0];
+    return { prompt: 'Which one does not belong?', options: shuffle([...items, odd]), answer: odd };
+  });
 }
