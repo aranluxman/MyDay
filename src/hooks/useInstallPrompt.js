@@ -26,5 +26,5 @@ export function useInstallPrompt() {
     setDeferred(null);
   }
 
-  return { canInstall: !installed && !!deferred, install };
+  return { canInstall: !installed && !!deferred, install, installed };
 }

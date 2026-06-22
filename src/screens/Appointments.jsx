@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useUI } from '../context/UIContext.jsx';
 import { useAsync } from '../hooks/useAsync.js';
-import { Card, Button, Spinner, Modal, Field, Input, EmptyState } from '../components/ui.jsx';
+import { Card, Button, Modal, Field, Input, EmptyState, SkeletonCard } from '../components/ui.jsx';
 import { Icon } from '../components/Icon.jsx';
 import { upcomingAppointments, saveAppointment, deleteAppointment } from '../lib/db.js';
 import { prettyDate, prettyTime, localDateStr } from '../lib/format.js';
@@ -23,13 +23,18 @@ export default function Appointments() {
     try { await deleteAppointment(a.id); ui.toast('Removed.', 'info'); reload(); } catch { ui.toast('Could not remove.', 'bad'); }
   }
 
-  if (loading) return <Spinner label="Loading your appointments..." />;
+  if (loading) return <div className="stack"><SkeletonCard lines={2} /><SkeletonCard lines={2} /></div>;
   if (error) return <Card className="center"><p className="lead">Could not load.</p><Button onClick={reload}>Try again</Button></Card>;
 
   return (
     <div className="stack">
       <h2 className="section">Upcoming appointments</h2>
-      {!data.length && <EmptyState icon="calendar" title="Nothing coming up">Add your next doctor visit so it is not forgotten.</EmptyState>}
+      {!data.length && (
+        <EmptyState icon="calendar" title="Schedule your next doctor visit"
+          action={<Button icon="plus" full={false} onClick={() => setEditing({})}>Add an appointment</Button>}>
+          Keep your check-ups, clinic visits, and tests here so a reminder is always close at hand.
+        </EmptyState>
+      )}
       {data.map((a) => {
         const when = a.appt_time ? `${prettyDate(a.appt_date)} at ${prettyTime(a.appt_time)}` : prettyDate(a.appt_date);
         return (
@@ -85,7 +90,7 @@ function ApptForm({ appt, onClose, onSaved }) {
       <Field label="Reason"><Input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="e.g. Check-up" maxLength={80} /></Field>
       <div className="btn-row" style={{ marginTop: 8 }}>
         <Button variant="ghost" onClick={onClose}>Cancel</Button>
-        <Button disabled={busy} onClick={save}>{editing ? 'Save changes' : 'Add appointment'}</Button>
+        <Button disabled={busy} icon={busy ? 'clock' : undefined} onClick={save}>{busy ? 'Saving…' : editing ? 'Save changes' : 'Add appointment'}</Button>
       </div>
     </Modal>
   );

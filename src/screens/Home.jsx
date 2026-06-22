@@ -1,9 +1,8 @@
-import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext.jsx';
 import { useUI } from '../context/UIContext.jsx';
 import { useAsync } from '../hooks/useAsync.js';
-import { Card, Button, Spinner, Avatar } from '../components/ui.jsx';
+import { Card, Button, Avatar, Skeleton, SkeletonCard } from '../components/ui.jsx';
 import { Icon } from '../components/Icon.jsx';
 import { todaysDoses, upcomingAppointments, playedTodayCount, markDoseTaken } from '../lib/db.js';
 import { prettyTime, prettyDate, localDateStr } from '../lib/format.js';
@@ -18,7 +17,7 @@ export default function Home() {
     return { doses, appts, games };
   });
 
-  if (loading) return <Spinner label="Loading your day..." />;
+  if (loading) return <HomeSkeleton />;
   if (error) return <Card className="center"><p className="lead">We could not load your information.</p><Button onClick={reload}>Try again</Button></Card>;
 
   const { doses, appts, games } = data;
@@ -71,21 +70,34 @@ export default function Home() {
       <Card className="status">
         <div className="status__head">
           <span>Today's medicines</span>
-          <span className="status__count">{taken} of {total} taken</span>
+          {total > 0 && <span className="status__count">{taken} of {total} taken</span>}
         </div>
-        <div className="bar"><div className="bar__fill" style={{ width: `${pct}%` }} /></div>
-        <div className="status__row">
-          <Stat kind="taken" n={taken} label="Taken" />
-          <Stat kind="missed" n={missed} label="Missed" />
-          <Stat kind="pending" n={pending} label="To take" />
-        </div>
+        {total === 0 ? (
+          <button className="status__empty" onClick={() => navigate('/medication', { state: { add: 'med' } })}>
+            <span className="status__empty-ic"><Icon name="pill" size={26} /></span>
+            <span>
+              <b>No medicines set up yet.</b>
+              <small>Tap to add your first medicine or vitamin.</small>
+            </span>
+            <Icon name="plus" size={24} />
+          </button>
+        ) : (
+          <>
+            <div className="bar"><div className="bar__fill" style={{ width: `${pct}%` }} /></div>
+            <div className="status__row">
+              <Stat kind="taken" n={taken} label="Taken" />
+              <Stat kind="missed" n={missed} label="Missed" />
+              <Stat kind="pending" n={pending} label="To take" />
+            </div>
+          </>
+        )}
       </Card>
 
       <div className="quick-grid">
         <QuickCard icon="pill" title="Medicines" sub={pending ? `${pending} to take` : total ? 'All done today' : 'Add your medicines'} onClick={() => navigate('/medication')} />
         <QuickCard icon="calendar" title="Appointments" sub={appts.length ? `Next ${prettyDate(appts[0].appt_date)}` : 'None upcoming'} onClick={() => navigate('/appointments')} />
-        <QuickCard icon="pulse" title="Health notes" sub="Symptoms & events" onClick={() => navigate('/updates')} />
-        <QuickCard icon="brain" title="Brain Games" sub={games ? 'Play anytime' : 'A good time to play'} onClick={() => navigate('/games')} accent />
+        <QuickCard icon="pulse" title="Health notes" sub="Track symptoms & health events" onClick={() => navigate('/updates')} />
+        <QuickCard icon="brain" title="Brain Games" sub={games ? 'Play anytime' : 'A good time to play'} onClick={() => navigate('/games')} />
       </div>
 
       {games === 0 && (
@@ -99,6 +111,26 @@ export default function Home() {
   );
 }
 
+// Skeleton that mirrors the Home layout (greeting, status card, quick grid).
+function HomeSkeleton() {
+  return (
+    <div className="stack" role="status" aria-label="Loading your day">
+      <div className="hello">
+        <div style={{ flex: 1 }}>
+          <Skeleton h={16} w="30%" />
+          <Skeleton h={28} w="55%" style={{ marginTop: 8 }} />
+          <Skeleton h={14} w="45%" style={{ marginTop: 8 }} />
+        </div>
+        <Skeleton h={52} w={52} r={26} />
+      </div>
+      <SkeletonCard lines={3} />
+      <div className="quick-grid">
+        {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} h={120} r={18} />)}
+      </div>
+      <span className="sr-only">Loading…</span>
+    </div>
+  );
+}
 function Stat({ kind, n, label }) {
   return <div className={`stat stat--${kind}`}><div className="stat__num">{n}</div><div className="stat__label">{label}</div></div>;
 }

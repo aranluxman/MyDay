@@ -3,7 +3,7 @@ import { Icon } from './Icon.jsx';
 import { Spinner } from './ui.jsx';
 import { useAsync } from '../hooks/useAsync.js';
 import { dosesInRange } from '../lib/db.js';
-import { localDateStr, deviceTimezone } from '../lib/format.js';
+import { localDateStr, deviceTimezone, prettyDate } from '../lib/format.js';
 
 const WD = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 const pad = (n) => String(n).padStart(2, '0');
@@ -57,12 +57,14 @@ export function MedCalendar({ selected, onPick }) {
             if (!day) return <span key={i} className="cal__cell cal__cell--empty" />;
             const dStr = iso(cursor.y, cursor.m, day);
             const agg = byDate[dStr];
-            const status = !agg ? '' : agg.missed ? 'missed' : agg.pending ? 'pending' : 'taken';
+            const status = !agg ? 'none' : agg.missed ? 'missed' : agg.pending ? 'pending' : 'taken';
             const cls = `cal__cell${dStr === today ? ' is-today' : ''}${dStr === selected ? ' is-selected' : ''}`;
+            const label = `${prettyDate(dStr)}${agg ? `: ${agg.taken} taken, ${agg.pending} to take, ${agg.missed} missed` : ': no doses'}`;
             return (
-              <button key={i} className={cls} onClick={() => onPick(dStr)}>
+              <button key={i} className={cls} onClick={() => onPick(dStr)} aria-label={label}
+                aria-current={dStr === today ? 'date' : undefined}>
                 <span className="cal__day">{day}</span>
-                {status && <span className={`cal__dot cal__dot--${status}`} />}
+                <span className={`cal__dot cal__dot--${status}`} />
               </button>
             );
           })}
