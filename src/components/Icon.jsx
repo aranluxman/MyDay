@@ -28,6 +28,8 @@ const PATHS = {
   cross: 'M9 3h6v6h6v6h-6v6H9v-6H3V9h6z',
   star: 'M12 4l2.4 5 5.6.8-4 3.9 1 5.6-5-2.6-5 2.6 1-5.6-4-3.9 5.6-.8z',
   eye: 'M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7zM12 9a3 3 0 100 6 3 3 0 000-6z',
+  download: 'M12 3v11M8 11l4 4 4-4M5 20h14',
+  share: 'M12 3v12M8 7l4-4 4 4M5 13v6a1 1 0 001 1h12a1 1 0 001-1v-6',
 };
 
 export function Icon({ name, size = 24, stroke = 2.1, className = '', style }) {

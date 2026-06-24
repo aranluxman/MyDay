@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Icon } from './Icon.jsx';
 
 export function Button({ children, onClick, variant = 'primary', size = 'md', icon, disabled, type = 'button', full = true, className = '', ...rest }) {
@@ -76,7 +77,7 @@ export function Modal({ title, children, onClose, wide }) {
     document.body.classList.add('no-scroll');
     return () => { window.removeEventListener('keydown', onKey); document.body.classList.remove('no-scroll'); };
   }, [onClose]);
-  return (
+  return createPortal(
     <div className="sheet-overlay" onClick={(e) => e.target === e.currentTarget && onClose?.()}>
       <div className={`sheet${wide ? ' sheet--wide' : ''}`} role="dialog" aria-modal="true" aria-label={title || 'Dialog'}>
         <div className="sheet__grab" />
@@ -88,6 +89,7 @@ export function Modal({ title, children, onClose, wide }) {
         )}
         <div className="sheet__body">{children}</div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

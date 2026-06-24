@@ -3,8 +3,8 @@ import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { BottomNav } from './BottomNav.jsx';
 import { Icon } from './Icon.jsx';
 import { Modal } from './ui.jsx';
+import { InstallButton } from './InstallButton.jsx';
 import { useApp } from '../context/AppContext.jsx';
-import { useInstallPrompt } from '../hooks/useInstallPrompt.js';
 
 const TITLES = {
   '/': 'MyDay',
@@ -24,7 +24,6 @@ const ADD_ACTIONS = [
 
 export function AppShell() {
   const { theme, setTheme } = useApp();
-  const { canInstall, install } = useInstallPrompt();
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const [addOpen, setAddOpen] = useState(false);
@@ -41,9 +40,7 @@ export function AppShell() {
       <header className="topbar">
         <h1 className="topbar__title">{title}</h1>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          {canInstall && (
-            <button className="install-btn" onClick={install}><Icon name="plus" size={18} /> Install</button>
-          )}
+          <InstallButton />
           <button className="topbar__btn" aria-label="Switch theme" onClick={() => setTheme(isDark ? 'light' : 'dark')}>
             <Icon name={isDark ? 'sun' : 'moon'} size={24} />
           </button>

@@ -8,10 +8,10 @@ import { listDiary, saveDiary, deleteDiary } from '../lib/db.js';
 import { relativeTime } from '../lib/format.js';
 
 const CATS = {
-  symptom: { label: 'Symptom', icon: 'pulse', color: '#b3261e' },
-  event: { label: 'Health event', icon: 'cross', color: '#8a5a00' },
-  note: { label: 'Note', icon: 'notes', color: '#2563a8' },
-  other: { label: 'Other', icon: 'star', color: '#6d28d9' },
+  symptom: { label: 'Symptom', icon: 'pulse', cls: 'bad' },
+  event: { label: 'Health event', icon: 'cross', cls: 'warn' },
+  note: { label: 'Note', icon: 'notes', cls: 'primary' },
+  other: { label: 'Other', icon: 'star', cls: 'good' },
 };
 
 export default function Updates() {
@@ -49,10 +49,10 @@ export default function Updates() {
           const c = CATS[e.category] || CATS.note;
           return (
             <div key={e.id} className="tl">
-              <span className="tl__dot" style={{ background: c.color }}><Icon name={c.icon} size={18} /></span>
+              <span className={`tl__dot tl__dot--${c.cls}`}><Icon name={c.icon} size={18} /></span>
               <Card className="tl__card">
                 <div className="tl__top">
-                  <span className="tl__cat" style={{ color: c.color }}>{c.label}</span>
+                  <span className={`tl__cat tl__cat--${c.cls}`}>{c.label}</span>
                   <span className="tl__time">{relativeTime(e.entry_at)}</span>
                 </div>
                 {e.title && <div className="card__title">{e.title}</div>}
