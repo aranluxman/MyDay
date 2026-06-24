@@ -29,6 +29,7 @@ export function AppShell() {
   const [addOpen, setAddOpen] = useState(false);
   const title = TITLES[pathname] || 'MyDay';
   const isDark = theme === 'dark' || theme === 'midnight';
+  const isHome = pathname === '/';
 
   function doAdd(a) {
     setAddOpen(false);
@@ -41,7 +42,8 @@ export function AppShell() {
         <h1 className="topbar__title">{title}</h1>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <InstallButton />
-          <button className="topbar__btn" aria-label="Switch theme" onClick={() => setTheme(isDark ? 'light' : 'dark')}>
+          <button className="topbar__btn" aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+            title={isDark ? 'Light mode' : 'Dark mode'} onClick={() => setTheme(isDark ? 'light' : 'dark')}>
             <Icon name={isDark ? 'sun' : 'moon'} size={24} />
           </button>
         </div>
@@ -49,8 +51,9 @@ export function AppShell() {
 
       <main className="content"><Outlet /></main>
 
-      <button className="fab" aria-label="Add" onClick={() => setAddOpen(true)}>
+      <button className={`fab${isHome ? ' fab--labeled' : ''}`} aria-label="Quick add" title="Quick add" onClick={() => setAddOpen(true)}>
         <Icon name="plus" size={30} stroke={2.6} />
+        {isHome && <span className="fab__label">Add</span>}
       </button>
 
       <BottomNav />

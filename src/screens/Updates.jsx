@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useUI } from '../context/UIContext.jsx';
 import { useAsync } from '../hooks/useAsync.js';
-import { Card, Button, Spinner, Modal, Field, Input, Textarea, EmptyState, SegmentedControl } from '../components/ui.jsx';
+import { Card, Button, Modal, Field, Input, Textarea, EmptyState, SegmentedControl, SkeletonCard } from '../components/ui.jsx';
 import { Icon } from '../components/Icon.jsx';
 import { listDiary, saveDiary, deleteDiary } from '../lib/db.js';
 import { relativeTime } from '../lib/format.js';
@@ -30,7 +30,7 @@ export default function Updates() {
     try { await deleteDiary(e.id); ui.toast('Deleted.', 'info'); reload(); } catch { ui.toast('Could not delete.', 'bad'); }
   }
 
-  if (loading) return <Spinner label="Loading your health notes..." />;
+  if (loading) return <div className="stack"><SkeletonCard lines={2} /><SkeletonCard lines={3} /></div>;
   if (error) return <Card className="center"><p className="lead">Could not load.</p><Button onClick={reload}>Try again</Button></Card>;
 
   return (
@@ -42,7 +42,7 @@ export default function Updates() {
         </div>
       </div>
 
-      {!data.length && <EmptyState icon="notes" title="No notes yet">Keep track of how you feel, symptoms, or important health events.</EmptyState>}
+      {!data.length && <FeelingPrompt onPick={(draft) => setEditing(draft)} />}
 
       <div className="timeline">
         {data.map((e) => {
@@ -68,17 +68,45 @@ export default function Updates() {
       </div>
 
       <Button icon="plus" onClick={() => setEditing({})}>Add a health note</Button>
-      {editing && <DiaryForm entry={editing.id ? editing : null} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); reload(); }} />}
+      {editing && <DiaryForm entry={editing.id ? editing : null} draft={editing.id ? null : editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); reload(); }} />}
     </div>
   );
 }
 
-function DiaryForm({ entry, onClose, onSaved }) {
+// Friendly empty state: a warm question plus one-tap starters that open the
+// note form pre-filled, so the first entry takes a single tap.
+const FEELINGS = [
+  { label: 'Good day', category: 'note', title: 'Good day' },
+  { label: 'Headache', category: 'symptom', title: 'Headache' },
+  { label: 'Tired', category: 'symptom', title: 'Feeling tired' },
+  { label: 'Dizzy', category: 'symptom', title: 'Dizziness' },
+  { label: 'Pain', category: 'symptom', title: 'Pain' },
+  { label: 'Doctor visit', category: 'event', title: 'Doctor visit' },
+];
+function FeelingPrompt({ onPick }) {
+  return (
+    <Card className="feeling">
+      <div className="feeling__ic"><Icon name="pulse" size={30} /></div>
+      <h3 className="feeling__q">How are you feeling today?</h3>
+      <p className="muted">Tap one to start a note, or add your own below.</p>
+      <div className="feeling__tags">
+        {FEELINGS.map((f) => (
+          <button key={f.label} className="feeling__tag" onClick={() => onPick({ category: f.category, title: f.title })}>
+            {f.label}
+          </button>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
+function DiaryForm({ entry, draft, onClose, onSaved }) {
   const ui = useUI();
   const editing = !!entry;
-  const [category, setCategory] = useState(entry?.category || 'symptom');
-  const [title, setTitle] = useState(entry?.title || '');
-  const [body, setBody] = useState(entry?.body || '');
+  const seed = entry || draft || {};
+  const [category, setCategory] = useState(seed.category || 'symptom');
+  const [title, setTitle] = useState(seed.title || '');
+  const [body, setBody] = useState(seed.body || '');
   const [busy, setBusy] = useState(false);
 
   async function save() {
@@ -101,7 +129,7 @@ function DiaryForm({ entry, onClose, onSaved }) {
       <Field label="Details"><Textarea rows={4} value={body} onChange={(e) => setBody(e.target.value)} placeholder="Describe what happened, when, and how you felt." maxLength={1000} /></Field>
       <div className="btn-row" style={{ marginTop: 8 }}>
         <Button variant="ghost" onClick={onClose}>Cancel</Button>
-        <Button disabled={busy} onClick={save}>{editing ? 'Save changes' : 'Save note'}</Button>
+        <Button disabled={busy} icon={busy ? 'clock' : undefined} onClick={save}>{busy ? 'Saving…' : editing ? 'Save changes' : 'Save note'}</Button>
       </div>
     </Modal>
   );

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useUI } from '../context/UIContext.jsx';
 import { useAsync } from '../hooks/useAsync.js';
-import { Card, Button, Pill, Spinner, Modal, Field, Input, EmptyState, SegmentedControl } from '../components/ui.jsx';
+import { Card, Button, Pill, Modal, Field, Input, EmptyState, SegmentedControl, SkeletonCard } from '../components/ui.jsx';
 import { Icon } from '../components/Icon.jsx';
 import { MedCalendar } from '../components/MedCalendar.jsx';
 import {
@@ -33,14 +33,15 @@ export default function Medication() {
     <div className="stack">
       <SegmentedControl value={view} onChange={setView} options={[
         { value: 'today', label: 'Today' },
-        { value: 'calendar', label: 'Calendar' },
+        { value: 'calendar', label: 'History' },
         { value: 'medicines', label: 'Medicines' },
       ]} />
 
-      {view === 'today' && <TodayView state={today} onDone={done} />}
+      {view === 'today' && <TodayView state={today} onDone={done} onAdd={() => { setView('medicines'); setEditing({}); }} />}
 
       {view === 'calendar' && (
         <>
+          <p className="muted" style={{ margin: 0 }}>Your medication history — tap any day to see which doses were taken.</p>
           <MedCalendar selected={selectedDay} onPick={setSelectedDay} />
           <h3 className="subsection">{prettyDate(selectedDay)}</h3>
           <DayDoses dateStr={selectedDay} />
@@ -62,18 +63,25 @@ export default function Medication() {
   );
 }
 
-function TodayView({ state, onDone }) {
+function TodayView({ state, onDone, onAdd }) {
   const { data: doses, loading, error, reload } = state;
-  if (loading) return <Spinner label="Loading today's medicines..." />;
+  if (loading) return <div className="stack"><SkeletonCard lines={2} /><SkeletonCard lines={2} /></div>;
   if (error) return <Card className="center"><p className="lead">Could not load.</p><Button onClick={reload}>Try again</Button></Card>;
-  if (!doses.length) return <EmptyState icon="pill" title="No doses today">Add a medicine to start tracking.</EmptyState>;
+  if (!doses.length) {
+    return (
+      <EmptyState icon="pill" title="No doses scheduled today"
+        action={<Button icon="plus" full={false} onClick={onAdd}>Add a medicine</Button>}>
+        When you add a medicine and its times, today's doses appear here so you can tick them off one tap at a time.
+      </EmptyState>
+    );
+  }
   return <div className="stack">{doses.map((d) => <DoseCard key={d.id} dose={d} onDone={onDone} />)}</div>;
 }
 
 function DayDoses({ dateStr }) {
   const { data, loading } = useAsync(() => dosesForDate(dateStr), [dateStr]);
-  if (loading) return <Spinner label="" />;
-  if (!data.length) return <EmptyState icon="calendar">No doses recorded for this day.</EmptyState>;
+  if (loading) return <SkeletonCard lines={2} />;
+  if (!data.length) return <EmptyState icon="calendar">No doses were recorded for this day.</EmptyState>;
   return <div className="stack">{data.map((d) => <DoseCard key={d.id} dose={d} readOnly />)}</div>;
 }
 
@@ -104,11 +112,16 @@ function DoseCard({ dose, onDone, readOnly }) {
 
 function MedicinesView({ state, onAdd, onEdit, onRemove }) {
   const { data: meds, loading, error, reload } = state;
-  if (loading) return <Spinner label="Loading your medicines..." />;
+  if (loading) return <div className="stack"><SkeletonCard lines={2} /><SkeletonCard lines={2} /></div>;
   if (error) return <Card className="center"><p className="lead">Could not load.</p><Button onClick={reload}>Try again</Button></Card>;
   return (
     <div className="stack">
-      {!meds.length && <EmptyState icon="pill" title="No medicines yet">Add your medicines and vitamins to track them every day.</EmptyState>}
+      {!meds.length && (
+        <EmptyState icon="pill" title="No medicines yet"
+          action={<Button icon="plus" full={false} onClick={onAdd}>Add your first medicine</Button>}>
+          Add your medicines and vitamins with the times you take them, and MyDay will remind you every day.
+        </EmptyState>
+      )}
       {meds.map((m) => (
         <Card key={m.id}>
           <div className="dose">
@@ -178,7 +191,7 @@ function MedForm({ med, onClose, onSaved }) {
       <Field label="Note (optional)"><Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="e.g. take with food" maxLength={80} /></Field>
       <div className="btn-row" style={{ marginTop: 8 }}>
         <Button variant="ghost" onClick={onClose}>Cancel</Button>
-        <Button disabled={busy} onClick={save}>{editing ? 'Save changes' : 'Add medicine'}</Button>
+        <Button disabled={busy} icon={busy ? 'clock' : undefined} onClick={save}>{busy ? 'Saving…' : editing ? 'Save changes' : 'Add medicine'}</Button>
       </div>
     </Modal>
   );

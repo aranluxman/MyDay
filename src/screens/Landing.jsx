@@ -18,7 +18,7 @@ export default function Landing() {
             <a href="#trust">Trust</a>
           </nav>
           <div className="mkt-head-cta">
-            <InstallButton className="mkt-btn mkt-btn--ghost" style={{ height: 46 }} />
+            <InstallButton className="mkt-btn mkt-btn--ghost mkt-btn--install" label="Download now" style={{ height: 46 }} />
             <button className="mkt-btn mkt-btn--ghost" style={{ height: 46 }} onClick={signin}>Sign in</button>
             <button className="mkt-btn mkt-btn--primary" style={{ height: 46 }} onClick={start}>Get started</button>
           </div>

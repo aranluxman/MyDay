@@ -190,3 +190,22 @@
 .ob-passwrap .eye { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: none; border: 0; color: var(--m-soft); padding: 10px; cursor: pointer; }
 .ob__switch { text-align: center; color: var(--m-soft); margin-top: 18px; }
 .ob__switch button { background: none; border: 0; color: var(--m-primary); font-weight: 700; cursor: pointer; font-size: 16px; }
+
+/* ---------- landing hover polish ---------- */
+.mkt .feat, .mkt .trust { transition: transform 0.2s ease, box-shadow 0.25s ease, border-color 0.2s ease; }
+.mkt .dash { transition: transform 0.3s ease, box-shadow 0.3s ease; }
+@media (hover: hover) {
+  .mkt .feat:hover, .mkt .trust:hover { transform: translateY(-4px); box-shadow: var(--m-shadow-lg); border-color: #cfe0fb; }
+  .mkt .feat:hover .ic { transform: scale(1.06) rotate(-2deg); }
+  .mkt .ic { transition: transform 0.2s ease; }
+  .mkt .dash:hover { transform: rotate(0deg) translateY(-3px); box-shadow: 0 30px 70px rgba(20,50,100,0.22); }
+  .mkt-btn--primary:hover { transform: translateY(-2px); }
+  .mkt-btn--ghost:hover { border-color: var(--m-primary); color: var(--m-primary-d); transform: translateY(-1px); }
+  .mkt .phone { transition: transform 0.25s ease, box-shadow 0.25s ease; }
+  .mkt .phone:hover { transform: translateY(-5px) scale(1.01); }
+  .mkt .step__n { transition: transform 0.2s ease; }
+  .mkt .step:hover .step__n { transform: scale(1.08); }
+  .mkt-nav a { transition: color 0.15s ease; }
+}
+.mkt .install-btn { background: var(--m-surface); color: var(--m-primary); border: 1.5px solid var(--m-line); box-shadow: none; }
+.mkt .install-btn:hover { border-color: var(--m-primary); }

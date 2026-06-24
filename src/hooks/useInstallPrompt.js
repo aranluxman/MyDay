@@ -33,5 +33,5 @@ export function useInstallPrompt() {
     return true;
   }
 
-  return { installed, canPrompt: !!deferred, install };
+  return { installed, canPrompt: !!deferred, canInstall: !installed && !!deferred, install };
 }

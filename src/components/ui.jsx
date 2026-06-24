@@ -25,12 +25,38 @@ export function Spinner({ label = 'Loading...' }) {
   return <div className="loading"><div className="spinner" aria-hidden="true" /><p>{label}</p></div>;
 }
 
-export function EmptyState({ icon, title, children }) {
+export function EmptyState({ icon, title, children, action }) {
   return (
     <div className="empty">
       {icon && <div className="empty__icon"><Icon name={icon} size={34} /></div>}
       {title && <div className="empty__title">{title}</div>}
       {children && <p>{children}</p>}
+      {action && <div className="empty__action">{action}</div>}
+    </div>
+  );
+}
+
+// ---- Skeleton loaders (content placeholders shown instead of a blocking spinner) ----
+export function Skeleton({ h = 16, w = '100%', r = 8, style }) {
+  return <span className="skeleton" style={{ height: h, width: w, borderRadius: r, ...style }} aria-hidden="true" />;
+}
+export function SkeletonCard({ lines = 2 }) {
+  return (
+    <div className="card skeleton-card" aria-hidden="true">
+      <Skeleton h={22} w="55%" />
+      {Array.from({ length: lines }).map((_, i) => <Skeleton key={i} h={14} w={i % 2 ? '70%' : '90%'} style={{ marginTop: 12 }} />)}
+    </div>
+  );
+}
+// Generic page placeholder used by the lazy-route Suspense fallback.
+export function PageSkeleton() {
+  return (
+    <div className="stack" role="status" aria-label="Loading">
+      <Skeleton h={28} w="40%" />
+      <SkeletonCard lines={2} />
+      <SkeletonCard lines={3} />
+      <SkeletonCard lines={2} />
+      <span className="sr-only">Loading…</span>
     </div>
   );
 }

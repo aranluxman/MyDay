@@ -1,45 +1,72 @@
 import { useState } from 'react';
 import { Icon } from './Icon.jsx';
-import { Modal, Button } from './ui.jsx';
+import { Modal } from './ui.jsx';
 import { useInstallPrompt } from '../hooks/useInstallPrompt.js';
 
-const isIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent);
+// Detects the broad platform so the manual instructions match the user's browser.
+function platform() {
+  const ua = navigator.userAgent || '';
+  const iOS = /iphone|ipad|ipod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  if (iOS) return 'ios';
+  if (/android/i.test(ua)) return 'android';
+  return 'desktop';
+}
 
-// "Download now" button. Triggers the real PWA install when the browser allows
-// it, otherwise shows simple Add-to-Home-Screen steps. Hides once installed.
-export function InstallButton({ className = 'install-btn', label = 'Download now', style }) {
-  const { installed, canPrompt, install } = useInstallPrompt();
+// "Download now" button that works everywhere:
+//   - Chrome / Edge / Android -> fires the native install prompt.
+//   - iOS / anything else      -> opens clear "Add to Home Screen" steps.
+// Hidden once the app is already installed (running standalone).
+export function InstallButton({ className = 'install-btn', label = 'Download now', iconSize = 18, style }) {
+  const { canInstall, install, installed } = useInstallPrompt();
   const [help, setHelp] = useState(false);
   if (installed) return null;
 
-  async function onClick() {
-    if (canPrompt && (await install())) return;
+  function onClick() {
+    if (canInstall) { install(); return; }
     setHelp(true);
   }
 
   return (
     <>
-      <button className={className} style={style} onClick={onClick}><Icon name="download" size={18} /> {label}</button>
-      {help && (
-        <Modal title="Add MyDay to your phone" onClose={() => setHelp(false)}>
-          <p className="dialog-msg" style={{ marginBottom: 14 }}>
-            MyDay installs to your home screen and opens like a real app — no app store needed.
-          </p>
-          <div className="install-steps">
-            <div className="install-step">
-              <span className="ic-badge"><Icon name="share" size={20} /></span>
-              <div><b>{isIOS() ? 'On your iPhone or iPad' : 'On iPhone (Safari)'}</b>
-                <p>Tap the <b>Share</b> button, then choose <b>Add to Home Screen</b>.</p></div>
-            </div>
-            <div className="install-step">
-              <span className="ic-badge"><Icon name="download" size={20} /></span>
-              <div><b>On Android or computer (Chrome / Edge)</b>
-                <p>Open the <b>menu</b>, then tap <b>Install app</b> or <b>Add to Home screen</b>.</p></div>
-            </div>
-          </div>
-          <Button onClick={() => setHelp(false)} style={{ marginTop: 14 }}>Got it</Button>
-        </Modal>
-      )}
+      <button type="button" className={className} style={style} onClick={onClick} aria-label={label}>
+        <Icon name="download" size={iconSize} /> <span>{label}</span>
+      </button>
+      {help && <InstallHelp onClose={() => setHelp(false)} />}
     </>
+  );
+}
+
+function InstallHelp({ onClose }) {
+  const steps = {
+    ios: [
+      { icon: 'share', text: 'Tap the Share button in Safari’s toolbar.' },
+      { icon: 'plus', text: 'Choose “Add to Home Screen”.' },
+      { icon: 'check', text: 'Tap “Add” — MyDay now opens like a normal app.' },
+    ],
+    android: [
+      { icon: 'dots', text: 'Tap the menu (⋮) in your browser’s top corner.' },
+      { icon: 'download', text: 'Choose “Install app” or “Add to Home screen”.' },
+      { icon: 'check', text: 'Confirm — MyDay appears with your other apps.' },
+    ],
+    desktop: [
+      { icon: 'download', text: 'Click the install icon in the address bar (right-hand side).' },
+      { icon: 'plus', text: 'Or open the browser menu and choose “Install MyDay”.' },
+      { icon: 'check', text: 'MyDay opens in its own window, just like an app.' },
+    ],
+  }[platform()];
+
+  return (
+    <Modal title="Add MyDay to your phone" onClose={onClose}>
+      <p className="dialog-msg">MyDay installs to your home screen and opens like a real app — full-screen, faster, and no app store needed.</p>
+      <ol className="install-steps">
+        {steps.map((s, i) => (
+          <li key={i} className="install-step">
+            <span className="install-step__n">{i + 1}</span>
+            <span className="install-step__ic"><Icon name={s.icon} size={20} /></span>
+            <span>{s.text}</span>
+          </li>
+        ))}
+      </ol>
+    </Modal>
   );
 }
