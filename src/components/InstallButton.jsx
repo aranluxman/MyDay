@@ -12,24 +12,24 @@ function platform() {
   return 'desktop';
 }
 
-// A single install button that works everywhere:
-//   - Chrome / Edge / Android  -> fires the native install prompt.
-//   - iOS / anything else       -> opens clear "Add to Home Screen" steps.
+// "Download now" button that works everywhere:
+//   - Chrome / Edge / Android -> fires the native install prompt.
+//   - iOS / anything else      -> opens clear "Add to Home Screen" steps.
 // Hidden once the app is already installed (running standalone).
-export function InstallButton({ className = 'install-btn', label = 'Install app', iconSize = 18 }) {
+export function InstallButton({ className = 'install-btn', label = 'Download now', iconSize = 18, style }) {
   const { canInstall, install, installed } = useInstallPrompt();
   const [help, setHelp] = useState(false);
   if (installed) return null;
 
   function onClick() {
-    if (canInstall) install();
-    else setHelp(true);
+    if (canInstall) { install(); return; }
+    setHelp(true);
   }
 
   return (
     <>
-      <button type="button" className={className} onClick={onClick} aria-label={label}>
-        <Icon name="download" size={iconSize} /> <span>Install</span>
+      <button type="button" className={className} style={style} onClick={onClick} aria-label={label}>
+        <Icon name="download" size={iconSize} /> <span>{label}</span>
       </button>
       {help && <InstallHelp onClose={() => setHelp(false)} />}
     </>
@@ -37,7 +37,6 @@ export function InstallButton({ className = 'install-btn', label = 'Install app'
 }
 
 function InstallHelp({ onClose }) {
-  const p = platform();
   const steps = {
     ios: [
       { icon: 'share', text: 'Tap the Share button in Safari’s toolbar.' },
@@ -54,11 +53,11 @@ function InstallHelp({ onClose }) {
       { icon: 'plus', text: 'Or open the browser menu and choose “Install MyDay”.' },
       { icon: 'check', text: 'MyDay opens in its own window, just like an app.' },
     ],
-  }[p];
+  }[platform()];
 
   return (
-    <Modal title="Install MyDay" onClose={onClose}>
-      <p className="dialog-msg">Add MyDay to your device so it opens full-screen, loads faster, and works offline.</p>
+    <Modal title="Add MyDay to your phone" onClose={onClose}>
+      <p className="dialog-msg">MyDay installs to your home screen and opens like a real app — full-screen, faster, and no app store needed.</p>
       <ol className="install-steps">
         {steps.map((s, i) => (
           <li key={i} className="install-step">
