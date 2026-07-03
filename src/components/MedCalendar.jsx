@@ -2,20 +2,26 @@ import { useMemo, useState } from 'react';
 import { Icon } from './Icon.jsx';
 import { Spinner } from './ui.jsx';
 import { useAsync } from '../hooks/useAsync.js';
+import { useSettings } from '../context/SettingsContext.jsx';
 import { dosesInRange } from '../lib/db.js';
 import { localDateStr, deviceTimezone, prettyDate } from '../lib/format.js';
 
-const WD = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+const WD_SUN = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+const WD_MON = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
+// Word marks inside each day so status never relies on colour alone.
+const MARK = { taken: '✓', pending: '•', missed: '!' };
 const pad = (n) => String(n).padStart(2, '0');
 const iso = (y, m, d) => `${y}-${pad(m + 1)}-${pad(d)}`;
 
 export function MedCalendar({ selected, onPick }) {
+  const { settings } = useSettings();
   const today = localDateStr(deviceTimezone());
   const [cursor, setCursor] = useState(() => { const d = new Date(); return { y: d.getFullYear(), m: d.getMonth() }; });
 
   const first = new Date(cursor.y, cursor.m, 1);
   const daysInMonth = new Date(cursor.y, cursor.m + 1, 0).getDate();
-  const startWd = first.getDay();
+  const mondayFirst = settings.weekStart === 'mon';
+  const startWd = (first.getDay() + (mondayFirst ? 6 : 0)) % 7;
   const fromIso = iso(cursor.y, cursor.m, 1);
   const toIso = iso(cursor.y, cursor.m, daysInMonth);
 
@@ -36,6 +42,12 @@ export function MedCalendar({ selected, onPick }) {
       return { y: d.getFullYear(), m: d.getMonth() };
     });
   }
+  const now = new Date();
+  const onThisMonth = cursor.y === now.getFullYear() && cursor.m === now.getMonth();
+  function goToday() {
+    setCursor({ y: now.getFullYear(), m: now.getMonth() });
+    onPick(today);
+  }
 
   const cells = [];
   for (let i = 0; i < startWd; i++) cells.push(null);
@@ -46,11 +58,11 @@ export function MedCalendar({ selected, onPick }) {
   return (
     <div className="cal">
       <div className="cal__head">
-        <button className="icon-btn" aria-label="Previous month" onClick={() => shift(-1)}><Icon name="back" size={22} /></button>
-        <span className="cal__title">{monthLabel}</span>
-        <button className="icon-btn" aria-label="Next month" onClick={() => shift(1)}><Icon name="chevron" size={22} /></button>
+        <button className="cal__nav" aria-label="Previous month" onClick={() => shift(-1)}><Icon name="back" size={24} /></button>
+        <span className="cal__title" aria-live="polite">{monthLabel}</span>
+        <button className="cal__nav" aria-label="Next month" onClick={() => shift(1)}><Icon name="chevron" size={24} /></button>
       </div>
-      <div className="cal__weekdays">{WD.map((w, i) => <span key={i}>{w}</span>)}</div>
+      <div className="cal__weekdays">{(mondayFirst ? WD_MON : WD_SUN).map((w, i) => <span key={i}>{w}</span>)}</div>
       {loading ? <Spinner label="" /> : (
         <div className="cal__grid">
           {cells.map((day, i) => {
@@ -58,22 +70,23 @@ export function MedCalendar({ selected, onPick }) {
             const dStr = iso(cursor.y, cursor.m, day);
             const agg = byDate[dStr];
             const status = !agg ? 'none' : agg.missed ? 'missed' : agg.pending ? 'pending' : 'taken';
-            const cls = `cal__cell${dStr === today ? ' is-today' : ''}${dStr === selected ? ' is-selected' : ''}`;
+            const cls = `cal__cell${status !== 'none' ? ` cal__cell--${status}` : ''}${dStr === today ? ' is-today' : ''}${dStr === selected ? ' is-selected' : ''}`;
             const label = `${prettyDate(dStr)}${agg ? `: ${agg.taken} taken, ${agg.pending} to take, ${agg.missed} missed` : ': no doses'}`;
             return (
               <button key={i} className={cls} onClick={() => onPick(dStr)} aria-label={label}
                 aria-current={dStr === today ? 'date' : undefined}>
                 <span className="cal__day">{day}</span>
-                <span className={`cal__dot cal__dot--${status}`} />
+                <span className={`cal__mark cal__mark--${status}`} aria-hidden="true">{MARK[status] || ''}</span>
               </button>
             );
           })}
         </div>
       )}
+      {!onThisMonth && <button className="cal__today-btn" onClick={goToday}>Back to today</button>}
       <div className="cal__legend">
-        <span><i className="cal__dot cal__dot--taken" /> Taken</span>
-        <span><i className="cal__dot cal__dot--pending" /> To take</span>
-        <span><i className="cal__dot cal__dot--missed" /> Missed</span>
+        <span className="lg--taken">✓ Taken</span>
+        <span className="lg--pending">• To take</span>
+        <span className="lg--missed">! Missed</span>
       </div>
     </div>
   );

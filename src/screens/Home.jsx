@@ -4,6 +4,8 @@ import { useUI } from '../context/UIContext.jsx';
 import { useAsync } from '../hooks/useAsync.js';
 import { Card, Button, Avatar, Skeleton, SkeletonCard } from '../components/ui.jsx';
 import { Icon } from '../components/Icon.jsx';
+import { MedCalendar } from '../components/MedCalendar.jsx';
+import { useSettings } from '../context/SettingsContext.jsx';
 import { todaysDoses, upcomingAppointments, playedTodayCount, markDoseTaken } from '../lib/db.js';
 import { prettyTime, prettyDate, localDateStr } from '../lib/format.js';
 import { profileCompleteness } from '../lib/appearance.js';
@@ -11,6 +13,7 @@ import { profileCompleteness } from '../lib/appearance.js';
 export default function Home() {
   const { profile } = useApp();
   const ui = useUI();
+  const { settings } = useSettings();
   const navigate = useNavigate();
   const { data, loading, error, reload } = useAsync(async () => {
     const [doses, appts, games] = await Promise.all([todaysDoses(), upcomingAppointments(), playedTodayCount()]);
@@ -93,14 +96,22 @@ export default function Home() {
         )}
       </Card>
 
+      {settings.homeCalendar && (
+        <section aria-label="Medicine calendar for this month">
+          <h3 className="subsection" style={{ margin: '0 0 8px' }}>Your month at a glance</h3>
+          <MedCalendar selected={null}
+            onPick={(day) => navigate('/medication', { state: { view: 'calendar', day } })} />
+        </section>
+      )}
+
       <div className="quick-grid">
         <QuickCard icon="pill" title="Medicines" sub={pending ? `${pending} to take` : total ? 'All done today' : 'Add your medicines'} onClick={() => navigate('/medication')} />
         <QuickCard icon="calendar" title="Appointments" sub={appts.length ? `Next ${prettyDate(appts[0].appt_date)}` : 'None upcoming'} onClick={() => navigate('/appointments')} />
         <QuickCard icon="pulse" title="Health notes" sub="Track symptoms & health events" onClick={() => navigate('/updates')} />
-        <QuickCard icon="brain" title="Brain Games" sub={games ? 'Play anytime' : 'A good time to play'} onClick={() => navigate('/games')} />
+        {settings.homeGames && <QuickCard icon="brain" title="Brain Games" sub={games ? 'Play anytime' : 'A good time to play'} onClick={() => navigate('/games')} />}
       </div>
 
-      {games === 0 && (
+      {settings.homeGames && games === 0 && (
         <Card className="nudge" onClick={() => navigate('/games')}>
           <Icon name="brain" size={28} />
           <span>You have not played a brain game today. A quick game keeps the mind sharp.</span>

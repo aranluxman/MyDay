@@ -83,6 +83,17 @@ export function Avatar({ name, color = '#2563a8', size = 44, src }) {
   );
 }
 
+// Large on/off switch with an On/Off word inside, so state is readable
+// without relying on colour alone.
+export function Toggle({ checked, onChange, label }) {
+  return (
+    <button type="button" role="switch" aria-checked={checked} aria-label={label}
+      className="switch" onClick={() => onChange(!checked)}>
+      <span className="switch__label" aria-hidden="true">{checked ? 'On' : 'Off'}</span>
+    </button>
+  );
+}
+
 export function SegmentedControl({ options, value, onChange }) {
   return (
     <div className="segmented" role="tablist">

@@ -15,15 +15,21 @@ const COLORS = ['#2563a8', '#1e7a3d', '#b3261e', '#8a5a00', '#6d28d9', '#0e7490'
 export default function Medication() {
   const ui = useUI();
   const location = useLocation();
-  const [view, setView] = useState('today');
+  // Home's calendar links here with { view: 'calendar', day } to open a day's history.
+  const [view, setView] = useState(() => location.state?.view || 'today');
   const [editing, setEditing] = useState(null);
-  const [selectedDay, setSelectedDay] = useState(localDateStr());
+  const [selectedDay, setSelectedDay] = useState(() => location.state?.day || localDateStr());
 
   const meds = useAsync(() => listMedications(), []);
   const today = useAsync(() => todaysDoses(), []);
 
   useEffect(() => {
     if (location.state?.add === 'med') { setView('medicines'); setEditing({}); window.history.replaceState({}, ''); }
+    else if (location.state?.view) {
+      setView(location.state.view);
+      if (location.state.day) setSelectedDay(location.state.day);
+      window.history.replaceState({}, '');
+    }
   }, [location.key]);
 
   function reloadAll() { meds.reload(); today.reload(); }

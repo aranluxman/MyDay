@@ -3,7 +3,8 @@ import { useLocation } from 'react-router-dom';
 import { useApp } from '../context/AppContext.jsx';
 import { useUI } from '../context/UIContext.jsx';
 import { useAsync } from '../hooks/useAsync.js';
-import { Card, Button, Spinner, Modal, Field, Input, Textarea, EmptyState, SegmentedControl, Avatar } from '../components/ui.jsx';
+import { Card, Button, Spinner, Modal, Field, Input, Textarea, EmptyState, SegmentedControl, Avatar, Toggle } from '../components/ui.jsx';
+import { useSettings } from '../context/SettingsContext.jsx';
 import { Icon } from '../components/Icon.jsx';
 import { listContacts, saveContact, deleteContact, listFamilyDevices, saveFamilyDevice, uploadAvatar } from '../lib/db.js';
 import { supabase } from '../lib/supabase.js';
@@ -40,6 +41,7 @@ const ALERT_WINDOWS = [
 
 export default function Profile() {
   const { user, profile, theme, setTheme, textSize, setTextSize, signOut, updateProfile, reloadProfile } = useApp();
+  const { settings, set: setSetting } = useSettings();
   const ui = useUI();
   const location = useLocation();
   const fileRef = useRef(null);
@@ -214,6 +216,35 @@ export default function Profile() {
         <p className="size-preview">Sample: today's medicine is ready.</p>
       </Card>
 
+      {/* easy-use settings */}
+      <Card>
+        <SectionTitle icon="star" title="Make it easier to use" />
+        <p className="muted" style={{ margin: '0 0 4px' }}>Little helpers you can switch on any time — they apply straight away.</p>
+        <SettingRow icon="edit" title="Bold text" desc="Thicker letters that are easier to read.">
+          <Toggle checked={settings.bold} onChange={(v) => setSetting({ bold: v })} label="Bold text" />
+        </SettingRow>
+        <SettingRow icon="plus" title="Bigger buttons" desc="Larger tap targets for steadier pressing.">
+          <Toggle checked={settings.bigButtons} onChange={(v) => setSetting({ bigButtons: v })} label="Bigger buttons" />
+        </SettingRow>
+        <SettingRow icon="sun" title="Calm screen" desc="Turns off moving animations.">
+          <Toggle checked={settings.calmMotion} onChange={(v) => setSetting({ calmMotion: v })} label="Calm screen" />
+        </SettingRow>
+        <SettingRow icon="clock" title="Time format" desc="How times are shown, like 2:30 PM or 14:30." stacked>
+          <SegmentedControl value={settings.clock} onChange={(v) => setSetting({ clock: v })}
+            options={[{ value: '12', label: '2:30 PM' }, { value: '24', label: '14:30' }]} />
+        </SettingRow>
+        <SettingRow icon="calendar" title="Week starts on" desc="First day shown in calendars." stacked>
+          <SegmentedControl value={settings.weekStart} onChange={(v) => setSetting({ weekStart: v })}
+            options={[{ value: 'sun', label: 'Sunday' }, { value: 'mon', label: 'Monday' }]} />
+        </SettingRow>
+        <SettingRow icon="calendar" title="Calendar on Home" desc="Show this month's medicine calendar on the Home screen.">
+          <Toggle checked={settings.homeCalendar} onChange={(v) => setSetting({ homeCalendar: v })} label="Calendar on Home" />
+        </SettingRow>
+        <SettingRow icon="brain" title="Brain games on Home" desc="Show the games card and daily reminder.">
+          <Toggle checked={settings.homeGames} onChange={(v) => setSetting({ homeGames: v })} label="Brain games on Home" />
+        </SettingRow>
+      </Card>
+
       {/* alerts */}
       <Card>
         <SectionTitle icon="bell" title="Missed-dose alerts" />
@@ -250,6 +281,21 @@ export default function Profile() {
         onSaved={async (patch) => { await updateProfile(patch); await reloadProfile(); setEditProfile(false); ui.toast('Saved.'); }} />}
       {editContact && <ContactForm contact={editContact.id ? editContact : null} onClose={() => setEditContact(null)}
         onSaved={() => { setEditContact(null); contacts.reload(); }} />}
+    </div>
+  );
+}
+
+// One settings line: icon, name + plain-words description, and the control
+// (a switch on the right, or a full-width segmented picker underneath).
+function SettingRow({ icon, title, desc, children, stacked }) {
+  return (
+    <div className={`setting-row${stacked ? ' setting-row--stack' : ''}`}>
+      <span className="setting-row__ic"><Icon name={icon} size={22} /></span>
+      <div className="setting-row__main">
+        <div className="setting-row__t">{title}</div>
+        {desc && <div className="setting-row__d">{desc}</div>}
+      </div>
+      {stacked ? <div className="setting-row__ctl">{children}</div> : children}
     </div>
   );
 }
