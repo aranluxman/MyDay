@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext.jsx';
 import { UIProvider } from './context/UIContext.jsx';
+import { SettingsProvider } from './context/SettingsContext.jsx';
 import { AppShell } from './components/AppShell.jsx';
 import { PageSkeleton } from './components/ui.jsx';
 
@@ -57,9 +58,11 @@ function LazyScreen({ children }) {
 export default function App() {
   return (
     <AppProvider>
-      <UIProvider>
-        <Root />
-      </UIProvider>
+      <SettingsProvider>
+        <UIProvider>
+          <Root />
+        </UIProvider>
+      </SettingsProvider>
     </AppProvider>
   );
 }
