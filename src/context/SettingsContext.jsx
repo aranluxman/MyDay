@@ -7,6 +7,7 @@ export const SETTINGS_DEFAULTS = {
   bold: false,          // thicker text everywhere
   bigButtons: false,    // taller tap targets
   calmMotion: false,    // no animations
+  highContrast: false,  // stronger text/borders on top of any theme
   clock: '12',          // '12' | '24' hour times
   weekStart: 'sun',     // 'sun' | 'mon' calendar week start
   homeCalendar: true,   // show the month calendar on the Home screen
@@ -31,6 +32,7 @@ export function SettingsProvider({ children }) {
     el.setAttribute('data-bold', settings.bold ? '1' : '0');
     el.setAttribute('data-buttons', settings.bigButtons ? 'large' : 'normal');
     el.setAttribute('data-motion', settings.calmMotion ? 'calm' : 'full');
+    el.setAttribute('data-contrast', settings.highContrast ? '1' : '0');
     setClockPreference(settings.clock);
   }, [settings]);
 

@@ -36,6 +36,31 @@ export function EmptyState({ icon, title, children, action }) {
   );
 }
 
+// Big friendly empty state in a card: illustration circle, title, text, action.
+export function HeroEmpty({ icon, title, children, action }) {
+  return (
+    <div className="card hero-empty">
+      <div className="hero-empty__art"><Icon name={icon} size={52} stroke={1.8} /></div>
+      <h3 className="hero-empty__title">{title}</h3>
+      {children && <p className="hero-empty__text">{children}</p>}
+      {action}
+    </div>
+  );
+}
+
+// Soft callout with a lightbulb-style icon ("Quick tip").
+export function TipCard({ title = 'Quick tip', children }) {
+  return (
+    <div className="tip-card">
+      <span className="tip-card__ic"><Icon name="sparkle" size={22} /></span>
+      <div>
+        <div className="tip-card__t">{title}</div>
+        <p className="tip-card__d">{children}</p>
+      </div>
+    </div>
+  );
+}
+
 // ---- Skeleton loaders (content placeholders shown instead of a blocking spinner) ----
 export function Skeleton({ h = 16, w = '100%', r = 8, style }) {
   return <span className="skeleton" style={{ height: h, width: w, borderRadius: r, ...style }} aria-hidden="true" />;

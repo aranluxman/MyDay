@@ -34,6 +34,7 @@ export default function Home() {
   const pct = total ? Math.round((taken / total) * 100) : 0;
   const firstName = (profile?.full_name || 'there').split(' ')[0];
   const greeting = greetingFor();
+  const completeness = profileCompleteness(profile);
 
   async function done(id) {
     try { await markDoseTaken(id); ui.toast('Great - marked as taken.'); reload(); }
@@ -44,8 +45,7 @@ export default function Home() {
     <div className="stack">
       <div className="hello">
         <div>
-          <p className="hello__greet">{greeting},</p>
-          <h2 className="hello__name">{firstName}</h2>
+          <h2 className="hello__name">{greeting}, {firstName}!<span className="hello__wave" aria-hidden="true">👋</span></h2>
           <p className="hello__date">{prettyDate(localDateStr())}</p>
         </div>
         <button className="hello__avatar" onClick={() => navigate('/profile')} aria-label="Profile">
@@ -53,11 +53,17 @@ export default function Home() {
         </button>
       </div>
 
-      {profileCompleteness(profile).pct < 100 && (
-        <Card className="nudge" onClick={() => navigate('/profile')}>
-          <Icon name="user" size={26} />
-          <span>Your profile is {profileCompleteness(profile).pct}% complete — tap to finish it.</span>
-          <Icon name="chevron" size={24} />
+      {completeness.pct < 100 && (
+        <Card onClick={() => navigate('/profile')} role="button" tabIndex={0} aria-label={`Profile progress ${completeness.pct} percent — open profile`}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate('/profile'); } }}>
+          <div className="progress-card">
+            <div className="progress-card__ring" style={{ '--p': completeness.pct }}><b>{completeness.pct}%</b></div>
+            <div className="progress-card__main">
+              <div className="progress-card__t">Profile progress</div>
+              <div className="progress-card__d">Keep going! Complete your profile to get the most from MyDay.</div>
+            </div>
+            <Icon name="chevron" size={24} />
+          </div>
         </Card>
       )}
 
@@ -70,46 +76,65 @@ export default function Home() {
         </Card>
       )}
 
-      <Card className="status">
-        <div className="status__head">
-          <span>Today's medicines</span>
-          {total > 0 && <span className="status__count">{taken} of {total} taken</span>}
-        </div>
-        {total === 0 ? (
-          <button className="status__empty" onClick={() => navigate('/medication', { state: { add: 'med' } })}>
-            <span className="status__empty-ic"><Icon name="pill" size={26} /></span>
-            <span>
-              <b>No medicines set up yet.</b>
-              <small>Tap to add your first medicine or vitamin.</small>
-            </span>
-            <Icon name="plus" size={24} />
-          </button>
-        ) : (
-          <>
-            <div className="bar"><div className="bar__fill" style={{ width: `${pct}%` }} /></div>
-            <div className="status__row">
-              <Stat kind="taken" n={taken} label="Taken" />
-              <Stat kind="missed" n={missed} label="Missed" />
-              <Stat kind="pending" n={pending} label="To take" />
+      {total === 0 ? (
+        <Card>
+          <div className="row-card">
+            <span className="row-card__ic"><Icon name="pill" size={24} /></span>
+            <div className="row-card__main">
+              <div className="row-card__t">Today's medicines</div>
+              <div className="row-card__d">No medicines scheduled. Tap to add your first medicine.</div>
             </div>
-          </>
-        )}
-      </Card>
+            <button className="row-card__add" aria-label="Add a medicine"
+              onClick={() => navigate('/medication', { state: { add: 'med' } })}>
+              <Icon name="plus" size={24} stroke={2.5} />
+            </button>
+          </div>
+        </Card>
+      ) : (
+        <Card className="status">
+          <div className="status__head">
+            <span>Today's medicines</span>
+            <span className="status__count">{taken} of {total} taken</span>
+          </div>
+          <div className="bar"><div className="bar__fill" style={{ width: `${pct}%` }} /></div>
+          <div className="status__row">
+            <Stat kind="taken" n={taken} label="Taken" />
+            <Stat kind="missed" n={missed} label="Missed" />
+            <Stat kind="pending" n={pending} label="To take" />
+          </div>
+        </Card>
+      )}
+
+      <section aria-label="Today at a glance">
+        <h3 className="subsection" style={{ margin: '0 0 8px' }}>Today at a glance</h3>
+        <div className="glance">
+          <button className="glance__chip" onClick={() => navigate('/medication')}>
+            <span className="glance__ic glance__ic--good"><Icon name="pill" size={22} /></span>
+            <span className="glance__n">{taken} / {total}</span>
+            <span className="glance__l">Medicines</span>
+          </button>
+          <button className="glance__chip" onClick={() => navigate('/appointments')}>
+            <span className="glance__ic glance__ic--primary"><Icon name="calendar" size={22} /></span>
+            <span className="glance__n">{appts.length}</span>
+            <span className="glance__l">Appointments</span>
+          </button>
+          {settings.homeGames && (
+            <button className="glance__chip" onClick={() => navigate('/games')}>
+              <span className="glance__ic glance__ic--violet"><Icon name="brain" size={22} /></span>
+              <span className="glance__n">{games}</span>
+              <span className="glance__l">Brain Games</span>
+            </button>
+          )}
+        </div>
+      </section>
 
       {settings.homeCalendar && (
         <section aria-label="Medicine calendar for this month">
-          <h3 className="subsection" style={{ margin: '0 0 8px' }}>Your month at a glance</h3>
+          <h3 className="subsection" style={{ margin: '0 0 8px' }}>Calendar</h3>
           <MedCalendar selected={null}
             onPick={(day) => navigate('/medication', { state: { view: 'calendar', day } })} />
         </section>
       )}
-
-      <div className="quick-grid">
-        <QuickCard icon="pill" title="Medicines" sub={pending ? `${pending} to take` : total ? 'All done today' : 'Add your medicines'} onClick={() => navigate('/medication')} />
-        <QuickCard icon="calendar" title="Appointments" sub={appts.length ? `Next ${prettyDate(appts[0].appt_date)}` : 'None upcoming'} onClick={() => navigate('/appointments')} />
-        <QuickCard icon="pulse" title="Health notes" sub="Track symptoms & health events" onClick={() => navigate('/updates')} />
-        {settings.homeGames && <QuickCard icon="brain" title="Brain Games" sub={games ? 'Play anytime' : 'A good time to play'} onClick={() => navigate('/games')} />}
-      </div>
 
       {settings.homeGames && games === 0 && (
         <Card className="nudge" onClick={() => navigate('/games')}>
@@ -122,21 +147,20 @@ export default function Home() {
   );
 }
 
-// Skeleton that mirrors the Home layout (greeting, status card, quick grid).
+// Skeleton that mirrors the Home layout (greeting, cards, glance chips).
 function HomeSkeleton() {
   return (
     <div className="stack" role="status" aria-label="Loading your day">
       <div className="hello">
         <div style={{ flex: 1 }}>
-          <Skeleton h={16} w="30%" />
-          <Skeleton h={28} w="55%" style={{ marginTop: 8 }} />
+          <Skeleton h={28} w="55%" />
           <Skeleton h={14} w="45%" style={{ marginTop: 8 }} />
         </div>
         <Skeleton h={52} w={52} r={26} />
       </div>
-      <SkeletonCard lines={3} />
-      <div className="quick-grid">
-        {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} h={120} r={18} />)}
+      <SkeletonCard lines={2} />
+      <div className="glance">
+        {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} h={110} r={18} />)}
       </div>
       <span className="sr-only">Loading…</span>
     </div>
@@ -144,15 +168,6 @@ function HomeSkeleton() {
 }
 function Stat({ kind, n, label }) {
   return <div className={`stat stat--${kind}`}><div className="stat__num">{n}</div><div className="stat__label">{label}</div></div>;
-}
-function QuickCard({ icon, title, sub, onClick, accent }) {
-  return (
-    <button className={`quick${accent ? ' quick--accent' : ''}`} onClick={onClick}>
-      <span className="quick__icon"><Icon name={icon} size={26} /></span>
-      <span className="quick__title">{title}</span>
-      <span className="quick__sub">{sub}</span>
-    </button>
-  );
 }
 function greetingFor() {
   const h = new Date().getHours();
