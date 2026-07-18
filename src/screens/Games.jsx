@@ -19,6 +19,17 @@ const CHEERS = ['Great job!', 'Well done!', 'Nicely done!', 'You got it!', "That
 const cheer = () => CHEERS[Math.floor(Math.random() * CHEERS.length)];
 const GAMES = ['match_pairs', 'word_puzzle', 'number_pattern', 'quick_math', 'odd_one_out', 'orientation'];
 const GAME_ICONS = { match_pairs: 'brain', word_puzzle: 'notes', number_pattern: 'pulse', quick_math: 'plus', odd_one_out: 'eye', orientation: 'calendar' };
+const GAME_COLORS = { match_pairs: 'teal', word_puzzle: 'violet', number_pattern: 'orange', quick_math: '', odd_one_out: 'pink', orientation: 'green' };
+
+// Consecutive days (ending today or yesterday) with at least one game played.
+function streakFromResults(results) {
+  const days = new Set(results.map((r) => new Date(r.played_at).toDateString()));
+  let streak = 0;
+  const d = new Date();
+  if (!days.has(d.toDateString())) d.setDate(d.getDate() - 1); // streak survives until today is missed
+  while (days.has(d.toDateString())) { streak++; d.setDate(d.getDate() - 1); }
+  return streak;
+}
 
 export default function Games() {
   const navigate = useNavigate();
@@ -40,20 +51,55 @@ export default function Games() {
 }
 
 function Menu({ onPick, onProgress, onHome }) {
+  const { data: results } = useAsync(() => recentResults(200), []);
+  const played = results?.length ?? 0;
+  const streak = results ? streakFromResults(results) : 0;
+  const best = results?.length
+    ? Math.max(...results.map((r) => (r.max_score ? Math.round((100 * r.score) / r.max_score) : 0)))
+    : 0;
+
   return (
     <div className="stack">
-      <h2 className="section">Brain Games</h2>
-      <p className="muted">Pick a game and a level. Play as much as you like.</p>
+      <div className="games-head">
+        <h2 className="section" style={{ fontSize: 23 }}>Challenge your mind <span aria-hidden="true">🧠</span></h2>
+        {streak > 0 && <span className="streak-badge"><span aria-hidden="true">🔥</span> {streak} day streak</span>}
+      </div>
+      <p className="muted" style={{ margin: 0 }}>Play daily to keep your brain sharp and build your streak.</p>
       <div className="game-grid">
         {GAMES.map((g) => (
-          <button key={g} className="game-card" onClick={() => onPick(g)}>
-            <span className="game-card__icon"><Icon name={GAME_ICONS[g] || 'brain'} size={28} /></span>
+          <div key={g} className="game-card" role="button" tabIndex={0} aria-label={`Play ${GAME_NAMES[g]}`}
+            onClick={() => onPick(g)}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onPick(g); } }}>
+            <span className={`game-card__icon${GAME_COLORS[g] ? ` game-card__icon--${GAME_COLORS[g]}` : ''}`}>
+              <Icon name={GAME_ICONS[g] || 'brain'} size={28} />
+            </span>
             <span className="game-card__title">{GAME_NAMES[g]}</span>
             <span className="game-card__sub">{GAME_SUB[g]}</span>
-          </button>
+            <span className="game-card__play" aria-hidden="true">Play</span>
+          </div>
         ))}
       </div>
-      <Button variant="ghost" icon="pulse" onClick={onProgress}>See your progress</Button>
+      <div className="section-head">
+        <h3>Your progress</h3>
+        <button className="section-head__link" onClick={onProgress}>See all</button>
+      </div>
+      <div className="stat-tiles">
+        <div className="stat-tile">
+          <span className="stat-tile__ic stat-tile__ic--orange"><Icon name="star" size={20} /></span>
+          <span className="stat-tile__n">{played}</span>
+          <span className="stat-tile__l">Games played</span>
+        </div>
+        <div className="stat-tile">
+          <span className="stat-tile__ic stat-tile__ic--gold"><Icon name="pulse" size={20} /></span>
+          <span className="stat-tile__n">{streak} day{streak === 1 ? '' : 's'}</span>
+          <span className="stat-tile__l">Current streak</span>
+        </div>
+        <div className="stat-tile">
+          <span className="stat-tile__ic stat-tile__ic--blue"><Icon name="sparkle" size={20} /></span>
+          <span className="stat-tile__n">{best}%</span>
+          <span className="stat-tile__l">Best score</span>
+        </div>
+      </div>
       <Button variant="ghost" icon="home" onClick={onHome}>Back to home</Button>
     </div>
   );

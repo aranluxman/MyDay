@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext.jsx';
 import { useUI } from '../context/UIContext.jsx';
 import { useAsync } from '../hooks/useAsync.js';
@@ -44,10 +44,12 @@ export default function Profile() {
   const { settings, set: setSetting } = useSettings();
   const ui = useUI();
   const location = useLocation();
+  const navigate = useNavigate();
   const fileRef = useRef(null);
   const [uploading, setUploading] = useState(false);
   const [editProfile, setEditProfile] = useState(false);
   const [editContact, setEditContact] = useState(null);
+  const [aboutOpen, setAboutOpen] = useState(false);
   const [savingWindow, setSavingWindow] = useState(false);
   const completeness = profileCompleteness(profile);
   const alertWindow = profile?.alert_window_minutes ?? 60;
@@ -113,28 +115,32 @@ export default function Profile() {
 
   return (
     <div className="stack">
-      {/* identity */}
-      <Card className="profile-head">
-        <div className="avatar-edit">
-          <Avatar name={profile?.full_name} color={profile?.avatar_color} size={72} src={profile?.avatar_url} />
-          <button className="avatar-edit__btn" aria-label="Change profile photo" disabled={uploading} onClick={() => fileRef.current?.click()}>
-            <Icon name={uploading ? 'clock' : 'plus'} size={16} />
+      {/* identity — tap to view and edit your details */}
+      <Card>
+        <div className="account-card">
+          <div className="avatar-edit">
+            <Avatar name={profile?.full_name} color={profile?.avatar_color} size={64} src={profile?.avatar_url} />
+            <button className="avatar-edit__btn" aria-label="Change profile photo" disabled={uploading} onClick={() => fileRef.current?.click()}>
+              <Icon name={uploading ? 'clock' : 'plus'} size={16} />
+            </button>
+            <input ref={fileRef} type="file" accept="image/*" hidden onChange={onPickPhoto} />
+          </div>
+          <button className="account-card__main" style={{ background: 'none', border: 0, padding: 0, cursor: 'pointer', textAlign: 'left', color: 'inherit', font: 'inherit' }}
+            onClick={() => setEditProfile(true)}>
+            <div className="account-card__name">{profile?.full_name || 'Your profile'}</div>
+            <div className="account-card__sub">{age != null ? `${age} years old — tap to view and edit` : 'View and manage your profile'}</div>
           </button>
-          <input ref={fileRef} type="file" accept="image/*" hidden onChange={onPickPhoto} />
-        </div>
-        <div>
-          <div className="profile-head__name">{profile?.full_name || 'Your profile'}</div>
-          {age != null && <div className="muted">{age} years old</div>}
+          <Icon name="chevron" size={24} />
         </div>
       </Card>
 
       {completeness.pct < 100 && (
         <Card>
-          <div className="complete">
-            <div className="complete__ring" style={{ '--p': completeness.pct }}><b>{completeness.pct}%</b></div>
-            <div>
-              <div className="complete__t">Your profile is {completeness.pct}% complete</div>
-              <div className="muted">Finish these to get the most from MyDay:</div>
+          <div className="progress-card">
+            <div className="progress-card__ring" style={{ '--p': completeness.pct }}><b>{completeness.pct}%</b></div>
+            <div className="progress-card__main">
+              <div className="progress-card__t">Profile progress</div>
+              <div className="progress-card__d">You're making progress! Complete your profile to personalise your experience.</div>
             </div>
           </div>
           <ul className="checklist">
@@ -151,17 +157,16 @@ export default function Profile() {
         </Card>
       )}
 
-      {/* about me — the whole card is tap-to-edit */}
-      <Card className="card--tap about-card" onClick={() => setEditProfile(true)} role="button" tabIndex={0}
-        aria-label="Edit About me"
-        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setEditProfile(true); } }}>
-        <SectionTitle icon="user" title="About me"
-          action={<Button variant="ghost" size="sm" full={false} icon="edit" onClick={(e) => { e.stopPropagation(); setEditProfile(true); }}>Edit</Button>} />
-        <InfoRow label="Name" value={profile?.full_name} />
-        <InfoRow label="Birthday" value={profile?.birthday} />
-        <InfoRow label="Age" value={age != null ? String(age) : ''} />
-        <InfoRow label="Medications & supplements" value={profile?.on_treatment} />
-        <InfoRow label="What I'm working toward" value={profile?.goal} />
+      {/* my details — menu rows in the style of the reference design */}
+      <Card>
+        <div className="menu-list">
+          <MenuRow icon="user" title="Personal information" desc="Your name, birthday, sex and more" onClick={() => setEditProfile(true)} />
+          <MenuRow icon="cross" title="Health information" desc="Medications, supplements and conditions" onClick={() => setEditProfile(true)} />
+          <MenuRow icon="pill" title="My medicines" desc="Manage your medicines and times" onClick={() => navigate('/medication', { state: { view: 'medicines' } })} />
+          <MenuRow icon="star" title="Health goals" desc="Set and track what you're working toward" onClick={() => setEditProfile(true)} />
+          <MenuRow icon="brain" title="Brain Games" desc="Play games and see your progress" onClick={() => navigate('/games')} />
+          <MenuRow icon="shield" title="About MyDay" desc="Learn more about the app" onClick={() => setAboutOpen(true)} />
+        </div>
       </Card>
 
       {/* contacts — vertical list, never scrolls sideways */}
@@ -211,24 +216,33 @@ export default function Profile() {
             </button>
           ))}
         </div>
-        <p className="muted" style={{ margin: '18px 0 8px' }}>Display size</p>
-        <SegmentedControl value={textSize} onChange={setTextSize} options={TEXT_SIZES.map((s) => ({ value: s.id, label: s.name }))} />
-        <p className="size-preview">Sample: today's medicine is ready.</p>
       </Card>
 
-      {/* easy-use settings */}
+      {/* accessibility — bigger text, more contrast, easier reading */}
       <Card>
-        <SectionTitle icon="star" title="Make it easier to use" />
-        <p className="muted" style={{ margin: '0 0 4px' }}>Little helpers you can switch on any time — they apply straight away.</p>
+        <SectionTitle icon="eye" title="Accessibility" />
+        <p className="muted" style={{ margin: '0 0 4px' }}>Make MyDay easier to see and use — changes apply straight away.</p>
+        <SettingRow icon="notes" title="Text size" desc="Make everything on screen bigger." stacked>
+          <SegmentedControl value={textSize} onChange={setTextSize} options={TEXT_SIZES.map((s) => ({ value: s.id, label: s.name }))} />
+          <p className="size-preview">Sample: today's medicine is ready.</p>
+        </SettingRow>
+        <SettingRow icon="sun" title="More contrast" desc="Stronger text and outlines, in any theme.">
+          <Toggle checked={settings.highContrast} onChange={(v) => setSetting({ highContrast: v })} label="More contrast" />
+        </SettingRow>
         <SettingRow icon="edit" title="Bold text" desc="Thicker letters that are easier to read.">
           <Toggle checked={settings.bold} onChange={(v) => setSetting({ bold: v })} label="Bold text" />
         </SettingRow>
         <SettingRow icon="plus" title="Bigger buttons" desc="Larger tap targets for steadier pressing.">
           <Toggle checked={settings.bigButtons} onChange={(v) => setSetting({ bigButtons: v })} label="Bigger buttons" />
         </SettingRow>
-        <SettingRow icon="sun" title="Calm screen" desc="Turns off moving animations.">
+        <SettingRow icon="moon" title="Calm screen" desc="Turns off moving animations.">
           <Toggle checked={settings.calmMotion} onChange={(v) => setSetting({ calmMotion: v })} label="Calm screen" />
         </SettingRow>
+      </Card>
+
+      {/* other preferences */}
+      <Card>
+        <SectionTitle icon="star" title="More options" />
         <SettingRow icon="clock" title="Time format" desc="How times are shown, like 2:30 PM or 14:30." stacked>
           <SegmentedControl value={settings.clock} onChange={(v) => setSetting({ clock: v })}
             options={[{ value: '12', label: '2:30 PM' }, { value: '24', label: '14:30' }]} />
@@ -277,6 +291,18 @@ export default function Profile() {
 
       <Button variant="danger" icon="logout" onClick={onSignOut}>Sign out</Button>
 
+      {aboutOpen && (
+        <Modal title="About MyDay" onClose={() => setAboutOpen(false)}>
+          <p className="dialog-msg">
+            MyDay helps you keep track of your medicines, appointments, and health notes — all in one
+            simple place. Play brain games to stay sharp, and let family phones receive an alert if a
+            dose is missed.
+          </p>
+          <p className="muted">Your information is private: only you and the family phones you choose can see it.</p>
+          <Button onClick={() => setAboutOpen(false)}>Close</Button>
+        </Modal>
+      )}
+
       {editProfile && <ProfileForm profile={profile} onClose={() => setEditProfile(false)}
         onSaved={async (patch) => { await updateProfile(patch); await reloadProfile(); setEditProfile(false); ui.toast('Saved.'); }} />}
       {editContact && <ContactForm contact={editContact.id ? editContact : null} onClose={() => setEditContact(null)}
@@ -308,12 +334,18 @@ function SectionTitle({ icon, title, action }) {
     </div>
   );
 }
-function InfoRow({ label, value }) {
+
+// One tappable menu row: icon tile, title + plain-words description, chevron.
+function MenuRow({ icon, title, desc, onClick }) {
   return (
-    <div className="info-row">
-      <span className="info-row__l">{label}</span>
-      <span className="info-row__v">{value || <span className="muted">Not set</span>}</span>
-    </div>
+    <button className="menu-row" onClick={onClick}>
+      <span className="menu-row__ic"><Icon name={icon} size={22} /></span>
+      <span className="menu-row__main">
+        <span className="menu-row__t">{title}</span>
+        {desc && <span className="menu-row__d" style={{ display: 'block' }}>{desc}</span>}
+      </span>
+      <Icon name="chevron" size={22} />
+    </button>
   );
 }
 

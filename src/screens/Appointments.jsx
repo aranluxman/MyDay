@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useUI } from '../context/UIContext.jsx';
 import { useAsync } from '../hooks/useAsync.js';
-import { Card, Button, Modal, Field, Input, EmptyState, SkeletonCard } from '../components/ui.jsx';
+import { Card, Button, Modal, Field, Input, HeroEmpty, SkeletonCard } from '../components/ui.jsx';
 import { Icon } from '../components/Icon.jsx';
 import { upcomingAppointments, saveAppointment, deleteAppointment } from '../lib/db.js';
 import { prettyDate, prettyTime, localDateStr } from '../lib/format.js';
@@ -28,13 +28,25 @@ export default function Appointments() {
 
   return (
     <div className="stack">
-      <h2 className="section">Upcoming appointments</h2>
       {!data.length && (
-        <EmptyState icon="calendar" title="Schedule your next doctor visit"
-          action={<Button icon="plus" full={false} onClick={() => setEditing({})}>Add an appointment</Button>}>
-          Keep your check-ups, clinic visits, and tests here so a reminder is always close at hand.
-        </EmptyState>
+        <>
+          <HeroEmpty icon="calendar" title="No appointments yet"
+            action={<Button icon="plus" onClick={() => setEditing({})}>Add an appointment</Button>}>
+            Keep your check-ups, clinic visits, and tests all in one place.
+          </HeroEmpty>
+          <div className="section-head"><h3>Upcoming</h3></div>
+          <Card>
+            <div className="row-card">
+              <span className="row-card__ic"><Icon name="clock" size={22} /></span>
+              <div className="row-card__main">
+                <div className="row-card__t">Nothing scheduled</div>
+                <div className="row-card__d">Your upcoming appointments will appear here.</div>
+              </div>
+            </div>
+          </Card>
+        </>
       )}
+      {data.length > 0 && <div className="section-head"><h3>Upcoming</h3></div>}
       {data.map((a) => {
         const when = a.appt_time ? `${prettyDate(a.appt_date)} at ${prettyTime(a.appt_time)}` : prettyDate(a.appt_date);
         return (
@@ -55,7 +67,7 @@ export default function Appointments() {
           </Card>
         );
       })}
-      <Button icon="plus" onClick={() => setEditing({})}>Add an appointment</Button>
+      {data.length > 0 && <Button icon="plus" onClick={() => setEditing({})}>Add an appointment</Button>}
       {editing && <ApptForm appt={editing.id ? editing : null} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); reload(); }} />}
     </div>
   );

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useUI } from '../context/UIContext.jsx';
 import { useAsync } from '../hooks/useAsync.js';
-import { Card, Button, Pill, Modal, Field, Input, EmptyState, SegmentedControl, SkeletonCard } from '../components/ui.jsx';
+import { Card, Button, Pill, Modal, Field, Input, EmptyState, HeroEmpty, TipCard, SegmentedControl, SkeletonCard } from '../components/ui.jsx';
 import { Icon } from '../components/Icon.jsx';
 import { MedCalendar } from '../components/MedCalendar.jsx';
 import {
@@ -75,10 +75,13 @@ function TodayView({ state, onDone, onAdd }) {
   if (error) return <Card className="center"><p className="lead">Could not load.</p><Button onClick={reload}>Try again</Button></Card>;
   if (!doses.length) {
     return (
-      <EmptyState icon="pill" title="No doses scheduled today"
-        action={<Button icon="plus" full={false} onClick={onAdd}>Add a medicine</Button>}>
-        When you add a medicine and its times, today's doses appear here so you can tick them off one tap at a time.
-      </EmptyState>
+      <div className="stack">
+        <HeroEmpty icon="pill" title="No doses scheduled today"
+          action={<Button icon="plus" onClick={onAdd}>Add a medicine</Button>}>
+          When you add a medicine and its times, today's doses will appear here.
+        </HeroEmpty>
+        <TipCard>Set reminders for your medicines so you never miss a dose.</TipCard>
+      </div>
     );
   }
   return <div className="stack">{doses.map((d) => <DoseCard key={d.id} dose={d} onDone={onDone} />)}</div>;
@@ -123,10 +126,10 @@ function MedicinesView({ state, onAdd, onEdit, onRemove }) {
   return (
     <div className="stack">
       {!meds.length && (
-        <EmptyState icon="pill" title="No medicines yet"
-          action={<Button icon="plus" full={false} onClick={onAdd}>Add your first medicine</Button>}>
+        <HeroEmpty icon="pill" title="No medicines yet"
+          action={<Button icon="plus" onClick={onAdd}>Add your first medicine</Button>}>
           Add your medicines and vitamins with the times you take them, and MyDay will remind you every day.
-        </EmptyState>
+        </HeroEmpty>
       )}
       {meds.map((m) => (
         <Card key={m.id}>

@@ -16,6 +16,7 @@ export const TEXT_SIZES = [
   { id: 'normal', name: 'Normal' },
   { id: 'large', name: 'Large' },
   { id: 'xlarge', name: 'Larger' },
+  { id: 'huge', name: 'Largest' },
 ];
 
 // Profile-completeness fields (each worth an equal share).
