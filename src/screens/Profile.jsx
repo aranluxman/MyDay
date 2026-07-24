@@ -6,7 +6,8 @@ import { useAsync } from '../hooks/useAsync.js';
 import { Card, Button, Spinner, Modal, Field, Input, Textarea, EmptyState, SegmentedControl, Avatar, Toggle } from '../components/ui.jsx';
 import { useSettings } from '../context/SettingsContext.jsx';
 import { Icon } from '../components/Icon.jsx';
-import { listContacts, saveContact, deleteContact, listFamilyDevices, saveFamilyDevice, uploadAvatar } from '../lib/db.js';
+import { listContacts, saveContact, deleteContact, listFamilyDevices, saveFamilyDevice, uploadAvatar,
+  createGuardianInvite, listGuardians, deleteGuardian, regenerateGuardianInvite, guardianInviteLink } from '../lib/db.js';
 import { supabase } from '../lib/supabase.js';
 import { pushSupported, enablePush } from '../lib/push.js';
 import { ageFromBirthday } from '../lib/format.js';
@@ -69,6 +70,11 @@ export default function Profile() {
   }
   const contacts = useAsync(() => listContacts(), []);
   const devices = useAsync(() => (pushSupported() ? listFamilyDevices() : Promise.resolve([])), []);
+  const guardians = useAsync(() => listGuardians(), []);
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [inviteName, setInviteName] = useState('');
+  const [createdInvite, setCreatedInvite] = useState(null);
+  const [busyInvite, setBusyInvite] = useState(false);
 
   useEffect(() => {
     if (location.state?.add === 'contact') { setEditContact({}); window.history.replaceState({}, ''); }
@@ -111,6 +117,41 @@ export default function Profile() {
       if (error || data?.error) throw new Error();
       ui.toast('Test alert sent.', 'info');
     } catch { ui.toast('Could not send a test alert.', 'bad'); }
+  }
+  // Share a guardian's invite link via the native share sheet, falling back to
+  // copying it to the clipboard.
+  async function shareInvite(token) {
+    const url = guardianInviteLink(token);
+    const text = `Join MyDay to get ${profile?.full_name ? `${profile.full_name}'s` : 'my'} medication alerts on your phone.`;
+    try {
+      if (navigator.share) { await navigator.share({ title: 'MyDay guardian invite', text, url }); return; }
+      await navigator.clipboard.writeText(url);
+      ui.toast('Invite link copied.');
+    } catch { /* user dismissed the share sheet — nothing to do */ }
+  }
+  async function createInvite() {
+    if (!inviteName.trim()) { ui.toast('Please enter a name.', 'bad'); return; }
+    setBusyInvite(true);
+    try {
+      const g = await createGuardianInvite(inviteName.trim());
+      setCreatedInvite(g);
+      guardians.reload();
+    } catch { ui.toast('Could not create the invite.', 'bad'); }
+    setBusyInvite(false);
+  }
+  function closeInvite() { setInviteOpen(false); setCreatedInvite(null); setInviteName(''); }
+  async function removeGuardian(g) {
+    const ok = await ui.confirm({ title: 'Remove guardian', message: `Remove ${g.name}? They will stop getting alerts.`, confirmLabel: 'Remove', danger: true });
+    if (!ok) return;
+    try { await deleteGuardian(g.id); ui.toast('Removed.', 'info'); guardians.reload(); }
+    catch { ui.toast('Could not remove.', 'bad'); }
+  }
+  async function newLink(g) {
+    try {
+      const updated = await regenerateGuardianInvite(g.id);
+      guardians.reload();
+      await shareInvite(updated.token);
+    } catch { ui.toast('Could not make a new link.', 'bad'); }
   }
 
   return (
@@ -279,6 +320,65 @@ export default function Profile() {
           </>
         ) : <p className="muted">On iPhone, add MyDay to the Home Screen first, then open it to enable alerts.</p>}
       </Card>
+
+      {/* guardians — a linked person who gets the alerts on their own phone */}
+      <Card>
+        <SectionTitle icon="user" title="Guardians" />
+        <p className="muted" style={{ margin: '0 0 12px' }}>
+          Guardians get your missed-dose alerts and a nightly summary on their own phone. Invite someone and share the
+          link — they install MyDay and turn on alerts themselves. No account needed.
+        </p>
+        {guardians.data?.length ? (
+          <div className="contact-list">
+            {guardians.data.map((g) => {
+              const active = g.status === 'active';
+              return (
+                <div key={g.id} className="contact">
+                  <span className="contact__icon"><Icon name="user" size={22} /></span>
+                  <div className="contact__main">
+                    <div className="contact__name">{g.name}</div>
+                    <div className={`contact__line ${active ? '' : 'muted'}`} style={active ? { color: 'var(--good, #2e7d32)', fontWeight: 600 } : undefined}>
+                      {active ? `Active · ${g.deviceCount} phone${g.deviceCount === 1 ? '' : 's'}` : 'Waiting to connect'}
+                    </div>
+                  </div>
+                  <div className="contact__actions">
+                    <button className="icon-btn" aria-label={`Share ${g.name}'s invite link`} onClick={() => (active ? shareInvite(g.token) : newLink(g))}><Icon name="share" size={20} /></button>
+                    <button className="icon-btn" aria-label={`Remove ${g.name}`} onClick={() => removeGuardian(g)}><Icon name="trash" size={20} /></button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : null}
+        <div style={{ height: 12 }} />
+        <Button icon="plus" onClick={() => setInviteOpen(true)}>Invite a guardian</Button>
+      </Card>
+
+      {inviteOpen && (
+        <Modal title={createdInvite ? 'Share this invite' : 'Invite a guardian'} onClose={closeInvite}>
+          {createdInvite ? (
+            <>
+              <p className="dialog-msg">
+                Send this link to {createdInvite.name}. They open it on their own phone, install MyDay, and turn on
+                alerts. The link stops working in 7 days.
+              </p>
+              <div className="input" style={{ wordBreak: 'break-all', userSelect: 'all', marginBottom: 12 }}>{guardianInviteLink(createdInvite.token)}</div>
+              <Button icon="share" onClick={() => shareInvite(createdInvite.token)}>Share the link</Button>
+              <div style={{ height: 8 }} />
+              <Button variant="ghost" onClick={closeInvite}>Done</Button>
+            </>
+          ) : (
+            <>
+              <p className="dialog-msg">Who are you inviting? You'll get a link to send them.</p>
+              <Field label="Guardian's name">
+                <Input value={inviteName} onChange={(e) => setInviteName(e.target.value)} placeholder="e.g. Sarah" autoComplete="name" />
+              </Field>
+              <div style={{ height: 8 }} />
+              <Button icon="plus" onClick={createInvite} disabled={busyInvite}>{busyInvite ? 'Creating…' : 'Create invite link'}</Button>
+            </>
+          )}
+        </Modal>
+      )}
 
       {/* privacy / storage note */}
       <Card className="storage-note">

@@ -183,3 +183,40 @@ export async function listFamilyDevices() {
   if (error) throw error;
   return data || [];
 }
+
+// ---------- guardians (a linked person on their own device) ----------
+// The patient owns these rows; a guardian registers their device via the
+// public `guardian-join` edge function using the invite token below.
+export async function createGuardianInvite(name, phone) {
+  const { data, error } = await supabase.from('myday_guardians')
+    .insert({ name, phone: phone || null })
+    .select('id,name,phone,status,token,expires_at,created_at').single();
+  if (error) throw error;
+  return data;
+}
+export async function listGuardians() {
+  const { data, error } = await supabase.from('myday_guardians')
+    .select('id,name,phone,status,token,expires_at,created_at,devices:myday_guardian_devices(count)')
+    .order('created_at');
+  if (error) throw error;
+  return (data || []).map((g) => ({ ...g, deviceCount: g.devices?.[0]?.count || 0 }));
+}
+export async function deleteGuardian(id) {
+  const { error } = await supabase.from('myday_guardians').delete().eq('id', id);
+  if (error) throw error;
+}
+// Issues a fresh token + 7-day expiry (invalidating the old link) if one leaks
+// or lapses. Keeps the guardian's current status so an active link isn't broken.
+export async function regenerateGuardianInvite(id) {
+  const token = crypto.randomUUID().replace(/-/g, '');
+  const expires_at = new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString();
+  const { data, error } = await supabase.from('myday_guardians')
+    .update({ token, expires_at }).eq('id', id)
+    .select('id,name,phone,status,token,expires_at,created_at').single();
+  if (error) throw error;
+  return data;
+}
+// The shareable link a guardian opens on their own phone.
+export function guardianInviteLink(token) {
+  return `${window.location.origin}/guardian?invite=${token}`;
+}

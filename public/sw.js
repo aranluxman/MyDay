@@ -1,7 +1,7 @@
 // MyDay service worker: offline app-shell + web-push handling.
 // Vite emits hashed asset filenames, so we cache at runtime rather than precache.
-const CACHE = 'myday-v3';
-const SHELL = ['/', '/index.html', '/manifest.webmanifest', '/icons/icon-192.png', '/icons/icon-512.png'];
+const CACHE = 'myday-v4';
+const SHELL = ['/', '/index.html', '/manifest.webmanifest', '/icons/icon-192.png', '/icons/icon-512.png', '/icons/badge-72.png'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL).catch(() => {})).then(() => self.skipWaiting()));
@@ -39,7 +39,7 @@ self.addEventListener('push', (e) => {
   e.waitUntil(self.registration.showNotification(data.title || 'MyDay', {
     body: data.body || 'A medicine may have been missed.',
     icon: '/icons/icon-192.png',
-    badge: '/icons/icon-192.png',
+    badge: '/icons/badge-72.png',
     tag: data.tag || 'myday-missed-dose',
     renotify: true,
     requireInteraction: true,

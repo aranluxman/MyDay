@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="MyDay">
+  <rect width="32" height="32" rx="7" fill="#17867e"/>
+  <path d="M8.5 16.5 L14 22 L24 10" fill="none" stroke="#ffffff" stroke-width="4"
+        stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext.jsx';
 import { UIProvider } from './context/UIContext.jsx';
 import { SettingsProvider } from './context/SettingsContext.jsx';
@@ -17,9 +17,20 @@ const Medication = lazy(() => import('./screens/Medication.jsx'));
 const Appointments = lazy(() => import('./screens/Appointments.jsx'));
 const Profile = lazy(() => import('./screens/Profile.jsx'));
 const Games = lazy(() => import('./screens/Games.jsx'));
+const GuardianJoin = lazy(() => import('./screens/GuardianJoin.jsx'));
 
 function Root() {
   const { user, loading } = useApp();
+  const { pathname } = useLocation();
+  // Public guardian invite deep link: a linked guardian (a different person, not
+  // signed in) opens this on their own phone, so it renders regardless of auth.
+  if (pathname === '/guardian') {
+    return (
+      <Suspense fallback={<div className="content"><PageSkeleton /></div>}>
+        <GuardianJoin />
+      </Suspense>
+    );
+  }
   if (loading) {
     return <div className="content"><PageSkeleton /></div>;
   }
