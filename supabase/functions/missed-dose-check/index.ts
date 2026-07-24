@@ -16,6 +16,16 @@ const bufToB64url = (b: ArrayBuffer | Uint8Array) => btoa(String.fromCharCode(..
 const concat = (...a: Uint8Array[]) => { const t = new Uint8Array(a.reduce((n, x) => n + x.length, 0)); let o = 0; for (const x of a) { t.set(x, o); o += x.length; } return t; };
 
 function prettyTime(hhmm: string): string { const [h, m] = hhmm.split(':').map(Number); const ap = h < 12 ? 'AM' : 'PM'; const h12 = h % 12 === 0 ? 12 : h % 12; return `${h12}:${String(m).padStart(2, '0')} ${ap}`; }
+function doseLabel(d: any): string { const med = d.medication?.name as string | undefined; return `${prettyTime(d.scheduled_time)}${med ? ` ${med}` : ''}`; }
+// One batched message per person: a single miss keeps the familiar phrasing,
+// several are collapsed into one line so guardians get one push, not a flurry.
+function missedBody(name: string, doses: any[]): string {
+  if (doses.length === 1) {
+    const med = doses[0].medication?.name as string | undefined;
+    return `${name} has not taken their ${prettyTime(doses[0].scheduled_time)} medication${med ? ` (${med})` : ''}.`;
+  }
+  return `${name} missed ${doses.length} medications: ${doses.map(doseLabel).join(', ')}.`;
+}
 
 async function hkdf(salt: Uint8Array, ikm: Uint8Array, info: Uint8Array, len: number) {
   const key = await subtle.importKey('raw', ikm, 'HKDF', false, ['deriveBits']);
@@ -71,12 +81,14 @@ Deno.serve(async (req) => {
   if (!cfg) return json({ ok: false, error: 'push not configured' });
   const vapid: Vapid = { public: cfg.vapid_public, private: cfg.vapid_private, contact: cfg.contact };
 
-  async function broadcast(devices: any[], payload: object): Promise<number> {
+  // Push `payload` to a set of devices in `table` (family or guardian devices),
+  // pruning dead subscriptions (404/410) and stamping last_notified_at on success.
+  async function broadcast(table: string, devices: any[], payload: object): Promise<{ delivered: number; dead: string[] }> {
     let delivered = 0; const dead: string[] = []; const ok: string[] = [];
     for (const d of devices) { const s = await sendPush(d.subscription, payload, vapid); if (s >= 200 && s < 300) { delivered++; ok.push(d.id); } else if (s === 404 || s === 410) dead.push(d.id); }
-    if (dead.length) await admin.from('myday_family_devices').delete().in('id', dead);
-    if (ok.length) await admin.from('myday_family_devices').update({ last_notified_at: new Date().toISOString() }).in('id', ok);
-    return delivered;
+    if (dead.length) await admin.from(table).delete().in('id', dead);
+    if (ok.length) await admin.from(table).update({ last_notified_at: new Date().toISOString() }).in('id', ok);
+    return { delivered, dead };
   }
 
   if (test) {
@@ -86,7 +98,7 @@ Deno.serve(async (req) => {
     const { data: devices } = await admin.from('myday_family_devices').select('*').eq('user_id', user.id);
     const { data: prof } = await admin.from('myday_profiles').select('full_name').eq('user_id', user.id).maybeSingle();
     const name = prof?.full_name || 'You';
-    const delivered = await broadcast(devices || [], { title: 'MyDay test alert', body: `Test alert for ${name}. Missed-dose alerts are working.`, url: './' });
+    const { delivered } = await broadcast('myday_family_devices', devices || [], { title: 'MyDay test alert', body: `Test alert for ${name}. Missed-dose alerts are working.`, url: './' });
     return json({ ok: true, mode: 'test', devices: (devices || []).length, delivered });
   }
 
@@ -98,18 +110,42 @@ Deno.serve(async (req) => {
   const list = missed || [];
   let delivered = 0;
   if (list.length) {
-    const userIds = [...new Set(list.map((d: any) => d.user_id))];
-    const { data: devs } = await admin.from('myday_family_devices').select('*').in('user_id', userIds);
+    // Group the newly-missed doses by user so each person gets ONE batched push.
+    const byUser: Record<string, any[]> = {}; for (const d of list as any[]) (byUser[d.user_id] ||= []).push(d);
+    const userIds = Object.keys(byUser);
+
     const { data: profs } = await admin.from('myday_profiles').select('user_id, full_name').in('user_id', userIds);
-    const devByUser: Record<string, any[]> = {}; for (const d of (devs || [])) (devByUser[d.user_id] ||= []).push(d);
     const nameByUser: Record<string, string> = {}; for (const p of (profs || [])) nameByUser[p.user_id] = p.full_name || 'Your family member';
-    for (const dose of list as any[]) {
-      const name = nameByUser[dose.user_id] || 'Your family member';
-      const medName = dose.medication?.name as string | undefined;
-      const body = `${name} has not taken their ${prettyTime(dose.scheduled_time)} medication${medName ? ` (${medName})` : ''}.`;
-      const devices = devByUser[dose.user_id] || [];
-      if (devices.length) delivered += await broadcast(devices, { title: 'MyDay', body, url: './', tag: `dose-${dose.id}` });
-      await admin.from('myday_doses').update({ notified: true }).eq('id', dose.id);
+
+    // Recipients: the patient's own devices, plus every active guardian's devices.
+    const { data: fam } = await admin.from('myday_family_devices').select('*').in('user_id', userIds);
+    const famByUser: Record<string, any[]> = {}; for (const d of (fam || [])) (famByUser[d.user_id] ||= []).push(d);
+
+    const { data: guardians } = await admin.from('myday_guardians').select('id, user_id').eq('status', 'active').in('user_id', userIds);
+    const guardianList = guardians || [];
+    const gIds = guardianList.map((g: any) => g.id);
+    const { data: gdevs } = gIds.length ? await admin.from('myday_guardian_devices').select('*').in('guardian_id', gIds) : { data: [] as any[] };
+    const devByGuardian: Record<string, any[]> = {}; for (const d of (gdevs || [])) (devByGuardian[d.guardian_id] ||= []).push(d);
+    const guardiansByUser: Record<string, any[]> = {}; for (const g of guardianList) (guardiansByUser[g.user_id] ||= []).push(g);
+
+    for (const uid of userIds) {
+      const doses = byUser[uid];
+      const name = nameByUser[uid] || 'Your family member';
+      const payload = { title: 'MyDay', body: missedBody(name, doses), url: './', tag: `myday-missed-${uid}` };
+
+      delivered += (await broadcast('myday_family_devices', famByUser[uid] || [], payload)).delivered;
+
+      for (const g of (guardiansByUser[uid] || [])) {
+        const gd = devByGuardian[g.id] || [];
+        if (!gd.length) continue;
+        const res = await broadcast('myday_guardian_devices', gd, payload);
+        delivered += res.delivered;
+        // If this guardian's last device just died, mark the link inactive so the
+        // patient sees "Waiting to connect" instead of a silently-broken guardian.
+        if (res.dead.length >= gd.length) await admin.from('myday_guardians').update({ status: 'pending' }).eq('id', g.id);
+      }
+
+      await admin.from('myday_doses').update({ notified: true }).in('id', doses.map((d: any) => d.id));
     }
   }
   return json({ ok: true, mode: 'cron', missed: list.length, delivered });
