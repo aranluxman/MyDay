@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext.jsx';
 import { Icon } from '../components/Icon.jsx';
 
-const TOTAL = 4;
+const TOTAL = 3;
 const AGE_CHIPS = [55, 60, 65, 70, 75, 80, 85, 90, 95];
 
 export default function Onboarding() {
@@ -12,7 +12,6 @@ export default function Onboarding() {
   const [step, setStep] = useState(0);
   const [forWhom, setForWhom] = useState('');     // 'self' | 'other'
   const [age, setAge] = useState('');
-  const [sex, setSex] = useState('');             // 'male' | 'female' | 'other'
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -33,7 +32,7 @@ export default function Onboarding() {
     if (password.length < 6) { setError('Password must be at least 6 characters.'); return; }
     setBusy(true);
     try {
-      await signUp(email, password, name, { for_whom: forWhom, age: age ? parseInt(age, 10) : null, sex });
+      await signUp(email, password, name, { for_whom: forWhom, age: age ? parseInt(age, 10) : null });
       // success -> AppContext sets the user and the app loads automatically
     } catch (err) {
       setError(err.message || 'Something went wrong. Please try again.');
@@ -87,20 +86,6 @@ export default function Onboarding() {
           )}
 
           {step === 2 && (
-            <>
-              <h2 className="ob__q">{self ? 'Are you' : 'Are they'} male or female?</h2>
-              <div className="ob-choices">
-                <Choice active={sex === 'male'} onClick={() => setSex('male')} icon="user" title="Male" />
-                <Choice active={sex === 'female'} onClick={() => setSex('female')} icon="user" title="Female" />
-                <Choice active={sex === 'other'} onClick={() => setSex('other')} icon="user" title="Prefer not to say" />
-              </div>
-              <div className="ob__actions">
-                <button className="mkt-btn mkt-btn--primary" disabled={!sex} onClick={next}>Continue</button>
-              </div>
-            </>
-          )}
-
-          {step === 3 && (
             <>
               <h2 className="ob__q">Create {self ? 'your' : 'the'} account</h2>
               <p style={{ color: 'var(--m-soft)', marginTop: -14, marginBottom: 18 }}>Almost done — this is how {subj} will sign in.</p>

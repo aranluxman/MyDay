@@ -30,6 +30,9 @@ export function AppShell() {
   const title = TITLES[pathname] || 'MyDay';
   const isDark = theme === 'dark' || theme === 'midnight';
   const isHome = pathname === '/';
+  // Nothing in the quick-add menu applies while playing a game, and the button
+  // sits right on top of the last card in the grid.
+  const showAdd = pathname !== '/games';
 
   function doAdd(a) {
     setAddOpen(false);
@@ -51,10 +54,12 @@ export function AppShell() {
 
       <main className="content"><Outlet /></main>
 
-      <button className={`fab${isHome ? ' fab--labeled' : ''}`} aria-label="Quick add" title="Quick add" onClick={() => setAddOpen(true)}>
-        <Icon name="plus" size={30} stroke={2.6} />
-        {isHome && <span className="fab__label">Add</span>}
-      </button>
+      {showAdd && (
+        <button className={`fab${isHome ? ' fab--labeled' : ''}`} aria-label="Quick add" title="Quick add" onClick={() => setAddOpen(true)}>
+          <Icon name="plus" size={30} stroke={2.6} />
+          {isHome && <span className="fab__label">Add</span>}
+        </button>
+      )}
 
       <BottomNav />
 

@@ -1,6 +1,6 @@
 // MyDay service worker: offline app-shell + web-push handling.
 // Vite emits hashed asset filenames, so we cache at runtime rather than precache.
-const CACHE = 'myday-v4';
+const CACHE = 'myday-v5';
 const SHELL = ['/', '/index.html', '/manifest.webmanifest', '/icons/icon-192.png', '/icons/icon-512.png', '/icons/badge-72.png'];
 
 self.addEventListener('install', (e) => {
@@ -33,16 +33,28 @@ self.addEventListener('fetch', (e) => {
 });
 
 // ---------- web push ----------
+// The operating system draws the notification's sender from the app the service
+// worker belongs to. Installed to the home screen that reads "MyDay" with the
+// MyDay icon; left in a browser tab it reads "Chrome" no matter what we set
+// here, which is why the app insists on being installed before enabling alerts.
+// Everything below controls the parts we DO own: title, icon, badge, buttons.
 self.addEventListener('push', (e) => {
   let data = {};
   try { data = e.data ? e.data.json() : {}; } catch { data = { body: e.data && e.data.text() }; }
-  e.waitUntil(self.registration.showNotification(data.title || 'MyDay', {
+  const title = data.title || 'MyDay';
+  e.waitUntil(self.registration.showNotification(title, {
     body: data.body || 'A medicine may have been missed.',
     icon: '/icons/icon-192.png',
     badge: '/icons/badge-72.png',
     tag: data.tag || 'myday-missed-dose',
     renotify: true,
     requireInteraction: true,
+    // A long-short-long buzz is distinct from a message tone, so a missed dose
+    // is recognisable from a pocket without looking.
+    vibrate: [220, 90, 220, 90, 320],
+    lang: 'en',
+    dir: 'ltr',
+    actions: [{ action: 'open', title: 'Open MyDay' }],
     data: { url: data.url || '/' },
   }));
 });
@@ -50,7 +62,14 @@ self.addEventListener('notificationclick', (e) => {
   e.notification.close();
   const target = (e.notification.data && e.notification.data.url) || '/';
   e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
-    for (const c of list) { if ('focus' in c) return c.focus(); }
+    for (const c of list) {
+      if ('focus' in c) {
+        // Bring the existing window forward AND move it to the right screen,
+        // rather than focusing whatever page it happened to be left on.
+        if ('navigate' in c && target) { try { c.navigate(target); } catch { /* cross-origin or unloaded */ } }
+        return c.focus();
+      }
+    }
     if (self.clients.openWindow) return self.clients.openWindow(target);
   }));
 });

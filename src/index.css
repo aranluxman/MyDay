@@ -750,3 +750,125 @@ html[data-contrast='1'] .input { border-width: 3px; }
 html[data-contrast='1'] a { text-decoration: underline; }
 html[data-contrast='1'] :focus-visible { outline: 4px solid var(--ink); outline-offset: 2px; }
 html[data-contrast='1'] .bottom-nav__item.is-active .bottom-nav__ic { outline: 2px solid var(--primary); }
+
+/* ==================================================================
+   Guardian pairing, install gate, and a six-tab bottom nav.
+   ================================================================== */
+
+/* --- six tabs on a phone ---
+   Five tabs were comfortable; six need the labels to give a little. Tap
+   targets stay above 44px tall, and the nav still scrolls sideways as a last
+   resort on very narrow screens rather than squeezing text to nothing. */
+.bottom-nav__item { flex: 1 1 0; min-width: 52px; }
+.bottom-nav__ic { width: 40px; height: 32px; }
+@media (max-width: 400px) {
+  .bottom-nav { gap: 0; padding-left: 2px; padding-right: 2px; }
+  .bottom-nav__item { min-width: 46px; font-size: 11px; padding: 5px 2px; }
+  .bottom-nav__ic { width: 34px; height: 30px; }
+}
+html[data-text='xlarge'] .bottom-nav__item,
+html[data-text='huge'] .bottom-nav__item { font-size: 12px; }
+
+/* --- the 6-digit code, as the patient reads it out --- */
+.big-code {
+  margin: 4px 0 12px; padding: 18px 12px; border-radius: 18px;
+  background: var(--primary-soft); color: var(--primary);
+  font-size: clamp(38px, 12vw, 54px); font-weight: 800; line-height: 1.1;
+  letter-spacing: 0.10em; text-align: center; font-variant-numeric: tabular-nums;
+  user-select: all; -webkit-user-select: all;
+}
+.code-inline {
+  display: inline-block; margin-top: 4px; padding: 0; border: 0; background: none;
+  color: var(--primary); font: inherit; font-weight: 700; text-decoration: underline;
+  text-underline-offset: 3px; cursor: pointer; text-align: left;
+}
+
+/* --- the 6-digit code, as the guardian types it --- */
+.code-boxes { display: flex; gap: 8px; justify-content: center; margin: 4px 0 18px; }
+.code-box {
+  flex: 1 1 0; min-width: 0; max-width: 62px; aspect-ratio: 3 / 4;
+  border: 2px solid var(--line); border-radius: 14px; background: var(--surface);
+  color: var(--ink); text-align: center; font-size: clamp(24px, 8vw, 32px); font-weight: 800;
+  font-variant-numeric: tabular-nums; padding: 0;
+}
+.code-box:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 4px var(--primary-soft); }
+
+/* --- "add MyDay first" gate in front of the alerts switch --- */
+.join-gate {
+  padding: 16px; border-radius: 16px; border: 1px solid var(--line);
+  background: var(--surface-2);
+}
+.join-gate__t { display: flex; align-items: center; gap: 8px; font-weight: 800; font-size: 17px; margin-bottom: 6px; }
+.join-gate__d { margin: 0 0 14px; color: var(--ink-soft); font-size: 15px; line-height: 1.5; }
+.join-gate__skip {
+  display: block; width: 100%; margin-top: 12px; padding: 8px 0; border: 0; background: none;
+  color: var(--ink-soft); font: inherit; font-size: 14px; text-decoration: underline;
+  text-underline-offset: 3px; cursor: pointer;
+}
+.join-ok {
+  display: flex; align-items: center; gap: 8px; margin: 0;
+  color: var(--good-ink); font-weight: 700;
+}
+
+/* Game cards sit in a two-column grid, so their Play buttons have to line up
+   across a row even when one title wraps onto a second line. */
+.game-card { justify-content: space-between; }
+.game-card__play { margin-top: auto; }
+
+/* "Brain Games" and "Appointments" were wrapping onto two lines in the top bar
+   and pushing the theme button out of alignment. The title shrinks to fit
+   rather than truncating — a screen called "Brain Ga…" answers "where am I?"
+   worse than a slightly smaller one that reads properly. Long titles tighten
+   their tracking as they would at any display size. */
+.topbar__title { white-space: nowrap; font-size: clamp(19px, 5.4vw, 24px); letter-spacing: -0.02em; }
+/* On a narrow screen the install button gives up its words before the title does. */
+@media (max-width: 430px) {
+  .topbar .install-btn { padding: 0 12px; gap: 0; }
+  .topbar .install-btn span { display: none; }
+}
+
+/* The heading icon should sit on the first line of a wrapped heading, not be
+   floated to the middle of it. */
+.join-gate__t { align-items: flex-start; }
+.join-gate__t svg { flex: none; margin-top: 2px; }
+
+/* --- feel: feedback on press, and accessibility preferences --- */
+
+/* Feedback belongs on pointer-down, not on release. */
+.code-box:active { transform: scale(0.97); }
+.code-box { transition: border-color 0.12s ease, box-shadow 0.12s ease, transform 0.1s ease-out; }
+.code-inline:active { opacity: 0.6; }
+
+/* A rejected code nudges the boxes once — the cause is unmistakable, and it
+   stops well short of the vestibular trouble a big slide would cause. */
+@keyframes code-nudge {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  75% { transform: translateX(5px); }
+}
+.code-boxes--rejected { animation: code-nudge 0.26s ease-in-out; }
+
+/* Reduced motion means a gentler equivalent, not the loss of the signal: the
+   boxes still clear and the message still announces, they just don't move.
+   Honour the in-app "Calm screen" switch the same way. */
+@media (prefers-reduced-motion: reduce) {
+  .code-boxes--rejected { animation: none; }
+  .code-box:active { transform: none; }
+}
+html[data-motion='calm'] .code-boxes--rejected { animation: none; }
+
+/* Frosted chrome is unreadable for some people; make it solid when the system
+   asks, and give it a defined edge when it asks for more contrast. */
+@media (prefers-reduced-transparency: reduce) {
+  .bottom-nav, .topbar { background: var(--surface); backdrop-filter: none; }
+}
+@media (prefers-contrast: more) {
+  .bottom-nav, .topbar { background: var(--surface); backdrop-filter: none; border-color: var(--ink); }
+  .code-box { border-color: var(--ink); }
+  .join-gate { border-color: var(--ink); }
+}
+
+/* Large numerals read too far apart as they grow; the code is the deliberate
+   exception — the spacing is what lets someone read "482 915" aloud without
+   losing their place — but the heading above it follows the normal rule. */
+.big-code + .muted { letter-spacing: 0; }

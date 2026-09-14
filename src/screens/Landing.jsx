@@ -6,6 +6,7 @@ export default function Landing() {
   const navigate = useNavigate();
   const start = () => navigate('/get-started');
   const signin = () => navigate('/signin');
+  const guardian = () => navigate('/guardian');
 
   return (
     <div className="mkt">
@@ -36,6 +37,14 @@ export default function Landing() {
               <button className="mkt-btn mkt-btn--primary mkt-btn--lg" onClick={start}>Get started free <Icon name="chevron" size={20} /></button>
               <button className="mkt-btn mkt-btn--ghost mkt-btn--lg" onClick={signin}>Sign in</button>
             </div>
+            <button className="mkt-helper" onClick={guardian}>
+              <span className="mkt-helper__ic"><Icon name="bell" size={20} /></span>
+              <span className="mkt-helper__main">
+                <b>I'm a guardian and I have a code</b>
+                <small>Connect to a family member and get their missed-dose alerts.</small>
+              </span>
+              <Icon name="chevron" size={20} />
+            </button>
             <div className="mkt-trustrow">
               <span><Icon name="check" size={18} /> Free to start</span>
               <span><Icon name="check" size={18} /> Private &amp; secure</span>
