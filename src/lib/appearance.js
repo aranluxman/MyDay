@@ -20,7 +20,7 @@ export const TEXT_SIZES = [
 ];
 
 // Profile-completeness fields (each worth an equal share).
-const COMPLETE_FIELDS = ['full_name', 'avatar_url', 'birthday', 'sex', 'for_whom', 'on_treatment', 'goal'];
+const COMPLETE_FIELDS = ['full_name', 'avatar_url', 'birthday', 'for_whom', 'on_treatment', 'goal'];
 export function profileCompleteness(profile) {
   if (!profile) return { pct: 0, done: 0, total: COMPLETE_FIELDS.length, missing: COMPLETE_FIELDS };
   const filled = COMPLETE_FIELDS.filter((f) => profile[f] != null && String(profile[f]).trim() !== '');

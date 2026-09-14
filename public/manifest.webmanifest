@@ -1,16 +1,23 @@
 {
+  "id": "/",
   "name": "MyDay",
   "short_name": "MyDay",
   "description": "Medications, appointments, health notes, and brain games.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
   "orientation": "portrait",
   "background_color": "#eef3f9",
   "theme_color": "#2563a8",
+  "categories": ["health", "medical", "lifestyle"],
   "icons": [
     { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
     { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
     { "src": "/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Today's medicine", "short_name": "Medicine", "url": "/medication", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Brain games", "short_name": "Games", "url": "/games", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }] }
   ]
 }

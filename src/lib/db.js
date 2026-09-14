@@ -35,9 +35,27 @@ export async function uploadAvatar(userId, file) {
   return `${data.publicUrl}?t=${Date.now()}`;
 }
 
+// Saves a patch onto the signed-in user's profile. This is an upsert keyed on
+// user_id so a save still works if the profile row was never created (an
+// unscoped UPDATE silently matched nothing and looked like a successful save).
 export async function saveProfile(patch) {
-  const { error } = await supabase.from('myday_profiles').update(patch).neq('user_id', '00000000-0000-0000-0000-000000000000');
-  if (error) throw error;
+  const { data: { session } } = await supabase.auth.getSession();
+  const userId = session?.user?.id;
+  if (!userId) throw new Error('You have been signed out. Please sign in again.');
+  const { error } = await supabase.from('myday_profiles')
+    .upsert({ user_id: userId, ...patch }, { onConflict: 'user_id' });
+  if (error) throw new Error(profileErrorMessage(error));
+}
+
+// Turns a Postgres error into something an 80-year-old can act on, instead of
+// the blanket "Could not save." that hid a constraint violation for months.
+function profileErrorMessage(error) {
+  const code = error?.code;
+  if (code === '23514') return 'One of the answers was not recognised. Please pick an option and try again.';
+  if (code === '22008' || code === '22007') return 'That date does not look right. Please check your birthday.';
+  if (code === '42501' || code === 'PGRST301') return 'You have been signed out. Please sign in again.';
+  if (error?.message?.includes('Failed to fetch')) return 'No internet connection. Please try again when you are back online.';
+  return error?.message || 'Could not save.';
 }
 
 // ---------- medications ----------
@@ -143,12 +161,56 @@ export async function deleteContact(id) {
 }
 
 // ---------- games ----------
+// A finished game is a small piece of someone's progress record, and the most
+// likely moment to lose one is exactly when people play: on a tablet with patchy
+// wifi. So a failed insert is kept on the device and replayed later rather than
+// thrown away. saveGameResult still throws, so the screen can say what happened.
+const PENDING_GAMES_KEY = 'myday_pending_games';
+
+function readPendingGames() {
+  try { const v = JSON.parse(localStorage.getItem(PENDING_GAMES_KEY) || '[]'); return Array.isArray(v) ? v : []; }
+  catch { return []; }
+}
+function writePendingGames(rows) {
+  // Cap the backlog so a long offline stretch can't fill up the device.
+  try { localStorage.setItem(PENDING_GAMES_KEY, JSON.stringify(rows.slice(-100))); } catch { /* storage full or blocked */ }
+}
+export function pendingGameCount() { return readPendingGames().length; }
+
 export async function saveGameResult(r) {
-  const { error } = await supabase.from('myday_game_results').insert({
+  const row = {
     game_type: r.game_type, score: r.score, max_score: r.max_score ?? null,
-    difficulty: r.difficulty ?? 1, duration_seconds: r.duration_seconds ?? null, details: r.details ?? null,
-  });
-  if (error) throw error;
+    difficulty: r.difficulty ?? 1, duration_seconds: r.duration_seconds ?? null,
+    details: r.details ?? null, played_at: new Date().toISOString(),
+  };
+  const { error } = await supabase.from('myday_game_results').insert(row);
+  if (error) {
+    writePendingGames([...readPendingGames(), row]);
+    throw error;
+  }
+}
+
+// Replays anything saved while offline. Called on sign-in and whenever the
+// device comes back online. Rows that the server rejects outright (a bad
+// game_type from an older build, say) are dropped so they can't jam the queue.
+export async function flushPendingGameResults() {
+  const rows = readPendingGames();
+  if (!rows.length) return 0;
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.user) return 0;
+
+  const stuck = [];
+  let sent = 0;
+  for (const row of rows) {
+    const { error } = await supabase.from('myday_game_results').insert(row);
+    if (!error) { sent++; continue; }
+    // 4xx from PostgREST means this row will never be accepted; anything else
+    // (network, 5xx) is worth another try later.
+    const permanent = typeof error.code === 'string' && /^(22|23|42)/.test(error.code);
+    if (!permanent) stuck.push(row);
+  }
+  writePendingGames(stuck);
+  return sent;
 }
 export async function lastDifficulty(gameType) {
   const { data, error } = await supabase.from('myday_game_results').select('difficulty')
@@ -187,16 +249,18 @@ export async function listFamilyDevices() {
 // ---------- guardians (a linked person on their own device) ----------
 // The patient owns these rows; a guardian registers their device via the
 // public `guardian-join` edge function using the invite token below.
+const GUARDIAN_COLS = 'id,name,phone,status,code,token,expires_at,created_at';
+
 export async function createGuardianInvite(name, phone) {
   const { data, error } = await supabase.from('myday_guardians')
     .insert({ name, phone: phone || null })
-    .select('id,name,phone,status,token,expires_at,created_at').single();
+    .select(GUARDIAN_COLS).single();
   if (error) throw error;
   return data;
 }
 export async function listGuardians() {
   const { data, error } = await supabase.from('myday_guardians')
-    .select('id,name,phone,status,token,expires_at,created_at,devices:myday_guardian_devices(count)')
+    .select(`${GUARDIAN_COLS},devices:myday_guardian_devices(count)`)
     .order('created_at');
   if (error) throw error;
   return (data || []).map((g) => ({ ...g, deviceCount: g.devices?.[0]?.count || 0 }));
@@ -209,14 +273,22 @@ export async function deleteGuardian(id) {
 // or lapses. Keeps the guardian's current status so an active link isn't broken.
 export async function regenerateGuardianInvite(id) {
   const token = crypto.randomUUID().replace(/-/g, '');
-  const expires_at = new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString();
+  const { data: code, error: codeErr } = await supabase.rpc('myday_new_guardian_code');
+  if (codeErr) throw codeErr;
+  const expires_at = new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString();
   const { data, error } = await supabase.from('myday_guardians')
-    .update({ token, expires_at }).eq('id', id)
-    .select('id,name,phone,status,token,expires_at,created_at').single();
+    .update({ token, code, expires_at }).eq('id', id)
+    .select(GUARDIAN_COLS).single();
   if (error) throw error;
   return data;
 }
-// The shareable link a guardian opens on their own phone.
+// The shareable link a guardian opens on their own phone. The 6-digit code is
+// the primary route; this link is the "send it to them" fallback.
 export function guardianInviteLink(token) {
   return `${window.location.origin}/guardian?invite=${token}`;
+}
+// "482915" -> "482 915": easier to read aloud and to copy down on paper.
+export function formatGuardianCode(code) {
+  const digits = String(code || '').replace(/\D/g, '');
+  return digits.length === 6 ? `${digits.slice(0, 3)} ${digits.slice(3)}` : digits;
 }

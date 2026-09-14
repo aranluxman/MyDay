@@ -165,7 +165,8 @@ function Quiz({ game, level, onComplete }) {
     const score = correctRef.current;
     const ratio = score / questions.length;
     const newLevel = adapt(game, level, ratio);
-    try { await saveGameResult({ game_type: game, score, max_score: questions.length, difficulty: level, details: { ratio } }); } catch {}
+    try { await saveGameResult({ game_type: game, score, max_score: questions.length, difficulty: level, details: { ratio } }); }
+    catch { ui.toast('Saved on this device — it will be added to your progress when you\'re back online.', 'info'); }
     onComplete({ game, score, max: questions.length, ratio, newLevel, oldLevel: level });
   }
   const feedback = answered ? (picked === q.answer ? (q.confirmRight || "That's right.") : (q.confirmWrong || `The answer is ${q.answer}.`)) : null;
@@ -219,8 +220,8 @@ function Match({ level, onComplete }) {
     const secs = Math.round((Date.now() - start.current) / 1000);
     const ratio = pairs / (pairs + mistakes.current);
     const newLevel = adapt('match_pairs', level, ratio >= 0.7 ? 0.9 : ratio < 0.5 ? 0.3 : 0.6);
-    try { await saveGameResult({ game_type: 'match_pairs', score: pairs, max_score: pairs, difficulty: level, duration_seconds: secs, details: { mistakes: mistakes.current } }); } catch {}
-    ui.toast(cheer());
+    try { await saveGameResult({ game_type: 'match_pairs', score: pairs, max_score: pairs, difficulty: level, duration_seconds: secs, details: { mistakes: mistakes.current } }); ui.toast(cheer()); }
+    catch { ui.toast('Saved on this device — it will be added to your progress when you\'re back online.', 'info'); }
     setTimeout(() => onComplete({ game: 'match_pairs', score: pairs, max: pairs, ratio, newLevel, oldLevel: level }), 450);
   }
 

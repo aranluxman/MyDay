@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { supabase } from '../lib/supabase.js';
-import { ensureProfile, getProfile, saveProfile, refreshDoses } from '../lib/db.js';
+import { supabase, CAME_FROM_RECOVERY_LINK } from '../lib/supabase.js';
+import { ensureProfile, getProfile, saveProfile, refreshDoses, flushPendingGameResults } from '../lib/db.js';
 import { deviceTimezone } from '../lib/format.js';
 
 const AppCtx = createContext(null);
@@ -10,6 +10,10 @@ export function AppProvider({ children }) {
   const [session, setSession] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
+  // True between opening a password-recovery link and choosing a new password.
+  // That link creates a real session, so without this flag the app would drop
+  // the person straight into Home and they'd never reset anything.
+  const [recovery, setRecovery] = useState(CAME_FROM_RECOVERY_LINK);
   const [theme, setThemeState] = useState(() => localStorage.getItem('myday_theme') || 'light');
   const [textSize, setTextSizeState] = useState(() => localStorage.getItem('myday_text') || 'normal');
 
@@ -30,7 +34,11 @@ export function AppProvider({ children }) {
       setSession(data.session);
       if (!data.session) setLoading(false);
     });
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => setSession(s));
+    const { data: sub } = supabase.auth.onAuthStateChange((event, s) => {
+      setSession(s);
+      if (event === 'PASSWORD_RECOVERY') setRecovery(true);
+      if (event === 'SIGNED_OUT') setRecovery(false);
+    });
     return () => { active = false; sub.subscription.unsubscribe(); };
   }, []);
 
@@ -44,11 +52,19 @@ export function AppProvider({ children }) {
         const p = await ensureProfile(session.user);
         if (active) applyProfile(p);
         refreshDoses(deviceTimezone()).catch(() => {});
+        flushPendingGameResults().catch(() => {});
       } catch (e) { console.error(e); }
       finally { if (active) setLoading(false); }
     })();
     return () => { active = false; };
   }, [session?.user?.id, applyProfile]);
+
+  // Game results played offline are replayed as soon as the device is back.
+  useEffect(() => {
+    const onOnline = () => { flushPendingGameResults().catch(() => {}); };
+    window.addEventListener('online', onOnline);
+    return () => window.removeEventListener('online', onOnline);
+  }, []);
 
   async function signIn(email, password) {
     const { error } = await supabase.auth.signInWithPassword({ email: email.trim().toLowerCase(), password });
@@ -72,7 +88,6 @@ export function AppProvider({ children }) {
           full_name: (full_name || '').trim() || null,
           for_whom: onboarding.for_whom || null,
           age: onboarding.age ?? null,
-          sex: onboarding.sex || null,
           timezone: deviceTimezone(),
         }, { onConflict: 'user_id' });
       } catch (e) { console.warn('onboarding upsert failed', e); }
@@ -92,6 +107,7 @@ export function AppProvider({ children }) {
 
   const value = {
     session, user: session?.user || null, profile, loading, theme, textSize,
+    recovery, endRecovery: () => setRecovery(false),
     signIn, signUp, signOut, setTheme, setTextSize, updateProfile, reloadProfile,
   };
   return <AppCtx.Provider value={value}>{children}</AppCtx.Provider>;

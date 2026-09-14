@@ -209,3 +209,20 @@
 }
 .mkt .install-btn { background: var(--m-surface); color: var(--m-primary); border: 1.5px solid var(--m-line); box-shadow: none; }
 .mkt .install-btn:hover { border-color: var(--m-primary); }
+
+/* A guardian arrives holding a code, not looking to sign up, so the landing
+   page gives them a door of their own next to the two account buttons. */
+.mkt-helper {
+  display: flex; align-items: center; gap: 12px; width: 100%; max-width: 460px;
+  margin: 18px 0 6px; padding: 14px 16px; cursor: pointer; text-align: left;
+  border: 1px solid var(--m-line); border-radius: 16px;
+  background: var(--m-surface); color: inherit; font: inherit;
+}
+.mkt-helper:hover { border-color: var(--m-primary); box-shadow: var(--m-shadow); }
+.mkt-helper__ic {
+  flex: none; width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center;
+  background: var(--m-blue-bg); color: var(--m-primary);
+}
+.mkt-helper__main { display: block; flex: 1; min-width: 0; }
+.mkt-helper__main b { display: block; font-size: 16px; }
+.mkt-helper__main small { display: block; color: var(--m-soft); font-size: 13.5px; margin-top: 2px; }

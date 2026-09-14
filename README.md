@@ -14,7 +14,9 @@ Built with **React + Vite (JSX)**, **Supabase** (Auth + Postgres + Edge Function
 - **Accounts** — email + password sign up / sign in / sign out. Each person's data
   is private (per-user Row Level Security). Sign-up is instant (no email-confirmation
   step), which is friendlier for older users.
-- **Bottom navigation** — Home, Updates, Medication, Appointments, Profile.
+- **Bottom navigation** — Home, Updates, Medicine, Visits, Games, Profile.
+- **Forgot password** — a plain-language email recovery flow (`/forgot` →
+  `/reset-password`), linked from the sign-in screen.
 - **Home** — a warm dashboard: greeting, today's medication status with a progress
   bar, a prominent "due now" reminder with one big Done button, and quick links.
 - **Medication** — three views via a segmented control:
@@ -37,6 +39,10 @@ Built with **React + Vite (JSX)**, **Supabase** (Auth + Postgres + Edge Function
 - **Missed-dose push alerts** — a cron Edge Function flips overdue doses to missed
   and web-pushes the user's family devices, e.g. *"Mary has not taken their 9:00 AM
   medication."*
+- **Guardians via a 6-digit code** — the patient taps *Invite a guardian* and reads
+  out a code; the guardian types it into MyDay on their own device and starts
+  receiving the alerts. No account, no link to send. A shareable link
+  (`/guardian?invite=<token>`) remains as a fallback.
 
 ---
 
@@ -65,9 +71,10 @@ Routing uses `react-router-dom`; `public/_redirects` provides the SPA fallback.
 
 ### Data model (Supabase, `myday_`-prefixed, per-user)
 `myday_profiles`, `myday_medications`, `myday_doses`, `myday_appointments`,
-`myday_game_results`, `myday_family_devices`, `myday_contacts`, `myday_diary`, and a
-server-only `myday_push_config`. Every row carries `user_id` (defaulting to
-`auth.uid()`), and RLS restricts every table to its owner.
+`myday_game_results`, `myday_family_devices`, `myday_contacts`, `myday_diary`,
+`myday_guardians` + `myday_guardian_devices`, and the server-only
+`myday_push_config` and `myday_join_attempts`. Every user-owned row carries
+`user_id` (defaulting to `auth.uid()`), and RLS restricts every table to its owner.
 
 ---
 
@@ -78,6 +85,23 @@ server-only `myday_push_config`. Every row carries `user_id` (defaulting to
 - The **VAPID private key** lives in `myday_push_config`, which has RLS enabled with
   **no policy**, so the browser can never read it; only the Edge Function (service
   role) can. It is never committed to the repo.
+- **Guardian codes are short, so they are throttled.** A 6-digit code has only
+  900k values, so the public `guardian-join` function rate-limits code lookups
+  twice over: 8 wrong codes per caller per 15 minutes, plus a global circuit
+  breaker at 120 per 15 minutes, because a per-IP limit alone is bypassable by
+  rotating addresses. A correct code clears the caller's counter and only
+  decrements the global one. Codes expire after 14 days and the patient can mint
+  a fresh one at any time. Invite *links* carry a 128-bit token and are not
+  throttled, so they still work if the breaker ever trips.
+
+### Notifications and why installing matters
+The operating system attributes a web notification to whatever app owns the page.
+In a browser tab that is Chrome or Safari, and no code in the page can change it;
+installed to the home screen, the same notification is attributed to **MyDay**
+with the MyDay icon. iPadOS goes further and will not deliver web push at all
+until the app is on the home screen. Both places that turn alerts on (Profile and
+the guardian join screen) therefore ask you to install first, with
+platform-specific steps, and only offer a browser-only fallback as a last resort.
 
 ---
 
@@ -119,6 +143,14 @@ No environment variables are required (the publishable key is public and lives i
 - Web-push VAPID keys are stored in `myday_push_config` (private key server-side
   only); the public key is in `src/lib/supabase.js`.
 
-### iPhone note
-On iOS, web push only works when the app is **added to the Home Screen** and opened
-from that icon (Share → Add to Home Screen).
+### iPhone / iPad note
+On iOS and iPadOS, web push only works when the app is **added to the Home Screen**
+and opened from that icon (Share → Add to Home Screen).
+
+### Password reset setup
+`/forgot` calls `supabase.auth.resetPasswordForEmail` with a `redirectTo` of
+`<origin>/reset-password`, so that URL must be listed under
+**Authentication → URL Configuration → Redirect URLs** in the Supabase dashboard
+for every origin the app runs on (production domain and `http://localhost:5173`).
+The Supabase default SMTP sender is rate-limited to a couple of messages an hour;
+configure a custom SMTP provider before real users rely on it.

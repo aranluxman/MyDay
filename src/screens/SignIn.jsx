@@ -47,7 +47,11 @@ export default function SignIn() {
           <div className="ob__actions">
             <button type="submit" className="mkt-btn mkt-btn--primary mkt-btn--block" disabled={busy}>{busy ? 'Signing in...' : 'Sign in'}</button>
           </div>
+          <p className="ob__switch" style={{ marginBottom: 4 }}>
+            <button type="button" onClick={() => navigate('/forgot')}>I forgot my password</button>
+          </p>
           <p className="ob__switch">New to MyDay? <button type="button" onClick={() => navigate('/get-started')}>Create an account</button></p>
+          <p className="ob__switch">Helping a family member? <button type="button" onClick={() => navigate('/guardian')}>Enter a guardian code</button></p>
         </form>
       </div>
     </div>

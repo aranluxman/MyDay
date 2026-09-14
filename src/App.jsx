@@ -18,28 +18,37 @@ const Appointments = lazy(() => import('./screens/Appointments.jsx'));
 const Profile = lazy(() => import('./screens/Profile.jsx'));
 const Games = lazy(() => import('./screens/Games.jsx'));
 const GuardianJoin = lazy(() => import('./screens/GuardianJoin.jsx'));
+const ForgotPassword = lazy(() => import('./screens/ForgotPassword.jsx'));
+const ResetPassword = lazy(() => import('./screens/ResetPassword.jsx'));
 
 function Root() {
-  const { user, loading } = useApp();
+  const { user, loading, recovery, endRecovery } = useApp();
   const { pathname } = useLocation();
-  // Public guardian invite deep link: a linked guardian (a different person, not
-  // signed in) opens this on their own phone, so it renders regardless of auth.
+  const publicFallback = <div className="content"><PageSkeleton /></div>;
+
+  // Public guardian page: a guardian is a different person with no MyDay
+  // account, on their own device, so this renders regardless of auth — whether
+  // they arrived from a shared link or are about to type a 6-digit code.
   if (pathname === '/guardian') {
-    return (
-      <Suspense fallback={<div className="content"><PageSkeleton /></div>}>
-        <GuardianJoin />
-      </Suspense>
-    );
+    return <Suspense fallback={publicFallback}><GuardianJoin /></Suspense>;
   }
+
+  // Opening a recovery link signs the person in, so /reset-password has to win
+  // over the normal routes until they've actually chosen a new password.
+  if (pathname === '/reset-password' || recovery) {
+    return <Suspense fallback={publicFallback}><ResetPassword ready={recovery || !!user} onDone={endRecovery} /></Suspense>;
+  }
+
   if (loading) {
-    return <div className="content"><PageSkeleton /></div>;
+    return publicFallback;
   }
   if (!user) {
     return (
-      <Suspense fallback={<div className="content"><PageSkeleton /></div>}>
+      <Suspense fallback={publicFallback}>
         <Routes>
           <Route path="/get-started" element={<Onboarding />} />
           <Route path="/signin" element={<SignIn />} />
+          <Route path="/forgot" element={<ForgotPassword />} />
           <Route path="*" element={<Landing />} />
         </Routes>
       </Suspense>
