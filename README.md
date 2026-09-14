@@ -30,9 +30,11 @@ Built with **React + Vite (JSX)**, **Supabase** (Auth + Postgres + Edge Function
 - **Profile** — "about me" intake (name, birthday, age, *what I'm on*, *what I'm
   working toward*), typed **contacts** (pharmacy, provider, clinic, insurance,
   merchant, other), **light/dark theme**, missed-dose alerts, and sign out.
-- **Brain Games** — Match the Pairs, Word Puzzle, Number Patterns, and Today
-  (orientation). **7 difficulty levels** with a level picker plus adaptive
-  difficulty; scores saved and a progress view.
+- **Brain Games** — its own bottom-nav tab, with six games: Match the Pairs, Word
+  Puzzle, Number Patterns, Quick Math, Odd One Out, and Today (orientation).
+  **10 difficulty levels** with a level picker plus adaptive difficulty. Scores
+  are saved with a progress view, and a result that fails to upload is kept on
+  the device and replayed on reconnect rather than lost.
 - **Add button (FAB)** — a floating + opens a quick menu to add a medication,
   appointment, health note, or contact from anywhere.
 - **Light & dark themes** — toggle in the top bar or in Profile; remembered per user.
@@ -60,10 +62,13 @@ src/
   components/                               -> Icon, ui primitives, AppShell, BottomNav, MedCalendar
   hooks/useAsync.js
   lib/supabase.js, db.js, format.js, push.js, games.js
-  screens/                                  -> Auth, Home, Medication, Appointments, Updates, Profile, Games
+  screens/                                  -> Landing, Onboarding, SignIn, ForgotPassword, ResetPassword,
+                                               Home, Medication, Appointments, Updates, Profile, Games,
+                                               GuardianJoin
 supabase/
-  migrations/                               -> schema, RLS, dose functions, cron
+  migrations/                               -> schema, RLS, dose functions, cron, guardian codes
   functions/missed-dose-check/              -> multi-user cron + web push
+  functions/guardian-join/                  -> public code/link pairing for guardians
   functions/signup/                         -> instant (pre-confirmed) sign-up
 ```
 
@@ -148,9 +153,24 @@ On iOS and iPadOS, web push only works when the app is **added to the Home Scree
 and opened from that icon (Share → Add to Home Screen).
 
 ### Password reset setup
-`/forgot` calls `supabase.auth.resetPasswordForEmail` with a `redirectTo` of
-`<origin>/reset-password`, so that URL must be listed under
-**Authentication → URL Configuration → Redirect URLs** in the Supabase dashboard
-for every origin the app runs on (production domain and `http://localhost:5173`).
+Two settings under **Authentication → URL Configuration** in the Supabase
+dashboard, and it is worth being clear about which one actually matters.
+
+**Site URL — required.** When Supabase does not recognise a `redirectTo`, it
+falls back to the Site URL, so this is where every recovery email ends up if
+anything else is misconfigured. Left at the default `http://localhost:3000`, the
+link in the email is dead for everyone. Set it to the deployed origin.
+
+**Redirect URLs — recommended, not required.** `/forgot` calls
+`supabase.auth.resetPasswordForEmail` with a `redirectTo` of
+`<origin>/reset-password`; listing that URL (for the production domain and for
+`http://localhost:5173`) is what makes the link land on the reset screen's own
+route. Without it the link still works: `CAME_FROM_RECOVERY_LINK` in
+`src/lib/supabase.js` reads the recovery token out of the URL fragment before the
+client consumes it, and `App.jsx` renders the reset screen whenever that flag is
+set — on any path, not just `/reset-password`. Verified by loading the built app
+at `/`, `/signin` and `/reset-password` with a recovery fragment; all three show
+"Choose a new password".
+
 The Supabase default SMTP sender is rate-limited to a couple of messages an hour;
 configure a custom SMTP provider before real users rely on it.
