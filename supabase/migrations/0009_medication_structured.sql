@@ -58,11 +58,13 @@ exception when duplicate_object then null; end $$;
 
 -- A weekday list is only meaningful for 'days_of_week', and every entry has to
 -- be a real day. A bad value here would silently drop doses.
+-- Written with array containment rather than `not exists (select ...)`, because
+-- Postgres forbids a subquery in a CHECK constraint (0A000).
 do $$ begin
   alter table myday_medications add constraint myday_medications_dow_check
     check (days_of_week is null or (
       array_length(days_of_week, 1) between 1 and 7
-      and not exists (select 1 from unnest(days_of_week) d where d < 0 or d > 6)
+      and days_of_week <@ array[0,1,2,3,4,5,6]::smallint[]
     ));
 exception when duplicate_object then null; end $$;
 
