@@ -83,10 +83,34 @@ Deno.serve(async (req) => {
 
   // Push `payload` to a set of devices in `table` (family or guardian devices),
   // pruning dead subscriptions (404/410) and stamping last_notified_at on success.
-  async function broadcast(table: string, devices: any[], payload: object): Promise<{ delivered: number; dead: string[] }> {
+  //
+  // How a dead endpoint is pruned depends on what else the row holds:
+  //   'delete' — myday_family_devices rows exist only to carry a subscription,
+  //              so a gone endpoint means a useless row.
+  //   'clear'  — myday_guardian_devices rows also carry the guardian's
+  //              DASHBOARD TOKEN. Push endpoints rotate routinely, and deleting
+  //              the row over one would silently unlink a working dashboard and
+  //              force the guardian to pair again. So only the push fields go.
+  async function broadcast(
+    table: string, devices: any[], payload: object, prune: 'delete' | 'clear' = 'delete',
+  ): Promise<{ delivered: number; dead: string[] }> {
     let delivered = 0; const dead: string[] = []; const ok: string[] = [];
-    for (const d of devices) { const s = await sendPush(d.subscription, payload, vapid); if (s >= 200 && s < 300) { delivered++; ok.push(d.id); } else if (s === 404 || s === 410) dead.push(d.id); }
-    if (dead.length) await admin.from(table).delete().in('id', dead);
+    for (const d of devices) {
+      // A row with no subscription cannot be pushed to; skip rather than throw.
+      if (!d.subscription) continue;
+      const s = await sendPush(d.subscription, payload, vapid);
+      if (s >= 200 && s < 300) { delivered++; ok.push(d.id); }
+      else if (s === 404 || s === 410) dead.push(d.id);
+    }
+    if (dead.length) {
+      if (prune === 'delete') {
+        await admin.from(table).delete().in('id', dead);
+      } else {
+        await admin.from(table)
+          .update({ push_enabled: false, endpoint: null, subscription: null, last_error: 'push endpoint gone' })
+          .in('id', dead);
+      }
+    }
     if (ok.length) await admin.from(table).update({ last_notified_at: new Date().toISOString() }).in('id', ok);
     return { delivered, dead };
   }
@@ -124,25 +148,40 @@ Deno.serve(async (req) => {
     const { data: guardians } = await admin.from('myday_guardians').select('id, user_id').eq('status', 'active').in('user_id', userIds);
     const guardianList = guardians || [];
     const gIds = guardianList.map((g: any) => g.id);
-    const { data: gdevs } = gIds.length ? await admin.from('myday_guardian_devices').select('*').in('guardian_id', gIds) : { data: [] as any[] };
+    // Since the guardian dashboard landed, a device row can exist purely to
+    // hold a dashboard token, with no push subscription at all (alerts are
+    // optional, and iOS refuses them until the app is installed). Pushing to
+    // such a row would throw on a null subscription, so only rows that are
+    // live AND actually subscribed are recipients.
+    const { data: gdevs } = gIds.length
+      ? await admin.from('myday_guardian_devices').select('*')
+          .in('guardian_id', gIds).is('revoked_at', null).not('subscription', 'is', null)
+      : { data: [] as any[] };
     const devByGuardian: Record<string, any[]> = {}; for (const d of (gdevs || [])) (devByGuardian[d.guardian_id] ||= []).push(d);
     const guardiansByUser: Record<string, any[]> = {}; for (const g of guardianList) (guardiansByUser[g.user_id] ||= []).push(g);
 
     for (const uid of userIds) {
       const doses = byUser[uid];
       const name = nameByUser[uid] || 'Your family member';
-      const payload = { title: 'MyDay', body: missedBody(name, doses), url: './', tag: `myday-missed-${uid}` };
+      const body = missedBody(name, doses);
+      // The patient's own devices open the app where they can act on the dose;
+      // a guardian's tap belongs on the guardian dashboard, which is the only
+      // page they can actually use.
+      const ownPayload = { title: 'MyDay', body, url: '/', tag: `myday-missed-${uid}` };
+      const guardianPayload = { title: 'MyDay', body, url: '/guardian', tag: `myday-missed-${uid}` };
 
-      delivered += (await broadcast('myday_family_devices', famByUser[uid] || [], payload)).delivered;
+      delivered += (await broadcast('myday_family_devices', famByUser[uid] || [], ownPayload)).delivered;
 
       for (const g of (guardiansByUser[uid] || [])) {
         const gd = devByGuardian[g.id] || [];
+        // No subscribed device is not the same as a broken link: this guardian
+        // may be using the dashboard without alerts, which is a valid setup.
         if (!gd.length) continue;
-        const res = await broadcast('myday_guardian_devices', gd, payload);
-        delivered += res.delivered;
-        // If this guardian's last device just died, mark the link inactive so the
-        // patient sees "Waiting to connect" instead of a silently-broken guardian.
-        if (res.dead.length >= gd.length) await admin.from('myday_guardians').update({ status: 'pending' }).eq('id', g.id);
+        // 'clear', not 'delete': a dead endpoint must not cost this guardian
+        // their dashboard. The guardian also stays 'active' — their token still
+        // works, so demoting them to 'pending' would misreport the truth to the
+        // patient. The Profile list shows alerts-off per device instead.
+        delivered += (await broadcast('myday_guardian_devices', gd, guardianPayload, 'clear')).delivered;
       }
 
       await admin.from('myday_doses').update({ notified: true }).in('id', doses.map((d: any) => d.id));

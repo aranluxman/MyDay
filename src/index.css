@@ -273,6 +273,11 @@ h3.subsection { font-size: 21px; margin: 8px 0 0; }
 .cal__cell:active { transform: scale(0.92); }
 /* day tinted by its medication status so the month reads at a glance */
 .cal__cell--taken { background: var(--good-bg); }
+/* A mixed day: readable as its own thing rather than rounded to the worst
+   status on it. The split background carries the same meaning as the ◐ mark. */
+.cal__cell--partial {
+  background: linear-gradient(135deg, var(--good-bg) 0 50%, var(--bad-bg) 50% 100%);
+}
 .cal__cell--pending { background: var(--warn-bg); }
 .cal__cell--missed { background: var(--bad-bg); }
 .cal__cell.is-today { border-color: var(--primary); }
@@ -282,6 +287,7 @@ h3.subsection { font-size: 21px; margin: 8px 0 0; }
 .cal__day { font-size: 17px; font-weight: 700; line-height: 1; }
 .cal__mark { font-size: 12px; font-weight: 800; line-height: 1; height: 12px; }
 .cal__mark--taken { color: var(--good-ink); }
+.cal__mark--partial { color: var(--warn-ink); }
 .cal__mark--pending { color: var(--warn-ink); }
 .cal__mark--missed { color: var(--bad-ink); }
 .cal__dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
@@ -291,6 +297,7 @@ h3.subsection { font-size: 21px; margin: 8px 0 0; }
 .cal__legend { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
 .cal__legend span { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 700; padding: 5px 11px; border-radius: 999px; }
 .cal__legend .lg--taken { color: var(--good-ink); background: var(--good-bg); }
+.cal__legend .lg--partial { color: var(--warn-ink); background: var(--warn-bg); }
 .cal__legend .lg--pending { color: var(--warn-ink); background: var(--warn-bg); }
 .cal__legend .lg--missed { color: var(--bad-ink); background: var(--bad-bg); }
 
@@ -872,3 +879,341 @@ html[data-motion='calm'] .code-boxes--rejected { animation: none; }
    exception — the spacing is what lets someone read "482 915" aloud without
    losing their place — but the heading above it follows the normal rule. */
 .big-code + .muted { letter-spacing: 0; }
+
+/* =====================================================================
+   Guardian dashboard (/guardian)
+   A guardian has no MyDay account and no app shell — no bottom nav, no FAB,
+   nothing tappable that could change the person's data. It is its own calm,
+   read-only surface, built from the same tokens so all eight themes work.
+   ===================================================================== */
+.g-shell { min-height: 100vh; background: var(--bg); }
+.g-top {
+  position: sticky; top: 0; z-index: 20;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: max(12px, env(safe-area-inset-top)) 18px 12px;
+  background: color-mix(in srgb, var(--bg) 84%, transparent);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--line);
+}
+.g-content {
+  max-width: var(--maxw); margin: 0 auto;
+  padding: 16px 16px calc(32px + env(safe-area-inset-bottom));
+  display: flex; flex-direction: column; gap: 14px;
+}
+.g-refresh {
+  width: var(--tap-sm, 46px); height: var(--tap-sm, 46px); min-width: 48px; min-height: 48px;
+  display: grid; place-items: center; cursor: pointer;
+  border: 1px solid var(--line); border-radius: 14px;
+  background: var(--surface); color: var(--ink);
+}
+.g-refresh:disabled { opacity: 0.75; cursor: default; }
+.g-refresh[data-phase='done'] { color: var(--good-ink); border-color: var(--good); }
+.g-section { font-size: 19px; margin: 0 0 12px; }
+
+/* ---- status header ---- */
+.g-status {
+  border-radius: var(--radius); padding: 20px 18px;
+  background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow);
+  border-left: 6px solid var(--primary);
+}
+.g-status--good { border-left-color: var(--good); }
+.g-status--warn { border-left-color: var(--warn); }
+.g-status--bad { border-left-color: var(--bad); }
+.g-status__eyebrow {
+  display: block; font-size: 13px; font-weight: 700; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--ink-soft);
+}
+.g-status__name { margin: 2px 0 0; font-size: 28px; font-weight: 800; letter-spacing: -0.01em; }
+.g-status__date { margin: 2px 0 0; color: var(--ink-soft); font-size: 16px; }
+.g-status__headline {
+  display: flex; align-items: center; gap: 10px;
+  margin: 16px 0 0; font-size: 20px; font-weight: 700;
+}
+.g-status__ic {
+  flex: 0 0 auto; width: 38px; height: 38px; display: grid; place-items: center;
+  border-radius: 12px; background: var(--primary-soft); color: var(--primary);
+}
+.g-status--good .g-status__ic { background: var(--good-bg); color: var(--good-ink); }
+.g-status--warn .g-status__ic { background: var(--warn-bg); color: var(--warn-ink); }
+.g-status--bad .g-status__ic { background: var(--bad-bg); color: var(--bad-ink); }
+.g-status__counts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 18px; }
+.g-count { text-align: center; padding: 10px 6px; border-radius: 14px; background: var(--surface-2); }
+.g-count__n { font-size: 26px; font-weight: 800; line-height: 1.1; }
+.g-count__l { font-size: 13px; font-weight: 700; color: var(--ink-soft); }
+.g-count--taken { background: var(--good-bg); } .g-count--taken .g-count__n { color: var(--good-ink); }
+.g-count--missed { background: var(--bad-bg); } .g-count--missed .g-count__n { color: var(--bad-ink); }
+.g-count--pending { background: var(--warn-bg); } .g-count--pending .g-count__n { color: var(--warn-ink); }
+
+/* The track needs its own outline: --surface-2 sits almost on top of --bg in
+   the light themes, so a 25%-full bar looked like a floating sliver with no
+   sense of how much was left. */
+.g-bar {
+  height: 14px; border-radius: 999px; overflow: hidden;
+  background: color-mix(in srgb, var(--ink) 10%, var(--surface));
+  border: 1px solid var(--line);
+}
+.g-bar__fill {
+  height: 100%; border-radius: 999px; background: var(--good);
+  transition: width 0.8s cubic-bezier(.16, 1, .3, 1);
+}
+
+/* ---- lists, doses, appointments ---- */
+.g-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.g-dose, .g-appt {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 14px; border-radius: 16px;
+  background: var(--surface); border: 1px solid var(--line);
+}
+.g-dose--taken { border-left: 5px solid var(--good); }
+.g-dose--missed { border-left: 5px solid var(--bad); }
+.g-dose--overdue { border-left: 5px solid var(--warn); }
+.g-dose--due { border-left: 5px solid var(--primary); }
+.g-dose--upcoming { border-left: 5px solid var(--line); }
+.g-dose__chip {
+  flex: 0 0 auto; width: 38px; height: 38px; border-radius: 12px;
+  display: grid; place-items: center; color: #fff;
+}
+.g-dose__main { flex: 1; min-width: 0; }
+.g-dose__name { font-size: 18px; font-weight: 700; }
+.g-dose__meta {
+  display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 3px;
+  font-size: 15px; color: var(--ink-soft);
+}
+.g-dose__when { margin-top: 4px; font-size: 15px; font-weight: 700; color: var(--good-ink); }
+.g-dose__note {
+  display: flex; align-items: center; gap: 5px;
+  margin-top: 5px; font-size: 15px; color: var(--ink-soft);
+}
+.g-badge {
+  flex: 0 0 auto; display: inline-flex; align-items: center; gap: 5px;
+  padding: 6px 11px; border-radius: 999px; font-size: 14px; font-weight: 800; white-space: nowrap;
+}
+.g-badge--taken { background: var(--good-bg); color: var(--good-ink); }
+.g-badge--missed { background: var(--bad-bg); color: var(--bad-ink); }
+.g-badge--overdue { background: var(--warn-bg); color: var(--warn-ink); }
+.g-badge--due { background: var(--primary-soft); color: var(--primary); }
+.g-badge--upcoming { background: var(--surface-2); color: var(--ink-soft); }
+
+.g-appt__date {
+  flex: 0 0 auto; width: 52px; text-align: center; padding: 6px 0;
+  border-radius: 12px; background: var(--primary-soft); color: var(--primary);
+}
+.g-appt__d { display: block; font-size: 22px; font-weight: 800; line-height: 1.1; }
+.g-appt__m { display: block; font-size: 12px; font-weight: 700; text-transform: uppercase; }
+.g-appt__main { flex: 1; min-width: 0; }
+
+/* ---- history ---- */
+.g-adherence {
+  display: flex; align-items: center; gap: 14px;
+  padding: 16px; border-radius: var(--radius);
+  background: var(--surface); border: 1px solid var(--line);
+}
+.g-adherence__pct { font-size: 34px; font-weight: 800; color: var(--good-ink); }
+.g-adherence__t { font-size: 17px; font-weight: 700; }
+.g-adherence__d { font-size: 15px; color: var(--ink-soft); }
+.g-day { }
+.g-day__head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 6px 0 8px; }
+.g-day__title { font-size: 17px; margin: 0; }
+.g-clear {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  width: 100%; min-height: 48px; padding: 10px 14px; cursor: pointer;
+  border: 1px solid var(--line); border-radius: 14px;
+  background: var(--surface-2); color: var(--ink); font: inherit; font-weight: 700;
+}
+.g-note { padding: 14px; border-radius: 16px; background: var(--surface-2); }
+.g-note__body { margin: 6px 0; font-size: 16px; }
+
+/* ---- calling ---- */
+.g-calls { display: grid; gap: 10px; }
+.g-call {
+  display: flex; align-items: center; gap: 12px;
+  min-height: 60px; padding: 12px 14px; text-decoration: none;
+  border: 1px solid var(--line); border-radius: 16px;
+  background: var(--surface); color: var(--ink);
+}
+.g-call__ic {
+  flex: 0 0 auto; width: 42px; height: 42px; display: grid; place-items: center;
+  border-radius: 12px; background: var(--good-bg); color: var(--good-ink);
+}
+.g-call__main { display: flex; flex-direction: column; }
+.g-call__name { font-size: 17px; font-weight: 700; }
+.g-call__type { font-size: 14px; color: var(--ink-soft); }
+
+/* ---- alerts, notices ---- */
+.g-field { display: flex; flex-direction: column; gap: 6px; margin: 4px 0 14px; }
+.g-field > span { font-size: 16px; font-weight: 700; }
+.g-ok {
+  display: flex; align-items: center; gap: 8px; margin: 0 0 14px;
+  font-size: 16px; font-weight: 700; color: var(--good-ink);
+}
+.g-warn {
+  display: flex; align-items: center; gap: 8px; margin: 0 0 12px;
+  padding: 12px 14px; border-radius: 14px;
+  background: var(--warn-bg); color: var(--warn-ink); font-weight: 700; font-size: 16px;
+}
+.g-stale {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 14px; border-radius: 14px;
+  background: var(--surface-2); border: 1px solid var(--line);
+  color: var(--ink-soft); font-size: 15px; font-weight: 600;
+}
+.g-readonly {
+  display: flex; align-items: center; gap: 10px; width: 100%; text-align: left;
+  min-height: 56px; padding: 14px; cursor: pointer;
+  border: 1px solid var(--line); border-radius: 16px;
+  background: var(--surface-2); color: var(--ink-soft); font: inherit; font-size: 15px;
+}
+.g-readonly b { color: var(--ink); }
+.g-readonly span { flex: 1; }
+.g-can { list-style: none; margin: 14px 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.g-can li { display: flex; align-items: flex-start; gap: 10px; font-size: 16px; }
+.g-can__yes { color: var(--ink); } .g-can__yes svg { color: var(--good-ink); flex: 0 0 auto; }
+.g-can__no { color: var(--ink-soft); } .g-can__no svg { color: var(--bad-ink); flex: 0 0 auto; }
+.g-disconnect {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  width: 100%; min-height: 48px; padding: 12px; cursor: pointer; margin-top: 4px;
+  border: 1px solid var(--line); border-radius: 14px;
+  background: transparent; color: var(--ink-soft); font: inherit; font-weight: 700;
+}
+.g-disconnect:hover { color: var(--bad-ink); border-color: var(--bad); }
+.g-pull {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  overflow: hidden; color: var(--ink-soft); font-size: 14px; font-weight: 700;
+}
+
+/* ---- install card (guardian + notification settings) ---- */
+.install-card {
+  padding: 16px; border-radius: 16px;
+  background: var(--surface-2); border: 1px solid var(--line);
+}
+.install-card--ok { display: flex; align-items: flex-start; gap: 12px; background: var(--good-bg); border-color: var(--good); }
+.install-card__okic, .install-card__ic {
+  flex: 0 0 auto; width: 40px; height: 40px; display: grid; place-items: center;
+  border-radius: 12px; background: var(--primary-soft); color: var(--primary);
+}
+.install-card--ok .install-card__okic { background: color-mix(in srgb, var(--good) 22%, transparent); color: var(--good-ink); }
+.install-card__head { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 14px; }
+.install-card__t { font-size: 17px; font-weight: 800; }
+.install-card__d { margin: 4px 0 0; font-size: 15px; color: var(--ink-soft); }
+.install-card__recheck { margin: 12px 0 0; font-size: 14px; color: var(--ink-soft); }
+.install-steps--art { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 14px; }
+.install-steps--art .install-step { display: flex; align-items: flex-start; gap: 12px; }
+.install-step__body { display: flex; flex-direction: column; gap: 8px; flex: 1; }
+.install-step__txt { font-size: 16px; }
+
+/* Screenshot-style illustrations: mocks of the browser chrome each step
+   refers to, drawn from theme tokens so they stay legible in every theme. */
+.ia { display: block; border-radius: 10px; background: var(--surface); border: 1px solid var(--line); padding: 7px; }
+.ia__bar { display: flex; align-items: center; gap: 6px; }
+.ia__dot { width: 9px; height: 9px; border-radius: 50%; background: var(--line); flex: 0 0 auto; }
+.ia__url { flex: 1; height: 13px; border-radius: 999px; background: var(--surface-2); }
+.ia__target {
+  flex: 0 0 auto; width: 24px; height: 24px; display: grid; place-items: center;
+  border-radius: 7px; background: var(--primary); color: var(--on-primary);
+  box-shadow: 0 0 0 3px var(--primary-soft);
+}
+.ia--toolbar-bottom .ia__bar { flex-direction: row-reverse; }
+.ia--sheet { display: flex; flex-direction: column; gap: 5px; }
+.ia__row { height: 15px; border-radius: 6px; background: var(--surface-2); }
+.ia__row--target {
+  display: flex; align-items: center; padding: 0 6px; height: 24px;
+  background: var(--primary); color: var(--on-primary);
+  box-shadow: 0 0 0 3px var(--primary-soft);
+}
+.ia__addbar { display: flex; justify-content: flex-end; }
+.ia__addbtn {
+  padding: 4px 12px; border-radius: 8px; font-size: 12px; font-weight: 800;
+  background: var(--primary); color: var(--on-primary);
+  box-shadow: 0 0 0 3px var(--primary-soft);
+}
+.ia--home { display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 10px; }
+.ia__app {
+  width: 30px; height: 30px; display: grid; place-items: center; border-radius: 8px;
+  background: linear-gradient(140deg, var(--primary-2), var(--primary)); color: var(--on-primary);
+}
+.ia__appname { font-size: 11px; font-weight: 700; color: var(--ink-soft); }
+
+/* ---- guardian dashboard: tablet + desktop ---- */
+/* Today and History side by side once there is room, rather than a phone
+   column stretched across an iPad. */
+@media (min-width: 900px) {
+  .g-content { max-width: 1100px; }
+  .g-status { padding: 24px 22px; }
+  .g-status__name { font-size: 32px; }
+  .g-two {
+    display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 16px; align-items: start;
+  }
+}
+
+/* ---- motion: scroll/stagger reveals, all opt-out ---- */
+.g-reveal { animation: g-rise 0.7s cubic-bezier(.16, 1, .3, 1) both; animation-delay: calc(var(--i, 0) * 0.06s); }
+@keyframes g-rise { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: none; } }
+.g-refresh[data-phase='spin'] svg { animation: spin 0.8s linear infinite; }
+.g-refresh[data-phase='done'] svg { animation: pop 0.35s cubic-bezier(.16, 1, .3, 1); }
+
+/* Calm screen and reduced motion make the whole dashboard static. Cap the
+   stagger delay too: animation:none alone leaves a delayed element invisible
+   in some engines if the animation is ever re-enabled mid-scroll. */
+html[data-motion='calm'] .g-reveal,
+html[data-motion='calm'] .g-refresh svg,
+html[data-motion='calm'] .g-bar__fill {
+  animation: none !important; transition: none !important; animation-delay: 0s !important; opacity: 1 !important; transform: none !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .g-reveal, .g-refresh svg, .g-bar__fill {
+    animation: none !important; transition: none !important; animation-delay: 0s !important; opacity: 1 !important; transform: none !important;
+  }
+}
+
+/* ---- Profile: guardians, their devices, and revoking one ---- */
+.guardian-list { display: flex; flex-direction: column; gap: 12px; }
+.guardian {
+  padding: 14px; border-radius: 16px;
+  background: var(--surface-2); border: 1px solid var(--line);
+}
+.guardian--on { border-color: color-mix(in srgb, var(--good) 45%, var(--line)); }
+.guardian__head { display: flex; align-items: flex-start; gap: 12px; }
+.guardian__ic {
+  flex: 0 0 auto; width: 42px; height: 42px; display: grid; place-items: center;
+  border-radius: 12px; background: var(--primary-soft); color: var(--primary);
+}
+.guardian__main { flex: 1; min-width: 0; }
+.guardian__name { font-size: 18px; font-weight: 700; }
+.guardian__state {
+  display: flex; align-items: center; gap: 6px; margin-top: 2px;
+  font-size: 15px; font-weight: 700; color: var(--ink-soft);
+}
+.guardian__state--on { color: var(--good-ink); }
+.guardian__seen { margin-top: 2px; font-size: 14px; color: var(--ink-soft); }
+.guardian__devices { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.gdev {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px; border-radius: 12px;
+  background: var(--surface); border: 1px solid var(--line);
+}
+.gdev__ic {
+  flex: 0 0 auto; width: 34px; height: 34px; display: grid; place-items: center;
+  border-radius: 10px; background: var(--surface-2); color: var(--ink-soft);
+}
+.gdev__main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.gdev__label { font-size: 16px; font-weight: 700; }
+.gdev__meta { font-size: 14px; color: var(--ink-soft); }
+.gdev__revoke {
+  flex: 0 0 auto; min-height: 48px; padding: 8px 14px; cursor: pointer;
+  border: 2px solid var(--bad); border-radius: 12px;
+  background: transparent; color: var(--bad-ink); font: inherit; font-weight: 800; font-size: 15px;
+}
+.guardian__actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.guardian__perms { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
+.guardian__perms .g-can li { font-size: 15px; }
+
+/* "Show more days" in the guardian history list. */
+.g-more {
+  display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap;
+  width: 100%; min-height: 56px; padding: 14px; margin-top: 4px; cursor: pointer;
+  border: 1px solid var(--line); border-radius: 16px;
+  background: var(--surface); color: var(--primary); font: inherit; font-weight: 800;
+}
+.g-more svg { transform: rotate(90deg); }
+.g-more__rest { width: 100%; text-align: center; font-weight: 600; font-size: 14px; color: var(--ink-soft); }

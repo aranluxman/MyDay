@@ -8,12 +8,12 @@ import { useSettings } from '../context/SettingsContext.jsx';
 import { Icon } from '../components/Icon.jsx';
 import { listContacts, saveContact, deleteContact, listFamilyDevices, saveFamilyDevice, uploadAvatar,
   createGuardianInvite, listGuardians, deleteGuardian, regenerateGuardianInvite, guardianInviteLink,
-  formatGuardianCode } from '../lib/db.js';
+  formatGuardianCode, issueGuardianCode, revokeGuardianDevice, setGuardianShareDiary } from '../lib/db.js';
 import { supabase } from '../lib/supabase.js';
 import { pushSupported, enablePush } from '../lib/push.js';
 import { useInstallPrompt } from '../hooks/useInstallPrompt.js';
 import { InstallButton } from '../components/InstallButton.jsx';
-import { ageFromBirthday } from '../lib/format.js';
+import { ageFromBirthday, prettyClock, shortDate } from '../lib/format.js';
 import { THEMES, TEXT_SIZES, profileCompleteness } from '../lib/appearance.js';
 
 const CONTACT_TYPES = [
@@ -24,12 +24,28 @@ const CONTACT_TYPES = [
   { value: 'merchant', label: 'Merchant', icon: 'cart' },
   { value: 'other', label: 'Other', icon: 'star' },
 ];
-// "Works for 13 more days" reads better to an older user than a raw date.
-function expiryDays(iso) {
-  const days = Math.ceil((new Date(iso).getTime() - Date.now()) / 86400000);
-  if (!Number.isFinite(days) || days <= 0) return 'a short while longer';
-  return days === 1 ? '1 more day' : `${days} more days`;
+// A linking code now lives for 15 minutes, not 14 days, so it is counted in
+// minutes. "Works for 12 more minutes" is also a useful nudge to read it out
+// now rather than leave it on screen.
+function codeLife(iso) {
+  const mins = Math.ceil((new Date(iso).getTime() - Date.now()) / 60000);
+  if (!Number.isFinite(mins) || mins <= 0) return null;
+  if (mins === 1) return '1 more minute';
+  return `${mins} more minutes`;
 }
+
+// When a guardian last opened their dashboard, in words.
+function lastSeenWords(iso) {
+  if (!iso) return 'Has not opened it yet';
+  const d = new Date(iso);
+  const diff = Date.now() - d.getTime();
+  if (diff < 120000) return 'Looking at it now';
+  if (diff < 3600000) return `Opened ${Math.floor(diff / 60000)} min ago`;
+  if (diff < 86400000) return `Opened at ${prettyClock(d)}`;
+  if (diff < 172800000) return 'Opened yesterday';
+  return `Opened ${shortDate(d.toISOString().slice(0, 10))}`;
+}
+
 const typeMeta = (t) => CONTACT_TYPES.find((x) => x.value === t) || CONTACT_TYPES[5];
 
 // Friendly labels for the profile-completeness checklist.
@@ -154,15 +170,40 @@ export default function Profile() {
     try { await deleteGuardian(g.id); ui.toast('Removed.', 'info'); guardians.reload(); }
     catch { ui.toast('Could not remove.', 'bad'); }
   }
-  // Mints a fresh code (invalidating the old one) and puts it back on screen,
-  // which is what someone reaching for "new code" actually wants to see.
+  // Mints a fresh 15-minute code (invalidating the old one) and puts it back on
+  // screen, which is what someone reaching for "new code" actually wants to see.
   async function newCode(g) {
     try {
-      const updated = await regenerateGuardianInvite(g.id);
+      const fresh = await issueGuardianCode(g.id);
+      const updated = { ...g, ...fresh };
       guardians.reload();
       setCreatedInvite(updated);
       setInviteOpen(true);
     } catch { ui.toast('Could not make a new code.', 'bad'); }
+  }
+  // Regenerates the long-lived shareable LINK, which is a separate credential
+  // from the short code and still lasts weeks.
+  async function newLink(g) {
+    try {
+      const updated = await regenerateGuardianInvite(g.id);
+      guardians.reload();
+      return updated;
+    } catch { ui.toast('Could not make a new link.', 'bad'); return null; }
+  }
+  // Kills one device's token. Takes effect on that device's next request.
+  async function revokeDevice(g, device) {
+    const ok = await ui.confirm({
+      title: 'Disconnect this device?',
+      message: `${device.label || 'This device'} will stop showing your information and stop getting alerts. ${g.name} can connect again with a new code.`,
+      confirmLabel: 'Disconnect', danger: true,
+    });
+    if (!ok) return;
+    try { await revokeGuardianDevice(device.id); ui.toast('Device disconnected.', 'info'); guardians.reload(); }
+    catch { ui.toast('Could not disconnect that device.', 'bad'); }
+  }
+  async function toggleDiary(g, share) {
+    try { await setGuardianShareDiary(g.id, share); guardians.reload(); }
+    catch { ui.toast('Could not save.', 'bad'); }
   }
 
   return (
@@ -322,33 +363,23 @@ export default function Profile() {
       <Card>
         <SectionTitle icon="user" title="Guardians" />
         <p className="muted" style={{ margin: '0 0 12px' }}>
-          A guardian is someone in your family who gets an alert on their own phone or tablet if you miss a
-          medication. Tap <b>Invite a guardian</b> and read them the 6-digit code — they type it into MyDay on
-          their device. They don't need an account.
+          A guardian is someone in your family who can check on their own phone or tablet whether you have
+          taken your medicines, and gets an alert if you miss one. Tap <b>Show code</b> and read them the
+          6-digit code — it works for 15 minutes and once only. They don't need an account.
+        </p>
+        <p className="muted" style={{ margin: '0 0 12px' }}>
+          They can only <b>look</b>. A guardian can never change your medicines or appointments, and can never
+          mark a dose as taken. You can disconnect any of their devices below at any time.
         </p>
         {guardians.data?.length ? (
-          <div className="contact-list">
-            {guardians.data.map((g) => {
-              const active = g.status === 'active';
-              return (
-                <div key={g.id} className="contact">
-                  <span className="contact__icon"><Icon name="user" size={22} /></span>
-                  <div className="contact__main">
-                    <div className="contact__name">{g.name}</div>
-                    <div className={`contact__line ${active ? '' : 'muted'}`} style={active ? { color: 'var(--good-ink)', fontWeight: 600 } : undefined}>
-                      {active ? `Connected · ${g.deviceCount} device${g.deviceCount === 1 ? '' : 's'}` : 'Waiting for them to enter the code'}
-                    </div>
-                    {!active && <button type="button" className="code-inline" onClick={() => { setCreatedInvite(g); setInviteOpen(true); }}>
-                      Code {formatGuardianCode(g.code)} — tap to show
-                    </button>}
-                  </div>
-                  <div className="contact__actions">
-                    <button className="icon-btn" aria-label={`Show ${g.name}'s code`} onClick={() => { setCreatedInvite(g); setInviteOpen(true); }}><Icon name="share" size={20} /></button>
-                    <button className="icon-btn" aria-label={`Remove ${g.name}`} onClick={() => removeGuardian(g)}><Icon name="trash" size={20} /></button>
-                  </div>
-                </div>
-              );
-            })}
+          <div className="guardian-list">
+            {guardians.data.map((g) => (
+              <GuardianRow key={g.id} guardian={g}
+                onShowCode={() => newCode(g)}
+                onRevokeDevice={(d) => revokeDevice(g, d)}
+                onToggleDiary={(v) => toggleDiary(g, v)}
+                onRemove={() => removeGuardian(g)} />
+            ))}
           </div>
         ) : null}
         <div style={{ height: 12 }} />
@@ -360,16 +391,26 @@ export default function Profile() {
           {createdInvite ? (
             <>
               <p className="dialog-msg">
-                Read this code out to {createdInvite.name}. On their own phone or tablet they open MyDay, tap
-                <b> I'm a guardian</b>, and type it in.
+                Read this code out to {createdInvite.name}. On their own phone or tablet they open
+                <b> myday-1rn.pages.dev/guardian</b> and type it in.
               </p>
               <div className="big-code" aria-label={`Code ${String(createdInvite.code || '').split('').join(' ')}`}>
                 {formatGuardianCode(createdInvite.code)}
               </div>
               <p className="muted" style={{ textAlign: 'center', margin: '0 0 16px' }}>
-                Works for {expiryDays(createdInvite.expires_at)}. Only share it with someone you trust.
+                {codeLife(createdInvite.code_expires_at)
+                  ? <>Works for {codeLife(createdInvite.code_expires_at)}, and only once.</>
+                  : <>This code has expired — tap “Make a new code”.</>}
+                <br />Only share it with someone you trust.
               </p>
-              <Button icon="share" variant="ghost" onClick={() => shareInvite(createdInvite.token)}>Send a link instead</Button>
+              <Button icon="share" variant="ghost"
+                onClick={async () => {
+                  // The link is a separate, longer-lived credential; refresh it
+                  // if it has lapsed so "send a link" never sends a dead one.
+                  const live = new Date(createdInvite.expires_at || 0).getTime() > Date.now();
+                  const g = live ? createdInvite : (await newLink(createdInvite)) || createdInvite;
+                  if (g.token) shareInvite(g.token);
+                }}>Send a link instead</Button>
               <div style={{ height: 8 }} />
               <Button icon="plus" variant="ghost" onClick={() => newCode(createdInvite)}>Make a new code</Button>
               <div style={{ height: 8 }} />
@@ -472,6 +513,83 @@ function AlertsEnabler({ devices, onEnable, onTest }) {
 
 // One settings line: icon, name + plain-words description, and the control
 // (a switch on the right, or a full-width segmented picker underneath).
+// One guardian, with every device they have connected, when each last opened
+// the dashboard, and a Revoke button per device. The senior has to be able to
+// see exactly who is watching and cut any of them off in one tap — that is the
+// other half of letting a guardian in at all.
+function GuardianRow({ guardian: g, onShowCode, onRevokeDevice, onToggleDiary, onRemove }) {
+  const [open, setOpen] = useState(false);
+  const connected = g.deviceCount > 0;
+
+  return (
+    <div className={`guardian${connected ? ' guardian--on' : ''}`}>
+      <div className="guardian__head">
+        <span className="guardian__ic"><Icon name="user" size={22} /></span>
+        <div className="guardian__main">
+          <div className="guardian__name">{g.name}</div>
+          <div className={`guardian__state${connected ? ' guardian__state--on' : ''}`}>
+            {connected
+              ? <><Icon name="check" size={16} /> {g.deviceCount} device{g.deviceCount === 1 ? '' : 's'} connected</>
+              : <><Icon name="clock" size={16} /> Not connected yet</>}
+          </div>
+          {connected && <div className="guardian__seen">{lastSeenWords(g.lastSeenAt)}</div>}
+        </div>
+        <button className="icon-btn" aria-label={`Remove ${g.name}`} onClick={onRemove}>
+          <Icon name="trash" size={20} />
+        </button>
+      </div>
+
+      {connected && (
+        <ul className="guardian__devices">
+          {g.devices.map((d) => (
+            <li key={d.id} className="gdev">
+              <span className="gdev__ic"><Icon name={d.push_enabled ? 'bell' : 'eye'} size={18} /></span>
+              <span className="gdev__main">
+                <span className="gdev__label">{d.label || 'Their device'}</span>
+                <span className="gdev__meta">
+                  {lastSeenWords(d.last_seen_at)}
+                  {d.push_enabled ? ' · alerts on' : ' · alerts off'}
+                </span>
+              </span>
+              <button type="button" className="gdev__revoke" onClick={() => onRevokeDevice(d)}>Revoke</button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <div className="guardian__actions">
+        <Button variant="ghost" size="sm" icon="share" full={false} onClick={onShowCode}>
+          {connected ? 'Add another device' : 'Show code'}
+        </Button>
+        <Button variant="ghost" size="sm" icon="dots" full={false} onClick={() => setOpen((v) => !v)}>
+          {open ? 'Hide' : 'What they see'}
+        </Button>
+      </div>
+
+      {open && (
+        <div className="guardian__perms">
+          <p className="muted" style={{ margin: '0 0 10px', fontSize: 15 }}>
+            {g.name} can see, and cannot change:
+          </p>
+          <ul className="g-can">
+            <li className="g-can__yes"><Icon name="check" size={18} /> Today's medicines and whether each was taken</li>
+            <li className="g-can__yes"><Icon name="check" size={18} /> Your upcoming appointments</li>
+            <li className="g-can__yes"><Icon name="check" size={18} /> Your taken and missed dose history</li>
+            <li className="g-can__yes"><Icon name="check" size={18} /> The phone numbers of your saved contacts</li>
+            <li className="g-can__no"><Icon name="close" size={18} /> They cannot change or add anything</li>
+            <li className="g-can__no"><Icon name="close" size={18} /> They cannot mark a dose as taken</li>
+            <li className="g-can__no"><Icon name="close" size={18} /> They cannot see your health cards</li>
+          </ul>
+          <SettingRow icon="notes" title="Share my health notes"
+            desc="Off by default. Lets them read your recent diary entries.">
+            <Toggle checked={!!g.share_diary} onChange={onToggleDiary} label={`Share health notes with ${g.name}`} />
+          </SettingRow>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function SettingRow({ icon, title, desc, children, stacked }) {
   return (
     <div className={`setting-row${stacked ? ' setting-row--stack' : ''}`}>

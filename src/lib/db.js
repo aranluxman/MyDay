@@ -249,21 +249,62 @@ export async function listFamilyDevices() {
 // ---------- guardians (a linked person on their own device) ----------
 // The patient owns these rows; a guardian registers their device via the
 // public `guardian-join` edge function using the invite token below.
-const GUARDIAN_COLS = 'id,name,phone,status,code,token,expires_at,created_at';
+const GUARDIAN_COLS =
+  'id,name,phone,status,code,token,expires_at,code_expires_at,code_used_at,last_dashboard_at,share_diary,created_at';
+// Only the fields the senior needs to recognise and revoke a device. The token
+// hash is never selected — there is nothing useful to do with it client-side.
+const GUARDIAN_DEVICE_COLS = 'id,label,platform,last_seen_at,push_enabled,revoked_at,created_at';
 
 export async function createGuardianInvite(name, phone) {
   const { data, error } = await supabase.from('myday_guardians')
     .insert({ name, phone: phone || null })
     .select(GUARDIAN_COLS).single();
   if (error) throw error;
-  return data;
+  // The column default mints a code but no expiry, and a code with no expiry
+  // must never be treated as valid, so issue a real 15-minute one immediately.
+  return issueGuardianCode(data.id).then((c) => ({ ...data, ...c })).catch(() => data);
 }
+
+// Fresh 6-digit code + 15-minute expiry, replacing any previous one.
+export async function issueGuardianCode(guardianId) {
+  const { data, error } = await supabase
+    .rpc('myday_issue_guardian_code', { p_guardian_id: guardianId });
+  if (error) throw error;
+  const row = Array.isArray(data) ? data[0] : data;
+  return { code: row?.code, code_expires_at: row?.code_expires_at, code_used_at: null };
+}
+
 export async function listGuardians() {
   const { data, error } = await supabase.from('myday_guardians')
-    .select(`${GUARDIAN_COLS},devices:myday_guardian_devices(count)`)
+    .select(`${GUARDIAN_COLS},devices:myday_guardian_devices(${GUARDIAN_DEVICE_COLS})`)
     .order('created_at');
   if (error) throw error;
-  return (data || []).map((g) => ({ ...g, deviceCount: g.devices?.[0]?.count || 0 }));
+  return (data || []).map((g) => {
+    // A revoked device is kept in the table for the audit trail, but it is not
+    // a connection any more, so it must not be counted as one.
+    const live = (g.devices || []).filter((d) => !d.revoked_at);
+    return {
+      ...g,
+      devices: live,
+      revokedDevices: (g.devices || []).filter((d) => d.revoked_at),
+      deviceCount: live.length,
+      lastSeenAt: live.map((d) => d.last_seen_at).filter(Boolean).sort().pop() || null,
+    };
+  });
+}
+
+// Instantly kills one device's token. The edge function filters on revoked_at,
+// so the next dashboard request that device makes fails.
+export async function revokeGuardianDevice(deviceId) {
+  const { error } = await supabase.rpc('myday_revoke_guardian_device', { p_device_id: deviceId });
+  if (error) throw error;
+}
+
+// Diary notes are the one category a guardian sees only by explicit choice.
+export async function setGuardianShareDiary(guardianId, share) {
+  const { error } = await supabase.from('myday_guardians')
+    .update({ share_diary: !!share }).eq('id', guardianId);
+  if (error) throw error;
 }
 export async function deleteGuardian(id) {
   const { error } = await supabase.from('myday_guardians').delete().eq('id', id);

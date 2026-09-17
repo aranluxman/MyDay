@@ -1,7 +1,15 @@
 // MyDay service worker: offline app-shell + web-push handling.
 // Vite emits hashed asset filenames, so we cache at runtime rather than precache.
-const CACHE = 'myday-v5';
-const SHELL = ['/', '/index.html', '/manifest.webmanifest', '/icons/icon-192.png', '/icons/icon-512.png', '/icons/badge-72.png'];
+const CACHE = 'myday-v6';
+// '/guardian' and its manifest are precached too: a guardian's installed app
+// starts there, and it has to open with no signal (they may be in a clinic
+// basement). The navigate handler below falls back to the cached index.html,
+// which boots the SPA and renders the dashboard from its local cache.
+const SHELL = [
+  '/', '/index.html', '/guardian',
+  '/manifest.webmanifest', '/manifest-guardian.webmanifest',
+  '/icons/icon-192.png', '/icons/icon-512.png', '/icons/badge-72.png',
+];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL).catch(() => {})).then(() => self.skipWaiting()));
