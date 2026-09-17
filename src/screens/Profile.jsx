@@ -299,10 +299,6 @@ export default function Profile() {
           <SegmentedControl value={settings.clock} onChange={(v) => setSetting({ clock: v })}
             options={[{ value: '12', label: '2:30 PM' }, { value: '24', label: '14:30' }]} />
         </SettingRow>
-        <SettingRow icon="calendar" title="Week starts on" desc="First day shown in calendars." stacked>
-          <SegmentedControl value={settings.weekStart} onChange={(v) => setSetting({ weekStart: v })}
-            options={[{ value: 'sun', label: 'Sunday' }, { value: 'mon', label: 'Monday' }]} />
-        </SettingRow>
         <SettingRow icon="calendar" title="Calendar on Home" desc="Show this month's medicine calendar on the Home screen.">
           <Toggle checked={settings.homeCalendar} onChange={(v) => setSetting({ homeCalendar: v })} label="Calendar on Home" />
         </SettingRow>

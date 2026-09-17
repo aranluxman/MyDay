@@ -2,26 +2,24 @@ import { useMemo, useState } from 'react';
 import { Icon } from './Icon.jsx';
 import { Spinner } from './ui.jsx';
 import { useAsync } from '../hooks/useAsync.js';
-import { useSettings } from '../context/SettingsContext.jsx';
 import { dosesInRange } from '../lib/db.js';
 import { localDateStr, deviceTimezone, prettyDate } from '../lib/format.js';
 
-const WD_SUN = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
-const WD_MON = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
+// Calendars are always Sunday-first; the old "Week starts on" preference was
+// one more thing to get wrong for no real benefit.
+const WEEKDAYS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 // Word marks inside each day so status never relies on colour alone.
 const MARK = { taken: '✓', pending: '•', missed: '!' };
 const pad = (n) => String(n).padStart(2, '0');
 const iso = (y, m, d) => `${y}-${pad(m + 1)}-${pad(d)}`;
 
 export function MedCalendar({ selected, onPick }) {
-  const { settings } = useSettings();
   const today = localDateStr(deviceTimezone());
   const [cursor, setCursor] = useState(() => { const d = new Date(); return { y: d.getFullYear(), m: d.getMonth() }; });
 
   const first = new Date(cursor.y, cursor.m, 1);
   const daysInMonth = new Date(cursor.y, cursor.m + 1, 0).getDate();
-  const mondayFirst = settings.weekStart === 'mon';
-  const startWd = (first.getDay() + (mondayFirst ? 6 : 0)) % 7;
+  const startWd = first.getDay();
   const fromIso = iso(cursor.y, cursor.m, 1);
   const toIso = iso(cursor.y, cursor.m, daysInMonth);
 
@@ -62,7 +60,7 @@ export function MedCalendar({ selected, onPick }) {
         <span className="cal__title" aria-live="polite">{monthLabel}</span>
         <button className="cal__nav" aria-label="Next month" onClick={() => shift(1)}><Icon name="chevron" size={24} /></button>
       </div>
-      <div className="cal__weekdays">{(mondayFirst ? WD_MON : WD_SUN).map((w, i) => <span key={i}>{w}</span>)}</div>
+      <div className="cal__weekdays">{WEEKDAYS.map((w) => <span key={w}>{w}</span>)}</div>
       {loading ? <Spinner label="" /> : (
         <div className="cal__grid">
           {cells.map((day, i) => {
