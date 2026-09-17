@@ -65,14 +65,118 @@ export async function listMedications() {
   if (error) throw error;
   return data || [];
 }
+// `dose` stays the display string built from the structured fields, so every
+// existing screen and the push notification bodies keep working while the
+// amount/unit pair becomes the thing people actually edit.
 export async function saveMedication(med) {
-  const row = { name: med.name, dose: med.dose, times: med.times, note: med.note || null, color: med.color || '#2563a8' };
-  if (med.id) { const { error } = await supabase.from('myday_medications').update(row).eq('id', med.id); if (error) throw error; }
-  else { const { error } = await supabase.from('myday_medications').insert(row); if (error) throw error; }
+  const row = {
+    name: med.name,
+    dose: med.dose,
+    times: med.times,
+    note: med.note || null,
+    color: med.color || '#2563a8',
+    dose_amount: med.dose_amount ?? null,
+    dose_unit: med.dose_unit ?? null,
+    dose_other: med.dose_other || null,
+    frequency: med.frequency || 'daily',
+    // An empty weekday list would fail the CHECK, and only 'days_of_week'
+    // should carry one at all.
+    days_of_week: med.frequency === 'days_of_week' && med.days_of_week?.length
+      ? med.days_of_week : null,
+    start_date: med.start_date || null,
+    end_date: med.end_date || null,
+    with_food: !!med.with_food,
+    photo_path: med.photo_path ?? null,
+    reminders_enabled: med.reminders_enabled !== false,
+    alert_window_override: med.alert_window_override ?? null,
+  };
+  if (med.id) {
+    const { error } = await supabase.from('myday_medications').update(row).eq('id', med.id);
+    if (error) throw error;
+    return med.id;
+  }
+  const { data, error } = await supabase.from('myday_medications').insert(row).select('id').single();
+  if (error) throw error;
+  return data.id;
 }
+
+// Soft delete, so the dose history that points at this medicine survives.
 export async function deleteMedication(id) {
   const { error } = await supabase.from('myday_medications').update({ active: false }).eq('id', id);
   if (error) throw error;
+}
+
+// Undo for a removal. The row was only deactivated, so this is a flag flip.
+export async function restoreMedication(id) {
+  const { error } = await supabase.from('myday_medications').update({ active: true }).eq('id', id);
+  if (error) throw error;
+}
+
+// "Duplicate" for a medicine taken at several strengths or times. The copy is
+// deliberately marked so two identical rows are never confusable in the list.
+export async function duplicateMedication(med) {
+  const { id, created_at, updated_at, user_id, ...rest } = med;
+  return saveMedication({ ...rest, name: `${med.name} (copy)` });
+}
+
+// Pill / box photos live in a PRIVATE bucket (a photo of a medicine box is
+// health data), so they are only ever read through a short-lived signed URL.
+export async function uploadMedPhoto(file, onProgress) {
+  const { data: { session } } = await supabase.auth.getSession();
+  const userId = session?.user?.id;
+  if (!userId) throw new Error('You have been signed out. Please sign in again.');
+
+  const blob = await compressImage(file, 1600, 0.82);
+  const path = `${userId}/${crypto.randomUUID()}.webp`;
+  onProgress?.(0.35);
+  const { error } = await supabase.storage.from('myday-med-photos')
+    .upload(path, blob, { contentType: 'image/webp', upsert: false });
+  if (error) throw error;
+  onProgress?.(1);
+  return path;
+}
+
+export async function medPhotoUrl(path, seconds = 3600) {
+  if (!path) return null;
+  const { data, error } = await supabase.storage.from('myday-med-photos').createSignedUrl(path, seconds);
+  if (error) return null;
+  return data?.signedUrl || null;
+}
+
+export async function deleteMedPhoto(path) {
+  if (!path) return;
+  await supabase.storage.from('myday-med-photos').remove([path]);
+}
+
+// Downscale and re-encode in the browser before upload. A modern phone camera
+// produces 4-8MB files; a legible photo of a pill box needs a fraction of that,
+// and the person is often on hospital wifi.
+export async function compressImage(file, maxEdge = 1600, quality = 0.82) {
+  const bitmap = await createImageBitmap(file);
+  const scale = Math.min(1, maxEdge / Math.max(bitmap.width, bitmap.height));
+  const w = Math.round(bitmap.width * scale);
+  const h = Math.round(bitmap.height * scale);
+  const canvas = document.createElement('canvas');
+  canvas.width = w; canvas.height = h;
+  canvas.getContext('2d').drawImage(bitmap, 0, 0, w, h);
+  bitmap.close?.();
+
+  const blob = await new Promise((resolve) => {
+    // Safari only gained toBlob('image/webp') recently, so fall back to JPEG
+    // rather than silently uploading a 0-byte file.
+    canvas.toBlob((b) => (b ? resolve(b) : canvas.toBlob(resolve, 'image/jpeg', quality)), 'image/webp', quality);
+  });
+  if (!blob) throw new Error('Could not read that photo. Please try another.');
+  return blob;
+}
+
+// Names already on this person's list, newest first — the autocomplete's
+// "recently added" suggestions.
+export async function recentMedicineNames(limit = 12) {
+  const { data, error } = await supabase.from('myday_medications')
+    .select('name').order('created_at', { ascending: false }).limit(limit);
+  if (error) return [];
+  return (data || []).map((r) => r.name).filter(Boolean);
 }
 
 // ---------- doses ----------

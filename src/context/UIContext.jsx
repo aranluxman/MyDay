@@ -10,17 +10,26 @@ export function UIProvider({ children }) {
   const [dialog, setDialog] = useState(null);
   const idRef = useRef(0);
 
-  const toast = useCallback((message, kind = 'good') => {
+  // toast(message, kind, action?) where action is { label, onAction }.
+  // A destructive action should always offer Undo here rather than a
+  // confirm-then-hope: the toast is the only place the person can still
+  // change their mind. An actionable toast stays on screen longer, because
+  // 2.8 seconds is not enough time to read it and decide.
+  const toast = useCallback((message, kind = 'good', action = null) => {
     const id = ++idRef.current;
-    setToasts((t) => [...t, { id, message, kind }]);
-    setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 2800);
+    setToasts((t) => [...t, { id, message, kind, action }]);
+    setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), action ? 7000 : 2800);
+  }, []);
+
+  const dismissToast = useCallback((id) => {
+    setToasts((t) => t.filter((x) => x.id !== id));
   }, []);
 
   const confirm = useCallback((opts) => new Promise((resolve) => {
     setDialog({ kind: 'confirm', confirmLabel: 'Yes', cancelLabel: 'Cancel', ...opts, resolve });
   }), []);
 
-  const value = { toast, confirm };
+  const value = { toast, confirm, dismissToast };
 
   return (
     <UICtx.Provider value={value}>
@@ -29,7 +38,13 @@ export function UIProvider({ children }) {
         {toasts.map((t) => (
           <div key={t.id} className={`toast toast--${t.kind}`}>
             {t.kind === 'good' && <Icon name="check" size={22} />}
-            <span>{t.message}</span>
+            <span className="toast__msg">{t.message}</span>
+            {t.action && (
+              <button type="button" className="toast__action"
+                onClick={() => { dismissToast(t.id); t.action.onAction?.(); }}>
+                {t.action.label}
+              </button>
+            )}
           </div>
         ))}
       </div>

@@ -147,9 +147,14 @@ h3.subsection { font-size: 21px; margin: 8px 0 0; }
 .card--tap:active { transform: scale(0.99); }
 .card__title { font-size: 21px; font-weight: 700; margin: 0 0 2px; }
 .card__meta { font-size: 16px; color: var(--ink-soft); margin: 2px 0; }
-.card--due { border-left: 7px solid var(--warn); }
+/* One visual language for dose state, shared by Home, Medication and the
+   guardian dashboard. 'overdue' and 'upcoming' are new: a dose twenty minutes
+   late and one due tonight used to look identical. */
+.card--due { border-left: 7px solid var(--primary); }
+.card--overdue { border-left: 7px solid var(--warn); }
 .card--taken { border-left: 7px solid var(--good); }
 .card--missed { border-left: 7px solid var(--bad); }
+.card--upcoming { border-left: 7px solid var(--line); }
 
 /* ---------- pills ---------- */
 .pill { display: inline-flex; align-items: center; white-space: nowrap; font-size: 14px; font-weight: 700; padding: 6px 12px; border-radius: 999px; }
@@ -202,6 +207,16 @@ h3.subsection { font-size: 21px; margin: 8px 0 0; }
 .toast { display: inline-flex; align-items: center; gap: 8px; max-width: 90%; padding: 14px 20px; font-size: 18px; font-weight: 700; color: #fff; background: var(--good); border-radius: 14px; box-shadow: var(--shadow-lg); animation: up 0.2s ease; }
 .toast--info { background: var(--primary); }
 .toast--bad { background: var(--bad); }
+/* An actionable toast has to receive taps; the stack itself stays
+   pointer-events: none so a passive toast never blocks the screen under it. */
+.toast:has(.toast__action) { pointer-events: auto; }
+.toast__msg { flex: 1; min-width: 0; }
+.toast__action {
+  flex: 0 0 auto; min-height: 44px; margin: -6px -8px -6px 4px; padding: 8px 14px; cursor: pointer;
+  border: 2px solid rgba(255, 255, 255, 0.55); border-radius: 10px;
+  background: rgba(255, 255, 255, 0.16); color: #fff; font: inherit; font-weight: 800; font-size: 16px;
+}
+.toast__action:active { transform: scale(0.96); }
 
 /* ---------- auth ---------- */
 .auth { max-width: 440px; margin: 0 auto; min-height: 100vh; padding: calc(28px + env(safe-area-inset-top)) 20px 40px; display: flex; flex-direction: column; gap: 22px; }
@@ -1217,3 +1232,276 @@ html[data-motion='calm'] .g-bar__fill {
 }
 .g-more svg { transform: rotate(90deg); }
 .g-more__rest { width: 100%; text-align: center; font-weight: 600; font-size: 14px; color: var(--ink-soft); }
+
+/* =====================================================================
+   Add / edit a medicine — the step-by-step sheet
+   Large controls throughout: this flow is used by people with shaky hands,
+   long nails and reading glasses, so every target is at least 48px and the
+   numbers are big enough to check at arm's length.
+   ===================================================================== */
+.sheet--wizard { display: flex; flex-direction: column; max-height: 92vh; }
+.wiz__head { display: flex; align-items: center; gap: 10px; padding: 4px 16px 10px; }
+.wiz__headmain { flex: 1; min-width: 0; display: flex; flex-direction: column; text-align: center; }
+.wiz__count { font-size: 13px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--ink-soft); }
+.wiz__title { font-size: 21px; font-weight: 800; letter-spacing: -0.01em; }
+.wiz__progress { height: 6px; margin: 0 16px; border-radius: 999px; background: var(--surface-2); overflow: hidden; }
+.wiz__progressfill {
+  height: 100%; border-radius: 999px; background: var(--primary);
+  transition: width 0.3s cubic-bezier(.16, 1, .3, 1);
+}
+.wiz__view { position: relative; overflow: hidden; transition: height 0.3s cubic-bezier(.16, 1, .3, 1); }
+.wiz__slide { animation: wiz-in 0.28s cubic-bezier(.16, 1, .3, 1) both; }
+.wiz__slide[data-dir='back'] { animation-name: wiz-in-back; }
+@keyframes wiz-in { from { opacity: 0; transform: translateX(22px); } to { opacity: 1; transform: none; } }
+@keyframes wiz-in-back { from { opacity: 0; transform: translateX(-22px); } to { opacity: 1; transform: none; } }
+.wiz__body { padding: 18px 16px 4px; overflow-y: auto; }
+.wiz__step { display: flex; flex-direction: column; gap: 10px; }
+.wiz__hint { margin: 0; color: var(--ink-soft); font-size: 16px; }
+.wiz__label { font-size: 16px; font-weight: 700; }
+.wiz__field { display: flex; flex-direction: column; gap: 6px; }
+.wiz__row { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 56px; }
+.wiz__err {
+  margin: 8px 0 0; padding: 10px 12px; border-radius: 12px;
+  background: var(--bad-bg); color: var(--bad-ink); font-weight: 700; font-size: 15px;
+}
+.wiz__preview {
+  margin: 14px 0 0; padding: 12px 14px; border-radius: 14px;
+  background: var(--primary-soft); color: var(--ink); font-size: 16px;
+}
+.wiz__foot {
+  padding: 12px 16px calc(14px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--line); background: var(--surface);
+}
+.wiz__skip {
+  display: block; width: 100%; margin-top: 10px; padding: 10px; cursor: pointer;
+  border: 0; background: none; color: var(--ink-soft); font: inherit; font-size: 15px;
+  text-decoration: underline; text-underline-offset: 3px;
+}
+.wiz__disclose {
+  display: flex; align-items: center; gap: 8px; width: 100%; text-align: left;
+  min-height: 52px; margin-top: 12px; padding: 12px; cursor: pointer;
+  border: 1px solid var(--line); border-radius: 14px;
+  background: var(--surface-2); color: var(--ink); font: inherit; font-weight: 700;
+}
+.wiz__disclose svg { transition: transform 0.2s ease; }
+.wiz__optional { margin-left: auto; font-weight: 600; font-size: 14px; color: var(--ink-soft); }
+.wiz__dates { display: flex; flex-direction: column; gap: 12px; margin-top: 12px; }
+.wiz__addtime { margin-top: 12px; }
+
+/* ---- name autocomplete ---- */
+.ac { position: relative; }
+/* Deliberately IN the layout rather than floating above it. An absolutely
+   positioned menu was clipped by the sheet's overflow:hidden (which is what
+   animates the step height), and a floating layer is the wrong pattern here
+   anyway: the list pushes the step taller, the height animates to fit, and
+   nothing can be hidden behind the footer. */
+.ac__list {
+  list-style: none; margin: 8px 0 0; padding: 6px; max-height: 320px; overflow-y: auto;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow);
+}
+.ac__item {
+  display: flex; align-items: center; gap: 10px; width: 100%; text-align: left;
+  min-height: 52px; padding: 10px 12px; cursor: pointer;
+  border: 0; border-radius: 12px; background: none; color: var(--ink); font: inherit; font-size: 17px;
+}
+.ac__item:hover, .ac__item:focus-visible { background: var(--primary-soft); }
+.ac__item svg { flex: 0 0 auto; color: var(--ink-soft); }
+.ac__tag {
+  margin-left: auto; flex: 0 0 auto; padding: 3px 9px; border-radius: 999px;
+  background: var(--good-bg); color: var(--good-ink); font-size: 12px; font-weight: 800;
+}
+
+/* ---- amount stepper ---- */
+.stepper {
+  display: flex; align-items: center; gap: 12px; margin-top: 6px;
+  padding: 10px; border-radius: 18px; background: var(--surface-2); border: 1px solid var(--line);
+}
+.stepper__btn {
+  flex: 0 0 auto; width: 64px; height: 64px; display: grid; place-items: center; cursor: pointer;
+  border: 2px solid var(--primary); border-radius: 16px;
+  background: var(--surface); color: var(--primary);
+}
+.stepper__btn:active { transform: scale(0.94); }
+.stepper__val { flex: 1; text-align: center; }
+.stepper__n { display: block; font-size: 38px; font-weight: 800; line-height: 1.05; }
+.stepper__u { display: block; font-size: 15px; font-weight: 700; color: var(--ink-soft); }
+.input--big { font-size: 28px; font-weight: 800; text-align: center; min-height: 70px; }
+
+/* ---- chips (units, weekdays, presets) ---- */
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  min-height: 48px; padding: 10px 16px; cursor: pointer;
+  border: 2px solid var(--line); border-radius: 999px;
+  background: var(--surface); color: var(--ink); font: inherit; font-size: 16px; font-weight: 700;
+}
+.chip.is-on { border-color: var(--primary); background: var(--primary-soft); color: var(--primary); }
+.chip--removable { padding-right: 12px; }
+
+/* ---- time preset cards ---- */
+.timegrid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 8px; }
+.timecard {
+  position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+  min-height: 84px; padding: 14px; cursor: pointer;
+  border: 2px solid var(--line); border-radius: 18px;
+  background: var(--surface); color: var(--ink); font: inherit; text-align: left;
+}
+.timecard.is-on { border-color: var(--good); background: var(--good-bg); }
+.timecard__check {
+  position: absolute; top: 10px; right: 10px;
+  width: 28px; height: 28px; display: grid; place-items: center; border-radius: 50%;
+  border: 2px solid var(--line); background: var(--surface); color: var(--good-ink);
+}
+.timecard.is-on .timecard__check { border-color: var(--good); background: var(--good); color: #fff; }
+.timecard__label { font-size: 17px; font-weight: 800; }
+.timecard__time { font-size: 15px; color: var(--ink-soft); }
+.timecard.is-on .timecard__time { color: var(--good-ink); }
+
+/* ---- big time picker (never the raw native input) ---- */
+.tp-overlay {
+  position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; padding: 16px;
+  background: rgba(8, 15, 28, 0.55); backdrop-filter: blur(3px);
+}
+.tp {
+  width: 100%; max-width: 380px; padding: 22px;
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--radius); box-shadow: var(--shadow-lg);
+}
+.tp__display { text-align: center; font-size: 30px; font-weight: 800; margin-bottom: 14px; }
+.tp__wheels { display: flex; align-items: center; justify-content: center; gap: 10px; }
+.tp__wheel { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.tp__arrow {
+  width: 68px; height: 56px; display: grid; place-items: center; cursor: pointer;
+  border: 2px solid var(--line); border-radius: 14px;
+  background: var(--surface-2); color: var(--primary);
+}
+.tp__arrow:active { transform: scale(0.95); }
+.tp__num {
+  width: 68px; text-align: center; font-size: 34px; font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.tp__colon { font-size: 30px; font-weight: 800; color: var(--ink-soft); }
+
+/* ---- frequency options ---- */
+.optlist { display: flex; flex-direction: column; gap: 10px; }
+.opt {
+  display: flex; align-items: flex-start; gap: 12px; width: 100%; text-align: left;
+  min-height: 60px; padding: 14px; cursor: pointer;
+  border: 2px solid var(--line); border-radius: 16px;
+  background: var(--surface); color: var(--ink); font: inherit;
+}
+.opt.is-on { border-color: var(--primary); background: var(--primary-soft); }
+.opt__dot {
+  flex: 0 0 auto; width: 26px; height: 26px; margin-top: 1px; border-radius: 50%;
+  border: 2px solid var(--line); background: var(--surface);
+}
+.opt.is-on .opt__dot {
+  border-color: var(--primary);
+  /* An inner dot rather than a tick: this is a one-of-many choice. */
+  box-shadow: inset 0 0 0 5px var(--surface), inset 0 0 0 26px var(--primary);
+}
+.opt__main { display: flex; flex-direction: column; }
+.opt__t { font-size: 17px; font-weight: 700; }
+.opt__d { font-size: 15px; color: var(--ink-soft); }
+
+/* ---- photo + upload ring ---- */
+.medphoto { margin-top: 10px; }
+.medphoto img {
+  width: 100%; max-height: 260px; object-fit: cover;
+  border-radius: 16px; border: 1px solid var(--line); display: block;
+}
+.medphoto__acts { display: flex; gap: 8px; margin-top: 10px; }
+.uploading { display: flex; align-items: center; gap: 14px; margin-top: 10px; font-weight: 700; }
+.ring {
+  width: 56px; height: 56px; flex: 0 0 auto; display: grid; place-items: center;
+  border-radius: 50%; font-size: 13px; font-weight: 800;
+  background: conic-gradient(var(--primary) calc(var(--p) * 1%), var(--surface-2) 0);
+  transition: background 0.3s linear;
+}
+.ring b { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 50%; background: var(--surface); }
+
+/* ---- review ---- */
+.wiz__summary {
+  margin: 0 0 14px; padding: 16px; border-radius: 16px;
+  background: var(--good-bg); color: var(--ink); font-size: 19px; line-height: 1.5;
+}
+.wiz__check { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+/* Label above the value, with Change pinned to the right. The previous
+   three-across row wrapped at phone width and dropped the Change button onto
+   its own line under the label, which broke the connection between them. */
+.wiz__line {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: 'label change' 'value change';
+  align-items: center; column-gap: 12px;
+  padding: 12px 14px; border-radius: 14px; background: var(--surface-2);
+}
+.wiz__linelabel {
+  grid-area: label;
+  font-size: 13px; font-weight: 800; color: var(--ink-soft);
+  text-transform: uppercase; letter-spacing: 0.04em;
+}
+.wiz__linevalue { grid-area: value; font-size: 17px; font-weight: 700; overflow-wrap: anywhere; }
+.wiz__lineedit { grid-area: change; }
+.wiz__lineedit {
+  flex: 0 0 auto; min-height: 48px; padding: 8px 14px; cursor: pointer;
+  border: 2px solid var(--line); border-radius: 12px;
+  background: var(--surface); color: var(--primary); font: inherit; font-weight: 800; font-size: 15px;
+}
+
+/* ---- bigger buttons setting ---- */
+html[data-buttons='large'] .chip { min-height: 56px; font-size: 18px; }
+html[data-buttons='large'] .stepper__btn { width: 72px; height: 72px; }
+html[data-buttons='large'] .tp__arrow { width: 76px; height: 64px; }
+html[data-buttons='large'] .wiz__lineedit, html[data-buttons='large'] .gdev__revoke { min-height: 56px; }
+
+/* ---- tablet: the sheet becomes a centred panel, not a full-width drawer ---- */
+@media (min-width: 768px) {
+  .sheet--wizard { max-width: 620px; margin: 0 auto; border-radius: var(--radius); }
+  .timegrid { grid-template-columns: repeat(4, 1fr); }
+}
+
+/* ---- Calm screen / reduced motion: no slide, no height animation ---- */
+html[data-motion='calm'] .wiz__slide,
+html[data-motion='calm'] .wiz__view,
+html[data-motion='calm'] .wiz__progressfill,
+html[data-motion='calm'] .ring,
+html[data-motion='calm'] .wiz__disclose svg {
+  animation: none !important; transition: none !important;
+  opacity: 1 !important; transform: none !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .wiz__slide, .wiz__view, .wiz__progressfill, .ring, .wiz__disclose svg {
+    animation: none !important; transition: none !important;
+    opacity: 1 !important; transform: none !important;
+  }
+}
+
+/* ---- Medicines list card + Today headline ---- */
+.today__headline { margin: 0; font-size: 20px; font-weight: 800; letter-spacing: -0.01em; }
+.medrow { display: flex; align-items: flex-start; gap: 12px; }
+.medrow__photo {
+  flex: 0 0 auto; width: 60px; height: 60px; object-fit: cover;
+  border-radius: 14px; border: 1px solid var(--line);
+}
+.medrow__main { flex: 1; min-width: 0; }
+.medrow__dose { font-size: 17px; font-weight: 700; color: var(--primary); }
+.medrow__meta { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.medrow__tag {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 4px 10px; border-radius: 999px;
+  background: var(--surface-2); color: var(--ink-soft); font-size: 14px; font-weight: 700;
+}
+.medrow__off {
+  display: flex; align-items: center; gap: 5px; margin-top: 6px;
+  font-size: 14px; font-weight: 700; color: var(--warn-ink);
+}
+.dose__when { margin-top: 4px; font-size: 15px; font-weight: 700; color: var(--good-ink); }
+/* Keeps the step title centred when the Back button is absent. */
+.wiz__headspacer { display: block; width: 48px; height: 48px; flex: 0 0 auto; }
+.tp__wheellabel {
+  font-size: 13px; font-weight: 800; letter-spacing: 0.05em;
+  text-transform: uppercase; color: var(--ink-soft);
+}
+/* Align the colon with the numerals now that each wheel has a label above. */
+.tp__wheels { align-items: center; }
+.tp__colon { align-self: center; margin-top: 18px; }
