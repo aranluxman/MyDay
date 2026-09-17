@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext.jsx';
 import { useUI } from '../context/UIContext.jsx';
@@ -9,10 +10,16 @@ import { useSettings } from '../context/SettingsContext.jsx';
 import { todaysDoses, upcomingAppointments, playedTodayCount, markDoseTaken } from '../lib/db.js';
 import { prettyTime, prettyDate, localDateStr } from '../lib/format.js';
 import { profileCompleteness } from '../lib/appearance.js';
+import { summarise, sortForDisplay, doseState, STATE_UI } from '../lib/doseState.js';
+import { deliveryStatus } from '../lib/notifications.js';
+import { pushSupported } from '../lib/push.js';
+import { platformTag } from '../lib/guardian.js';
+import { useInstallPrompt } from '../hooks/useInstallPrompt.js';
 
 export default function Home() {
   const { profile } = useApp();
   const ui = useUI();
+  const { installed } = useInstallPrompt();
   const { settings } = useSettings();
   const navigate = useNavigate();
   const { data, loading, error, reload } = useAsync(async () => {
@@ -24,14 +31,16 @@ export default function Home() {
   if (error) return <Card className="center"><p className="lead">We could not load your information.</p><Button onClick={reload}>Try again</Button></Card>;
 
   const { doses, appts, games } = data;
-  const taken = doses.filter((d) => d.status === 'taken').length;
-  const missed = doses.filter((d) => d.status === 'missed').length;
-  const pending = doses.filter((d) => d.status === 'pending').length;
-  const total = doses.length;
-  const now = Date.now();
-  const dueNow = doses.filter((d) => d.status === 'pending' && new Date(d.due_at).getTime() <= now)
-    .sort((a, b) => new Date(a.due_at) - new Date(b.due_at))[0];
-  const pct = total ? Math.round((taken / total) * 100) : 0;
+  // Every number on this screen now comes from one place, so the header, the
+  // counters, the glance chip and the calendar cannot drift apart. They used
+  // to be computed separately here, which is how "0 of 3 taken" ended up
+  // sitting above three cards that all said "Missed".
+  const windowMinutes = profile?.alert_window_minutes ?? 60;
+  const opts = { windowMinutes };
+  const s = summarise(doses, opts);
+  const { total, taken, missed, toTake, pct } = s;
+  // The most urgent thing that can still be acted on, if there is one.
+  const dueNow = sortForDisplay(s.actionable, opts)[0];
   const firstName = (profile?.full_name || 'there').split(' ')[0];
   const greeting = greetingFor();
   const completeness = profileCompleteness(profile);
@@ -53,6 +62,10 @@ export default function Home() {
         </button>
       </div>
 
+      {/* Never fail silently: if this device cannot deliver reminders, the Home
+          screen says so rather than letting someone believe they are covered. */}
+      <ReminderWarning installed={installed} />
+
       {completeness.pct < 100 && (
         <Card onClick={() => navigate('/profile')} role="button" tabIndex={0} aria-label={`Profile progress ${completeness.pct} percent — open profile`}
           onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate('/profile'); } }}>
@@ -68,8 +81,12 @@ export default function Home() {
       )}
 
       {dueNow && (
-        <Card accent="due" className="reminder">
-          <div className="reminder__kicker">Time for your {prettyTime(dueNow.scheduled_time)} medicine</div>
+        <Card accent={STATE_UI[doseState(dueNow, opts)].tone} className="reminder">
+          <div className="reminder__kicker">
+            {doseState(dueNow, opts) === 'overdue'
+              ? `Overdue — your ${prettyTime(dueNow.scheduled_time)} medicine`
+              : `Time for your ${prettyTime(dueNow.scheduled_time)} medicine`}
+          </div>
           <div className="reminder__name">{dueNow.medication?.name}{dueNow.medication?.dose ? ` - ${dueNow.medication.dose}` : ''}</div>
           {dueNow.medication?.note && <div className="reminder__note">{dueNow.medication.note}</div>}
           <Button variant="good" size="lg" icon="check" onClick={() => done(dueNow.id)}>Done - I took it</Button>
@@ -93,14 +110,16 @@ export default function Home() {
       ) : (
         <Card className="status">
           <div className="status__head">
-            <span>Today's medicines</span>
-            <span className="status__count">{taken} of {total} taken</span>
+            {/* State first, score second: "0 of 3 taken" reads as failure at
+                eight in the morning, when the truth is "3 doses to take". */}
+            <span>{s.headline}</span>
+            <span className="status__count">{taken} of {total}</span>
           </div>
           <div className="bar"><div className="bar__fill" style={{ width: `${pct}%` }} /></div>
           <div className="status__row">
             <Stat kind="taken" n={taken} label="Taken" />
             <Stat kind="missed" n={missed} label="Missed" />
-            <Stat kind="pending" n={pending} label="To take" />
+            <Stat kind="pending" n={toTake} label="To take" />
           </div>
         </Card>
       )}
@@ -144,6 +163,46 @@ export default function Home() {
         </Card>
       )}
     </div>
+  );
+}
+
+// Shown only when something is actually wrong, and always with the fix for
+// this exact device. Dismissable, because being nagged daily about an iPad you
+// do not use for alerts is its own problem — but it comes back on a new device.
+function ReminderWarning({ installed }) {
+  const navigate = useNavigate();
+  const [hidden, setHidden] = useState(() => {
+    try { return localStorage.getItem('myday_reminder_warning_hidden') === '1'; } catch { return false; }
+  });
+
+  const status = deliveryStatus({
+    supported: pushSupported(),
+    permission: typeof Notification !== 'undefined' ? Notification.permission : 'default',
+    installed,
+    platform: platformTag(),
+  });
+
+  // 'not_asked' is not a fault — they simply have not opted in, and Profile
+  // asks properly. Only a real blocker is worth a Home-screen warning.
+  if (status.ok || status.code === 'not_asked' || hidden) return null;
+
+  return (
+    <Card accent="missed" className="reminder-warn">
+      <div className="reminder-warn__head">
+        <span className="reminder-warn__ic"><Icon name="bell" size={22} /></span>
+        <div>
+          <div className="reminder-warn__t">Reminders cannot reach this device</div>
+          <p className="reminder-warn__d">{status.message} {status.fix}</p>
+        </div>
+      </div>
+      <div className="btn-row">
+        <Button variant="ghost" size="sm" onClick={() => {
+          setHidden(true);
+          try { localStorage.setItem('myday_reminder_warning_hidden', '1'); } catch {}
+        }}>Hide this</Button>
+        <Button size="sm" onClick={() => navigate('/profile/notifications')}>Fix it</Button>
+      </div>
+    </Card>
   );
 }
 

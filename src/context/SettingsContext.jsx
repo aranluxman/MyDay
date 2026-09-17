@@ -9,16 +9,29 @@ export const SETTINGS_DEFAULTS = {
   calmMotion: false,    // no animations
   highContrast: false,  // stronger text/borders on top of any theme
   clock: '12',          // '12' | '24' hour times
-  weekStart: 'sun',     // 'sun' | 'mon' calendar week start
   homeCalendar: true,   // show the month calendar on the Home screen
   homeGames: true,      // show the brain-games card + reminder on Home
 };
 
 const KEY = 'myday_settings';
 
+// Settings removed from the app are dropped on read so a value stored by an
+// older build can never come back to life. `weekStart` went this way: calendars
+// are now always Sunday-first.
+const RETIRED_KEYS = ['weekStart'];
+
 function load() {
-  try { return { ...SETTINGS_DEFAULTS, ...JSON.parse(localStorage.getItem(KEY) || '{}') }; }
-  catch { return { ...SETTINGS_DEFAULTS }; }
+  let stored = {};
+  try { stored = JSON.parse(localStorage.getItem(KEY) || '{}') || {}; } catch { stored = {}; }
+  let pruned = false;
+  for (const k of RETIRED_KEYS) {
+    if (k in stored) { delete stored[k]; pruned = true; }
+  }
+  const next = { ...SETTINGS_DEFAULTS, ...stored };
+  // Rewrite immediately, so the retired key is gone from the device even if the
+  // person never changes another setting.
+  if (pruned) { try { localStorage.setItem(KEY, JSON.stringify(next)); } catch {} }
+  return next;
 }
 
 const SettingsCtx = createContext(null);

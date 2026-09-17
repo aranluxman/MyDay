@@ -18,6 +18,8 @@ const Appointments = lazy(() => import('./screens/Appointments.jsx'));
 const Profile = lazy(() => import('./screens/Profile.jsx'));
 const Games = lazy(() => import('./screens/Games.jsx'));
 const GuardianJoin = lazy(() => import('./screens/GuardianJoin.jsx'));
+const Guardian = lazy(() => import('./screens/Guardian.jsx'));
+const NotificationSettings = lazy(() => import('./screens/NotificationSettings.jsx'));
 const ForgotPassword = lazy(() => import('./screens/ForgotPassword.jsx'));
 const ResetPassword = lazy(() => import('./screens/ResetPassword.jsx'));
 
@@ -27,10 +29,18 @@ function Root() {
   const publicFallback = <div className="content"><PageSkeleton /></div>;
 
   // Public guardian page: a guardian is a different person with no MyDay
-  // account, on their own device, so this renders regardless of auth — whether
-  // they arrived from a shared link or are about to type a 6-digit code.
+  // account, on their own device, so this renders regardless of auth. It is
+  // also the PWA start_url when the dashboard is installed on its own, so it
+  // must never depend on a session.
   if (pathname === '/guardian') {
-    return <Suspense fallback={publicFallback}><GuardianJoin /></Suspense>;
+    // An old shared invite LINK still pairs through the original join screen;
+    // everything else — and every return visit — is the dashboard.
+    const fromInviteLink = new URLSearchParams(window.location.search).has('invite');
+    return (
+      <Suspense fallback={publicFallback}>
+        {fromInviteLink ? <GuardianJoin /> : <Guardian />}
+      </Suspense>
+    );
   }
 
   // Opening a recovery link signs the person in, so /reset-password has to win
@@ -62,6 +72,7 @@ function Root() {
         <Route path="/medication" element={<LazyScreen><Medication /></LazyScreen>} />
         <Route path="/appointments" element={<LazyScreen><Appointments /></LazyScreen>} />
         <Route path="/profile" element={<LazyScreen><Profile /></LazyScreen>} />
+        <Route path="/profile/notifications" element={<LazyScreen><NotificationSettings /></LazyScreen>} />
         <Route path="/games" element={<LazyScreen><Games /></LazyScreen>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>

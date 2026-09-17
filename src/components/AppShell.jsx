@@ -12,6 +12,7 @@ const TITLES = {
   '/medication': 'Medication',
   '/appointments': 'Appointments',
   '/profile': 'Profile',
+  '/profile/notifications': 'Alerts',
   '/games': 'Brain Games',
 };
 

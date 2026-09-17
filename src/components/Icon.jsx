@@ -5,6 +5,7 @@ const PATHS = {
   close: 'M6 6l12 12M18 6L6 18',
   home: 'M3 11l9-8 9 8M5 10v10h14V10',
   plus: 'M12 5v14M5 12h14',
+  minus: 'M5 12h14',
   edit: 'M4 20h4L18 10l-4-4L4 16v4zM14 6l4 4',
   trash: 'M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13',
   pill: 'M10.5 13.5l3-3M7 17a4 4 0 010-6l4-4a4 4 0 116 6l-4 4a4 4 0 01-6 0z',
@@ -32,6 +33,8 @@ const PATHS = {
   share: 'M12 16V4m0 0L8 8m4-4l4 4M6 12H5a1 1 0 00-1 1v6a1 1 0 001 1h14a1 1 0 001-1v-6a1 1 0 00-1-1h-1',
   dots: 'M12 6h.01M12 12h.01M12 18h.01',
   sparkle: 'M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8zM19 15l.9 2.1L22 18l-2.1.9L19 21l-.9-2.1L16 18l2.1-.9z',
+  refresh: 'M20 12a8 8 0 11-2.3-5.7M20 4v4h-4',
+  unlink: 'M9 15l-1.5 1.5a4 4 0 01-5.7-5.7L3.3 9.3M15 9l1.5-1.5a4 4 0 015.7 5.7L20.7 14.7M4 4l16 16',
 };
 
 export function Icon({ name, size = 24, stroke = 2.1, className = '', style }) {
