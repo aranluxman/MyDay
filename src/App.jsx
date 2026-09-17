@@ -19,6 +19,7 @@ const Profile = lazy(() => import('./screens/Profile.jsx'));
 const Games = lazy(() => import('./screens/Games.jsx'));
 const GuardianJoin = lazy(() => import('./screens/GuardianJoin.jsx'));
 const Guardian = lazy(() => import('./screens/Guardian.jsx'));
+const NotificationSettings = lazy(() => import('./screens/NotificationSettings.jsx'));
 const ForgotPassword = lazy(() => import('./screens/ForgotPassword.jsx'));
 const ResetPassword = lazy(() => import('./screens/ResetPassword.jsx'));
 
@@ -71,6 +72,7 @@ function Root() {
         <Route path="/medication" element={<LazyScreen><Medication /></LazyScreen>} />
         <Route path="/appointments" element={<LazyScreen><Appointments /></LazyScreen>} />
         <Route path="/profile" element={<LazyScreen><Profile /></LazyScreen>} />
+        <Route path="/profile/notifications" element={<LazyScreen><NotificationSettings /></LazyScreen>} />
         <Route path="/games" element={<LazyScreen><Games /></LazyScreen>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>

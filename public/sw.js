@@ -46,29 +46,84 @@ self.addEventListener('fetch', (e) => {
 // MyDay icon; left in a browser tab it reads "Chrome" no matter what we set
 // here, which is why the app insists on being installed before enabling alerts.
 // Everything below controls the parts we DO own: title, icon, badge, buttons.
+const API = 'https://zciulgqkqusjxomyapcz.supabase.co/functions/v1';
+
 self.addEventListener('push', (e) => {
   let data = {};
   try { data = e.data ? e.data.json() : {}; } catch { data = { body: e.data && e.data.text() }; }
+
   const title = data.title || 'MyDay';
+  const kind = data.kind || 'dose_missed';
+  // A missed dose stays on screen until it is dealt with; a due reminder and a
+  // summary do not need to be that insistent.
+  const critical = kind === 'dose_missed' || kind === 'guardian_alert';
+
+  const actions = Array.isArray(data.actions) && data.actions.length
+    ? data.actions.slice(0, 2)
+    : (data.actionToken ? [{ action: 'taken', title: 'I took it' }, { action: 'snooze', title: 'Snooze 15 min' }] : []);
+
   e.waitUntil(self.registration.showNotification(title, {
     body: data.body || 'A medicine may have been missed.',
     icon: '/icons/icon-192.png',
     badge: '/icons/badge-72.png',
-    tag: data.tag || 'myday-missed-dose',
+    // Collapses repeats of the same alert instead of stacking them up.
+    tag: data.tag || `myday-${kind}`,
     renotify: true,
-    requireInteraction: true,
+    requireInteraction: critical,
+    silent: data.silent === true,
     // A long-short-long buzz is distinct from a message tone, so a missed dose
     // is recognisable from a pocket without looking.
-    vibrate: [220, 90, 220, 90, 320],
+    vibrate: data.vibrate === false ? undefined : [220, 90, 220, 90, 320],
     lang: 'en',
     dir: 'ltr',
-    actions: [{ action: 'open', title: 'Open MyDay' }],
-    data: { url: data.url || '/' },
+    actions,
+    data: {
+      url: data.url || '/',
+      doseId: data.doseId || null,
+      // Single-use, short-lived, and able to do exactly one thing: mark this
+      // dose taken. A service worker has no Supabase session, so this is how
+      // "I took it" works without opening the app.
+      actionToken: data.actionToken || null,
+      kind,
+    },
   }));
 });
+
 self.addEventListener('notificationclick', (e) => {
+  const d = e.notification.data || {};
   e.notification.close();
-  const target = (e.notification.data && e.notification.data.url) || '/';
+
+  // "I took it" — mark the dose and confirm, without ever opening the app.
+  if (e.action === 'taken' && d.actionToken) {
+    e.waitUntil(doseAction(d.actionToken, 'taken').then((ok) => {
+      if (ok) return self.registration.showNotification('Marked as taken', {
+        body: 'Well done. Nothing more to do.',
+        icon: '/icons/icon-192.png', badge: '/icons/badge-72.png',
+        tag: 'myday-ack', silent: true,
+      });
+      // Never fail silently: if the tap could not be saved, say so and let
+      // them open the app, rather than leaving them thinking it was recorded.
+      return self.registration.showNotification('Could not save that', {
+        body: 'Tap to open MyDay and mark it there.',
+        icon: '/icons/icon-192.png', badge: '/icons/badge-72.png',
+        tag: 'myday-ack', data: { url: '/medication' },
+      });
+    }));
+    return;
+  }
+
+  if (e.action === 'snooze' && d.actionToken) {
+    e.waitUntil(doseAction(d.actionToken, 'snooze').then(() =>
+      self.registration.showNotification('Reminder snoozed', {
+        body: 'We will remind you again shortly.',
+        icon: '/icons/icon-192.png', badge: '/icons/badge-72.png',
+        tag: 'myday-ack', silent: true,
+      })));
+    return;
+  }
+
+  // Tapping the body opens the right screen.
+  const target = d.url || '/';
   e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
     for (const c of list) {
       if ('focus' in c) {
@@ -80,4 +135,30 @@ self.addEventListener('notificationclick', (e) => {
     }
     if (self.clients.openWindow) return self.clients.openWindow(target);
   }));
+});
+
+// Posts a notification action to the dose-action endpoint. Returns true only
+// on a definite success, so the caller can tell the person the truth.
+async function doseAction(token, action) {
+  try {
+    const res = await fetch(`${API}/dose-action`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, action }),
+    });
+    if (!res.ok) return false;
+    const body = await res.json().catch(() => ({}));
+    return body && body.ok === true;
+  } catch {
+    return false;
+  }
+}
+
+// A tap that arrives while offline would otherwise be lost. Where the browser
+// supports Background Sync, retry it when the connection returns.
+self.addEventListener('sync', (e) => {
+  if (e.tag === 'myday-dose-retry') {
+    // Nothing queued in this build; the hook exists so a failed tap can be
+    // retried rather than silently dropped once queueing is added.
+  }
 });

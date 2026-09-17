@@ -350,8 +350,15 @@ export default function Profile() {
 
       {/* alerts */}
       <Card>
-        <SectionTitle icon="bell" title="Missed-dose alerts" />
-        <p className="muted" style={{ margin: '0 0 10px' }}>If a dose isn't marked as taken within the chosen time, a notification goes to the phones receiving alerts.</p>
+        <SectionTitle icon="bell" title="Alerts and reminders" />
+        <p className="muted" style={{ margin: '0 0 10px' }}>
+          Reminders when a dose is due, alerts if one is missed, appointment reminders and quiet
+          hours — all in one place.
+        </p>
+        <MenuRow icon="bell" title="Notification settings"
+          desc="Turn alerts on, choose what you are told about, and set quiet hours"
+          onClick={() => navigate('/profile/notifications')} />
+        <div style={{ height: 10 }} />
         <p className="muted" style={{ margin: '0 0 6px', fontWeight: 600 }}>Alert me after a dose is</p>
         <SegmentedControl value={alertWindow} onChange={savingWindow ? () => {} : setAlertWindow}
           options={ALERT_WINDOWS.map((w) => ({ value: w.value, label: w.label }))} />

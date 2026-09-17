@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext.jsx';
 import { useUI } from '../context/UIContext.jsx';
@@ -10,10 +11,15 @@ import { todaysDoses, upcomingAppointments, playedTodayCount, markDoseTaken } fr
 import { prettyTime, prettyDate, localDateStr } from '../lib/format.js';
 import { profileCompleteness } from '../lib/appearance.js';
 import { summarise, sortForDisplay, doseState, STATE_UI } from '../lib/doseState.js';
+import { deliveryStatus } from '../lib/notifications.js';
+import { pushSupported } from '../lib/push.js';
+import { platformTag } from '../lib/guardian.js';
+import { useInstallPrompt } from '../hooks/useInstallPrompt.js';
 
 export default function Home() {
   const { profile } = useApp();
   const ui = useUI();
+  const { installed } = useInstallPrompt();
   const { settings } = useSettings();
   const navigate = useNavigate();
   const { data, loading, error, reload } = useAsync(async () => {
@@ -55,6 +61,10 @@ export default function Home() {
           <Avatar name={profile?.full_name} color={profile?.avatar_color} size={52} src={profile?.avatar_url} />
         </button>
       </div>
+
+      {/* Never fail silently: if this device cannot deliver reminders, the Home
+          screen says so rather than letting someone believe they are covered. */}
+      <ReminderWarning installed={installed} />
 
       {completeness.pct < 100 && (
         <Card onClick={() => navigate('/profile')} role="button" tabIndex={0} aria-label={`Profile progress ${completeness.pct} percent — open profile`}
@@ -153,6 +163,46 @@ export default function Home() {
         </Card>
       )}
     </div>
+  );
+}
+
+// Shown only when something is actually wrong, and always with the fix for
+// this exact device. Dismissable, because being nagged daily about an iPad you
+// do not use for alerts is its own problem — but it comes back on a new device.
+function ReminderWarning({ installed }) {
+  const navigate = useNavigate();
+  const [hidden, setHidden] = useState(() => {
+    try { return localStorage.getItem('myday_reminder_warning_hidden') === '1'; } catch { return false; }
+  });
+
+  const status = deliveryStatus({
+    supported: pushSupported(),
+    permission: typeof Notification !== 'undefined' ? Notification.permission : 'default',
+    installed,
+    platform: platformTag(),
+  });
+
+  // 'not_asked' is not a fault — they simply have not opted in, and Profile
+  // asks properly. Only a real blocker is worth a Home-screen warning.
+  if (status.ok || status.code === 'not_asked' || hidden) return null;
+
+  return (
+    <Card accent="missed" className="reminder-warn">
+      <div className="reminder-warn__head">
+        <span className="reminder-warn__ic"><Icon name="bell" size={22} /></span>
+        <div>
+          <div className="reminder-warn__t">Reminders cannot reach this device</div>
+          <p className="reminder-warn__d">{status.message} {status.fix}</p>
+        </div>
+      </div>
+      <div className="btn-row">
+        <Button variant="ghost" size="sm" onClick={() => {
+          setHidden(true);
+          try { localStorage.setItem('myday_reminder_warning_hidden', '1'); } catch {}
+        }}>Hide this</Button>
+        <Button size="sm" onClick={() => navigate('/profile/notifications')}>Fix it</Button>
+      </div>
+    </Card>
   );
 }
 

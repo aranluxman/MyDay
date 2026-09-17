@@ -1505,3 +1505,63 @@ html[data-motion='calm'] .wiz__disclose svg {
 /* Align the colon with the numerals now that each wheel has a label above. */
 .tp__wheels { align-items: center; }
 .tp__colon { align-self: center; margin-top: 18px; }
+
+/* ---- notification settings screen ---- */
+.ns-back {
+  display: inline-flex; align-items: center; gap: 6px; align-self: flex-start;
+  min-height: 48px; padding: 8px 12px 8px 4px; cursor: pointer;
+  border: 0; background: none; color: var(--primary); font: inherit; font-weight: 800;
+}
+.ns-h { font-size: 19px; margin: 0 0 10px; }
+.ns-row {
+  display: flex; align-items: center; gap: 12px;
+  min-height: 60px; padding: 10px 0; border-bottom: 1px solid var(--line);
+}
+.ns-row:last-child { border-bottom: 0; }
+.ns-row.is-dim { opacity: 0.45; }
+.ns-row__main { flex: 1; min-width: 0; }
+.ns-row__t { font-size: 17px; font-weight: 700; }
+.ns-row__d { font-size: 15px; color: var(--ink-soft); }
+.ns-row__ctl { flex: 0 0 auto; }
+.input--select { min-height: 52px; padding: 0 10px; font-weight: 700; max-width: 170px; }
+.ns-status { display: flex; align-items: flex-start; gap: 12px; }
+.ns-status__ic {
+  flex: 0 0 auto; width: 44px; height: 44px; display: grid; place-items: center; border-radius: 12px;
+}
+.ns-status--ok .ns-status__ic { background: var(--good-bg); color: var(--good-ink); }
+.ns-status--warn .ns-status__ic { background: var(--warn-bg); color: var(--warn-ink); }
+.ns-status__t { font-size: 18px; font-weight: 800; }
+.ns-status__d { margin: 4px 0 0; font-size: 15px; color: var(--ink-soft); }
+.ns-warn {
+  display: flex; align-items: flex-start; gap: 10px; margin: 12px 0 0;
+  padding: 12px 14px; border-radius: 14px;
+  background: var(--warn-bg); color: var(--warn-ink); font-size: 15px; font-weight: 700;
+}
+.ns-warn svg, .ns-note svg { flex: 0 0 auto; }
+.ns-note {
+  display: flex; align-items: flex-start; gap: 10px; margin: 12px 0 0;
+  padding: 12px 14px; border-radius: 14px;
+  background: var(--primary-soft); color: var(--ink); font-size: 15px;
+}
+.ns-two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
+.ns-field { display: flex; flex-direction: column; gap: 6px; }
+.ns-field > span { font-size: 15px; font-weight: 700; }
+.ns-field .input--select { max-width: none; }
+.ns-meds { display: flex; flex-direction: column; gap: 10px; }
+.ns-med {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 12px; border-radius: 14px;
+  background: var(--surface-2); border: 1px solid var(--line);
+}
+.ns-med__main { flex: 1; min-width: 0; }
+.ns-med__name { font-size: 17px; font-weight: 700; }
+.ns-med__meta { font-size: 14px; color: var(--ink-soft); }
+
+/* Home: honest warning when reminders cannot be delivered to this device. */
+.reminder-warn__head { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 12px; }
+.reminder-warn__ic {
+  flex: 0 0 auto; width: 42px; height: 42px; display: grid; place-items: center;
+  border-radius: 12px; background: var(--bad-bg); color: var(--bad-ink);
+}
+.reminder-warn__t { font-size: 17px; font-weight: 800; }
+.reminder-warn__d { margin: 4px 0 0; font-size: 15px; color: var(--ink-soft); }

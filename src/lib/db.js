@@ -2,6 +2,7 @@
 // user_id defaults to auth.uid(), so inserts don't need to set it explicitly.
 import { supabase } from './supabase.js';
 import { deviceTimezone, localDateStr } from './format.js';
+import { PREF_DEFAULTS } from './notifications.js';
 
 // ---------- profile ----------
 export async function getProfile() {
@@ -436,4 +437,63 @@ export function guardianInviteLink(token) {
 export function formatGuardianCode(code) {
   const digits = String(code || '').replace(/\D/g, '');
   return digits.length === 6 ? `${digits.slice(0, 3)} ${digits.slice(3)}` : digits;
+}
+
+// ---------- notification preferences ----------
+
+export async function getNotificationPrefs() {
+  const { data, error } = await supabase.from('myday_notification_prefs').select('*').maybeSingle();
+  if (error) throw error;
+  // A missing row is not an error: it means this account predates the table,
+  // so the defaults apply until they change something.
+  return { ...PREF_DEFAULTS, ...(data || {}) };
+}
+
+export async function saveNotificationPrefs(patch) {
+  const { data: { session } } = await supabase.auth.getSession();
+  const userId = session?.user?.id;
+  if (!userId) throw new Error('You have been signed out. Please sign in again.');
+  const { error } = await supabase.from('myday_notification_prefs')
+    .upsert({ user_id: userId, ...patch }, { onConflict: 'user_id' });
+  if (error) throw error;
+}
+
+// Per-device delivery state, so a person can see WHY nothing arrived rather
+// than being left to guess.
+export async function listNotificationDevices() {
+  const { data, error } = await supabase.from('myday_family_devices')
+    .select('id,label,platform,push_enabled,last_delivered_at,last_notified_at,last_error,created_at')
+    .order('created_at');
+  if (error) throw error;
+  return data || [];
+}
+
+export async function forgetNotificationDevice(id) {
+  const { error } = await supabase.from('myday_family_devices').delete().eq('id', id);
+  if (error) throw error;
+}
+
+// Registers this device, recording what it is and whether it is installed —
+// both of which change whether alerts can be delivered at all.
+export async function registerThisDevice(label, subscription, meta = {}) {
+  const sub = subscription.toJSON ? subscription.toJSON() : subscription;
+  const { error } = await supabase.from('myday_family_devices').upsert({
+    label,
+    endpoint: sub.endpoint,
+    subscription: sub,
+    platform: meta.platform || null,
+    installed: meta.installed ?? null,
+    push_enabled: true,
+    last_error: null,
+  }, { onConflict: 'endpoint' });
+  if (error) throw error;
+}
+
+// Per-medicine reminder overrides.
+export async function setMedicationReminders(id, { enabled, windowMinutes } = {}) {
+  const patch = {};
+  if (enabled != null) patch.reminders_enabled = !!enabled;
+  if (windowMinutes !== undefined) patch.alert_window_override = windowMinutes ?? null;
+  const { error } = await supabase.from('myday_medications').update(patch).eq('id', id);
+  if (error) throw error;
 }
