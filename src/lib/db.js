@@ -207,9 +207,21 @@ export async function markDoseTaken(id) {
     .update({ status: 'taken', taken_at: new Date().toISOString() }).eq('id', id);
   if (error) throw error;
 }
+// "Not today": a deliberate decision, not a failure. It is its own status so
+// the sweep never turns it into a missed-dose alert and the adherence history
+// does not count it against the person.
+export async function markDoseSkipped(id, reason) {
+  const trimmed = String(reason || '').trim().slice(0, 80);
+  const { error } = await supabase.from('myday_doses')
+    .update({ status: 'skipped', taken_at: null, skipped_at: new Date().toISOString(), skip_reason: trimmed || null })
+    .eq('id', id);
+  if (error) throw error;
+}
+// Undo, for either outcome. Clearing skip_reason matters: leaving a stale
+// reason on a dose that is pending again would make the history lie.
 export async function markDosePending(id) {
   const { error } = await supabase.from('myday_doses')
-    .update({ status: 'pending', taken_at: null }).eq('id', id);
+    .update({ status: 'pending', taken_at: null, skipped_at: null, skip_reason: null }).eq('id', id);
   if (error) throw error;
 }
 

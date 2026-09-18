@@ -155,6 +155,7 @@ h3.subsection { font-size: 21px; margin: 8px 0 0; }
 .card--taken { border-left: 7px solid var(--good); }
 .card--missed { border-left: 7px solid var(--bad); }
 .card--upcoming { border-left: 7px solid var(--line); }
+.card--skipped { border-left: 7px solid var(--ink-soft); }
 
 /* ---------- pills ---------- */
 .pill { display: inline-flex; align-items: center; white-space: nowrap; font-size: 14px; font-weight: 700; padding: 6px 12px; border-radius: 999px; }
@@ -1008,6 +1009,8 @@ html[data-motion='calm'] .code-boxes--rejected { animation: none; }
 .g-badge--overdue { background: var(--warn-bg); color: var(--warn-ink); }
 .g-badge--due { background: var(--primary-soft); color: var(--primary); }
 .g-badge--upcoming { background: var(--surface-2); color: var(--ink-soft); }
+/* Deliberately neutral: "not today" is a decision, not a warning. */
+.g-badge--skipped { background: var(--surface-2); color: var(--ink-soft); border: 1px solid var(--line); }
 
 .g-appt__date {
   flex: 0 0 auto; width: 52px; text-align: center; padding: 6px 0;
@@ -1501,6 +1504,9 @@ html[data-motion='calm'] .wiz__disclose svg { transition: none !important; }
   font-size: 14px; font-weight: 700; color: var(--warn-ink);
 }
 .dose__when { margin-top: 4px; font-size: 15px; font-weight: 700; color: var(--good-ink); }
+/* The same line on a skipped dose must not be green: "not today" is neither a
+   success nor a failure, and green here reads as "taken". */
+.dose__when--skip { color: var(--ink-soft); }
 /* Keeps the step title centred when the Back button is absent. */
 .wiz__headspacer { display: block; width: 48px; height: 48px; flex: 0 0 auto; }
 .tp__wheellabel {
@@ -2144,3 +2150,28 @@ html[data-motion='calm'] *::after {
     scroll-behavior: auto !important;
   }
 }
+
+/* ---------- "Not today": skipping a dose with a reason (H3) ---------- */
+/* Quiet enough that it never competes with "Done - I took it", but still a
+   44px+ target, because the people using this have unsteady hands. */
+.dose__skip {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  width: 100%; min-height: 48px; margin-top: 10px; padding: 10px 14px;
+  background: none; border: none; border-radius: var(--radius-sm);
+  color: var(--ink-soft); font: inherit; font-size: 17px; font-weight: 700;
+  cursor: pointer;
+}
+.dose__skip:hover { background: var(--surface-2); color: var(--ink); }
+.dose__skip:focus-visible { outline: 3px solid var(--primary); outline-offset: 2px; }
+
+.dose__why { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
+.dose__whyq { margin: 0 0 10px; font-size: 18px; font-weight: 800; color: var(--ink); }
+.dose__reasons { display: flex; flex-wrap: wrap; gap: 10px; }
+.dose__reason {
+  min-height: 48px; padding: 11px 16px;
+  background: var(--surface-2); color: var(--ink);
+  border: 2px solid var(--line); border-radius: 999px;
+  font: inherit; font-size: 17px; font-weight: 700; cursor: pointer;
+}
+.dose__reason:hover { border-color: var(--primary); color: var(--primary); }
+.dose__reason:focus-visible { outline: 3px solid var(--primary); outline-offset: 2px; }

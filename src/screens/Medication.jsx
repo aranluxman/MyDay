@@ -9,7 +9,7 @@ import { MedicineWizard } from '../components/MedicineWizard.jsx';
 import { useApp } from '../context/AppContext.jsx';
 import {
   listMedications, deleteMedication, restoreMedication, duplicateMedication,
-  todaysDoses, dosesForDate, markDoseTaken, medPhotoUrl,
+  todaysDoses, dosesForDate, markDoseTaken, markDoseSkipped, markDosePending, medPhotoUrl,
 } from '../lib/db.js';
 import { prettyTime, prettyClock, prettyDate, localDateStr } from '../lib/format.js';
 import { doseState, sortForDisplay, summarise, STATE_UI } from '../lib/doseState.js';
@@ -40,6 +40,20 @@ export default function Medication() {
 
   function reloadAll() { meds.reload(); today.reload(); }
   async function done(id) { try { await markDoseTaken(id); ui.toast('Marked as taken.'); today.reload(); } catch { ui.toast('Could not save.', 'bad'); } }
+  // "Not today" is a settled decision, so it offers Undo rather than a
+  // confirmation: tapping it by mistake must not need a dialog to escape.
+  async function skip(id, reason) {
+    try {
+      await markDoseSkipped(id, reason);
+      today.reload();
+      ui.toast('Marked as not needed today.', 'info', {
+        label: 'Undo',
+        onAction: async () => {
+          try { await markDosePending(id); today.reload(); } catch { ui.toast('Could not undo.', 'bad'); }
+        },
+      });
+    } catch { ui.toast('Could not save.', 'bad'); }
+  }
 
   // Removing is a soft delete, so Undo is a flag flip rather than a re-entry
   // of everything they typed. The dose history keeps pointing at the row.
@@ -84,7 +98,7 @@ export default function Medication() {
         { value: 'medicines', label: 'Medicines' },
       ]} />
 
-      {view === 'today' && <TodayView state={today} onDone={done} windowMinutes={windowMinutes}
+      {view === 'today' && <TodayView state={today} onDone={done} onSkip={skip} windowMinutes={windowMinutes}
         onAdd={() => { setView('medicines'); setEditing({}); }} />}
 
       {view === 'calendar' && (
@@ -107,7 +121,7 @@ export default function Medication() {
   );
 }
 
-function TodayView({ state, onDone, onAdd, windowMinutes }) {
+function TodayView({ state, onDone, onSkip, onAdd, windowMinutes }) {
   const { data: doses, loading, error, reload } = state;
   if (loading) return <div className="stack"><SkeletonCard lines={2} /><SkeletonCard lines={2} /></div>;
   if (error) return <Card className="center"><p className="lead">Could not load.</p><Button onClick={reload}>Try again</Button></Card>;
@@ -128,7 +142,7 @@ function TodayView({ state, onDone, onAdd, windowMinutes }) {
       <p className="today__headline" aria-live="polite">{summary.headline}</p>
       {/* What needs doing first, then the rest by time. */}
       {sortForDisplay(doses, { windowMinutes }).map((d) => (
-        <DoseCard key={d.id} dose={d} onDone={onDone} windowMinutes={windowMinutes} />
+        <DoseCard key={d.id} dose={d} onDone={onDone} onSkip={onSkip} windowMinutes={windowMinutes} />
       ))}
     </div>
   );
@@ -149,7 +163,8 @@ function DayDoses({ dateStr, windowMinutes }) {
 // dashboard use, so the badge here can no longer disagree with the counters
 // there. It also means 'overdue' exists at all: a dose twenty minutes late
 // used to render exactly like one due tonight.
-function DoseCard({ dose, onDone, readOnly, windowMinutes }) {
+function DoseCard({ dose, onDone, onSkip, readOnly, windowMinutes }) {
+  const [asking, setAsking] = useState(false);
   const m = dose.medication || {};
   const st = doseState(dose, { windowMinutes });
   const ui = STATE_UI[st];
@@ -173,12 +188,42 @@ function DoseCard({ dose, onDone, readOnly, windowMinutes }) {
           <Icon name={ui.icon} size={16} /> {ui.label}
         </span>
       </div>
-      {!readOnly && st !== 'taken' && (
-        <Button variant="good" size="lg" icon="check" onClick={() => onDone(dose.id)}>Done - I took it</Button>
+      {st === 'skipped' && (
+        <div className="dose__when dose__when--skip">{dose.skip_reason ? `Not today: ${dose.skip_reason}` : 'Marked as not needed today'}</div>
+      )}
+
+      {/* The big button never moves or shrinks: taking the dose stays the one
+          obvious action, and "Not today" is deliberately quieter beneath it. */}
+      {!readOnly && st !== 'taken' && st !== 'skipped' && !asking && (
+        <>
+          <Button variant="good" size="lg" icon="check" onClick={() => onDone(dose.id)}>Done - I took it</Button>
+          <button type="button" className="dose__skip" onClick={() => setAsking(true)}>
+            <Icon name="minus" size={18} /> Not today
+          </button>
+        </>
+      )}
+
+      {!readOnly && asking && (
+        <div className="dose__why">
+          <p className="dose__whyq" id={`why-${dose.id}`}>Why not today?</p>
+          <div className="dose__reasons" role="group" aria-labelledby={`why-${dose.id}`}>
+            {SKIP_REASONS.map((r) => (
+              <button type="button" key={r} className="dose__reason"
+                onClick={() => { setAsking(false); onSkip(dose.id, r); }}>{r}</button>
+            ))}
+            <button type="button" className="dose__reason"
+              onClick={() => { setAsking(false); onSkip(dose.id, ''); }}>Another reason</button>
+          </div>
+          <button type="button" className="dose__skip" onClick={() => setAsking(false)}>Never mind</button>
+        </div>
       )}
     </Card>
   );
 }
+
+// Fixed choices, not a text box. A free-text field is how a medicine ends up
+// recorded as "dafs", and none of these need spelling or typing.
+const SKIP_REASONS = ['Doctor said to stop', 'I felt unwell', 'I ran out', 'I took it already'];
 
 function MedicinesView({ state, onAdd, onEdit, onRemove, onDuplicate }) {
   const { data: meds, loading, error, reload } = state;

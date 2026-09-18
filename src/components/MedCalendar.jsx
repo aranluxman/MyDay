@@ -58,7 +58,9 @@ export function MedCalendar({ selected, onPick, counts }) {
     if (external) return counts;
     const map = {};
     for (const d of data || []) {
-      const e = (map[d.dose_date] ||= { taken: 0, missed: 0, pending: 0, total: 0 });
+      const e = (map[d.dose_date] ||= { taken: 0, missed: 0, pending: 0, skipped: 0, total: 0 });
+      // 'skipped' needs its own bucket: counted as pending it would leave a
+      // deliberate "not today" showing as still to take, for ever.
       if (e[d.status] != null) e[d.status]++;
       e.total++;
     }

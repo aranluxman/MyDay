@@ -45,7 +45,14 @@
 .mkt-nav { display: flex; align-items: center; gap: 28px; }
 .mkt-nav a { color: var(--m-soft); font-weight: 600; font-size: 16px; }
 .mkt-nav a:hover { color: var(--m-ink); }
-.mkt-head-cta { display: flex; align-items: center; gap: 12px; }
+/* A row of nowrap buttons totalled 466px at a 390px viewport, which forced the
+   whole landing page to scroll sideways on a phone. It wraps now, and the
+   buttons give up their horizontal padding before the layout gives up. */
+.mkt-head-cta { display: flex; align-items: center; justify-content: flex-end; gap: 12px; flex-wrap: wrap; min-width: 0; }
+@media (max-width: 560px) {
+  .mkt-head-cta { gap: 8px; }
+  .mkt-head-cta .mkt-btn { padding: 0 14px; font-size: 16px; }
+}
 @media (max-width: 860px) { .mkt-nav { display: none; } }
 
 /* ---------- buttons ---------- */

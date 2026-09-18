@@ -125,3 +125,57 @@ test('display order puts what needs doing first', () => {
   assert.deepEqual(out.map((d) => doseState(d, { now: NOW })),
     ['overdue', 'due', 'upcoming', 'missed', 'taken']);
 });
+
+// ---------- "Not today": a skipped dose is a third outcome (H3) ----------
+
+test('a skipped dose never becomes missed, however long ago it was', () => {
+  // The whole point of the status: the sweep marks 'pending' rows missed, and
+  // a deliberate decision must not decay into a missed-dose alert.
+  assert.equal(doseState(dose(-5, 'skipped')), 'skipped');
+  assert.equal(doseState(dose(-600, 'skipped')), 'skipped');
+  assert.equal(doseState(dose(-60 * 24 * 30, 'skipped')), 'skipped');
+  // Even with a window of zero, which would make any pending dose missed.
+  assert.equal(doseState(dose(-1, 'skipped'), { windowMinutes: 0 }), 'skipped');
+  // And a future one is still settled, not 'upcoming'.
+  assert.equal(doseState(dose(120, 'skipped')), 'skipped');
+});
+
+test('a skipped dose does not lower adherence', () => {
+  const withSkip = adherence([dose(-600, 'taken'), dose(-600, 'skipped')], { now: NOW });
+  assert.deepEqual(withSkip, { taken: 1, total: 1, pct: 100 },
+    'it leaves the denominator entirely, rather than counting as a miss');
+
+  const onlySkips = adherence([dose(-600, 'skipped'), dose(-600, 'skipped')], { now: NOW });
+  assert.equal(onlySkips.pct, null, 'no doses were actually due, so there is no percentage');
+
+  // A real miss still counts, so skipping cannot be used to hide one.
+  assert.equal(adherence([dose(-600, 'taken'), dose(-600, 'skipped'), dose(-600)], { now: NOW }).pct, 50);
+});
+
+test('the day summary treats skipped as settled, not outstanding', () => {
+  const s = summarise([dose(-600, 'taken'), dose(-600, 'skipped'), dose(120)], { now: NOW });
+  assert.equal(s.skipped, 1);
+  assert.equal(s.toTake, 1, 'only the upcoming dose still needs doing');
+  assert.equal(s.missed, 0);
+  assert.equal(s.pct, 50, '1 taken of the 2 doses actually due');
+
+  const done = summarise([dose(-600, 'taken'), dose(-600, 'skipped')], { now: NOW });
+  assert.equal(done.allTaken, true, 'nothing is left, so the day is done');
+  assert.equal(done.headline, 'All doses taken today');
+  assert.equal(done.pct, 100);
+});
+
+test('a day of nothing but skipped doses is not a missed day', () => {
+  assert.equal(dayMark([dose(-600, 'skipped'), dose(-600, 'skipped')], { now: NOW }), 'none');
+  assert.equal(dayMarkFromCounts({ skipped: 2 }), 'none');
+  // Mixed with a real taken dose it reads as taken, not partial.
+  assert.equal(dayMarkFromCounts({ taken: 1, skipped: 1 }), 'taken');
+  // But a genuine miss alongside a skip is still a miss.
+  assert.equal(dayMarkFromCounts({ missed: 1, skipped: 1 }), 'missed');
+});
+
+test('skipped doses sort last, below taken', () => {
+  const list = [dose(-600, 'skipped'), dose(-600, 'taken'), dose(-5)];
+  const order = sortForDisplay(list, { now: NOW }).map((d) => doseState(d, { now: NOW }));
+  assert.deepEqual(order, ['overdue', 'taken', 'skipped']);
+});

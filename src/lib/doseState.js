@@ -10,7 +10,9 @@
 // tested directly (see test/doseState.test.js).
 
 // Ordered worst-first: a list of states can be reduced with `mostUrgent`.
-export const DOSE_STATES = ['missed', 'overdue', 'due', 'upcoming', 'taken'];
+// 'skipped' sits below 'taken': it is a settled, deliberate outcome, so it is
+// the least urgent thing on a list — not a problem to be drawn to.
+export const DOSE_STATES = ['missed', 'overdue', 'due', 'upcoming', 'taken', 'skipped'];
 
 // How long before its scheduled time a dose starts reading as "due now"
 // rather than "later today".
@@ -32,11 +34,14 @@ const MINUTE = 60_000;
  *
  * @param {{status: string, due_at: string, taken_at?: string|null}} dose
  * @param {{now?: number, windowMinutes?: number}} [opts]
- * @returns {'taken'|'missed'|'overdue'|'due'|'upcoming'}
+ * @returns {'taken'|'missed'|'overdue'|'due'|'upcoming'|'skipped'}
  */
 export function doseState(dose, opts = {}) {
   if (!dose) return 'upcoming';
   if (dose.status === 'taken') return 'taken';
+  // A deliberate "not today" is settled: it must never later become missed,
+  // however long ago it was, which is the whole reason it is its own status.
+  if (dose.status === 'skipped') return 'skipped';
 
   const now = opts.now ?? Date.now();
   const windowMinutes = normaliseWindow(opts.windowMinutes);
@@ -81,19 +86,22 @@ export function summarise(doses, opts = {}) {
   const overdue = count('overdue');
   const due = count('due');
   const upcoming = count('upcoming');
+  const skipped = count('skipped');
   const total = list.length;
 
   // What still needs doing: anything not taken and not already written off.
   const toTake = overdue + due + upcoming;
 
   return {
-    total, taken, missed, overdue, due, upcoming, toTake,
+    total, taken, missed, overdue, due, upcoming, skipped, toTake,
     // Doses whose time has come and gone but are still inside the window —
     // the ones a single big button should act on.
     actionable: list.filter((d, i) => states[i] === 'overdue' || states[i] === 'due'),
-    pct: total ? Math.round((taken / total) * 100) : 0,
-    allTaken: total > 0 && taken === total,
-    headline: headlineFor({ total, taken, missed, overdue, due }),
+    // A skipped dose is not a failure, so it leaves the percentage rather
+    // than dragging it down: the bar measures doses that were actually due.
+    pct: total - skipped > 0 ? Math.round((taken / (total - skipped)) * 100) : 0,
+    allTaken: total > 0 && taken + skipped === total && taken > 0,
+    headline: headlineFor({ total, taken, missed, overdue, due, skipped }),
     states,
   };
 }
@@ -103,15 +111,16 @@ export function summarise(doses, opts = {}) {
  * reads as failure first thing in the morning, when the honest message is
  * "3 doses to take today".
  */
-export function headlineFor({ total, taken, missed, overdue, due }) {
+export function headlineFor({ total, taken, missed, overdue, due, skipped = 0 }) {
   if (!total) return 'No medicines scheduled today';
-  if (taken === total) return 'All doses taken today';
+  if (taken + skipped === total && taken > 0) return 'All doses taken today';
+  if (skipped === total) return 'No doses to take today';
   if (missed) return `${missed} dose${missed === 1 ? '' : 's'} missed today`;
   if (overdue) return `${overdue} dose${overdue === 1 ? '' : 's'} overdue`;
   if (due) return `${due} dose${due === 1 ? '' : 's'} due now`;
-  const left = total - taken;
+  const left = total - taken - skipped;
   if (taken) return `${left} dose${left === 1 ? '' : 's'} still to take`;
-  return `${total} dose${total === 1 ? '' : 's'} to take today`;
+  return `${left} dose${left === 1 ? '' : 's'} to take today`;
 }
 
 /**
@@ -127,17 +136,20 @@ export function dayMark(doses, opts = {}) {
   const list = Array.isArray(doses) ? doses : [];
   if (!list.length) return 'none';
   const s = summarise(list, opts);
-  if (s.taken === s.total) return 'taken';
+  if (s.skipped === s.total) return 'none';
+  if (s.taken + s.skipped === s.total) return 'taken';
   if (s.missed && s.taken) return 'partial';
   if (s.missed) return 'missed';
   return 'pending';
 }
 
 /** Same rule, from the aggregate the calendar query returns per day. */
-export function dayMarkFromCounts({ taken = 0, missed = 0, pending = 0 } = {}) {
-  const total = taken + missed + pending;
+export function dayMarkFromCounts({ taken = 0, missed = 0, pending = 0, skipped = 0 } = {}) {
+  const total = taken + missed + pending + skipped;
   if (!total) return 'none';
-  if (taken === total) return 'taken';
+  // A day of nothing but deliberate skips is not a missed day.
+  if (skipped === total) return 'none';
+  if (taken + skipped === total) return 'taken';
   if (missed && taken) return 'partial';
   if (missed) return 'missed';
   return 'pending';
@@ -148,6 +160,7 @@ export function dayMarkFromCounts({ taken = 0, missed = 0, pending = 0 } = {}) {
 // the guardian dashboard — and so state is never carried by colour alone.
 export const STATE_UI = {
   taken:    { label: 'Taken',    icon: 'check',  tone: 'taken',   kind: 'taken' },
+  skipped:  { label: 'Not today', icon: 'minus',  tone: 'skipped', kind: 'pending' },
   missed:   { label: 'Missed',   icon: 'close',  tone: 'missed',  kind: 'missed' },
   overdue:  { label: 'Overdue',  icon: 'clock',  tone: 'overdue', kind: 'missed' },
   due:      { label: 'Due now',  icon: 'clock',  tone: 'due',     kind: 'pending' },
@@ -156,7 +169,7 @@ export const STATE_UI = {
 
 /** Sorts doses for display: what needs doing first, then the rest by time. */
 export function sortForDisplay(doses, opts = {}) {
-  const rank = { overdue: 0, due: 1, upcoming: 2, missed: 3, taken: 4 };
+  const rank = { overdue: 0, due: 1, upcoming: 2, missed: 3, taken: 4, skipped: 5 };
   return [...(doses || [])].sort((a, b) => {
     const ra = rank[doseState(a, opts)] ?? 9;
     const rb = rank[doseState(b, opts)] ?? 9;
@@ -169,7 +182,9 @@ export function sortForDisplay(doses, opts = {}) {
 export function adherence(doses, opts = {}) {
   const list = Array.isArray(doses) ? doses : [];
   // Doses still in the future aren't a miss yet, so they don't belong in the
-  // denominator — otherwise every morning starts at 0%.
+  // denominator — otherwise every morning starts at 0%. Nor does a skipped
+  // dose: it was deliberately not due, so counting it as a failure to adhere
+  // would be simply untrue.
   const settled = list.filter((d) => {
     const s = doseState(d, opts);
     return s === 'taken' || s === 'missed';

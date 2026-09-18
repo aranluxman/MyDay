@@ -454,10 +454,11 @@ function HistoryPanel({ history, opts }) {
   const counts = useMemo(() => {
     const map = {};
     for (const dose of history) {
-      const e = (map[dose.dose_date] ||= { taken: 0, missed: 0, pending: 0, total: 0 });
+      const e = (map[dose.dose_date] ||= { taken: 0, missed: 0, pending: 0, skipped: 0, total: 0 });
       const st = doseState(dose, opts);
       if (st === 'taken') e.taken++;
       else if (st === 'missed') e.missed++;
+      else if (st === 'skipped') e.skipped++;
       else e.pending++;
       e.total++;
     }
@@ -510,13 +511,16 @@ function HistoryPanel({ history, opts }) {
         <div className="stack">
           {shown.map(([date, doses]) => {
             const s = summarise(doses, opts);
-            const mark = dayMarkFromCounts({ taken: s.taken, missed: s.missed, pending: s.toTake });
+            const mark = dayMarkFromCounts({ taken: s.taken, missed: s.missed, pending: s.toTake, skipped: s.skipped });
+            // Doses actually due that day. Counting a deliberate "not today"
+            // in the denominator would read as a dose they failed to take.
+            const due = s.total - s.skipped;
             return (
               <section key={date} className="g-day">
                 <header className="g-day__head">
                   <h3 className="g-day__title">{prettyDate(date)}</h3>
                   <span className={`g-badge g-badge--${mark === 'taken' ? 'taken' : mark === 'missed' ? 'missed' : mark === 'partial' ? 'overdue' : 'upcoming'}`}>
-                    {s.taken}/{s.total} taken
+                    {s.taken}/{due} taken
                   </span>
                 </header>
                 <ul className="g-list">
