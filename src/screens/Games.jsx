@@ -6,10 +6,11 @@ import { Card, Button, Spinner, EmptyState } from '../components/ui.jsx';
 import { Icon } from '../components/Icon.jsx';
 import { saveGameResult, recentResults } from '../lib/db.js';
 import {
-  GAME_NAMES, GAME_SUB, LEVELS, resolveLevel, adapt,
+  GAME_NAMES, GAME_SUB, GAME_HOWTO, LEVELS, resolveLevel, adapt,
   buildWordQuestions, buildNumberQuestions, buildOrientationQuestions, buildMatchDeck,
   buildMathQuestions, buildOddOneOut,
 } from '../lib/games.js';
+import { WordSearch, Unscramble, MemorySequence, MiniSudoku, ShoppingRecall } from '../components/NewGames.jsx';
 
 const BUILDERS = {
   word_puzzle: buildWordQuestions, number_pattern: buildNumberQuestions,
@@ -17,11 +18,43 @@ const BUILDERS = {
 };
 const CHEERS = ['Great job!', 'Well done!', 'Nicely done!', 'You got it!', "That's right!", 'Excellent!'];
 const cheer = () => CHEERS[Math.floor(Math.random() * CHEERS.length)];
-const GAMES = ['match_pairs', 'word_puzzle', 'number_pattern', 'quick_math', 'odd_one_out', 'orientation'];
-const GAME_ICONS = { match_pairs: 'brain', word_puzzle: 'notes', number_pattern: 'pulse', quick_math: 'plus', odd_one_out: 'eye', orientation: 'calendar' };
-const GAME_COLORS = { match_pairs: 'teal', word_puzzle: 'violet', number_pattern: 'orange', quick_math: '', odd_one_out: 'pink', orientation: 'green' };
+const GAMES = [
+  'match_pairs', 'word_puzzle', 'number_pattern', 'quick_math', 'odd_one_out', 'orientation',
+  'word_search', 'unscramble', 'memory_sequence', 'mini_sudoku', 'shopping_recall',
+];
+// The five new games render their own board rather than the shared quiz shell.
+const CUSTOM_GAMES = {
+  word_search: WordSearch, unscramble: Unscramble, memory_sequence: MemorySequence,
+  mini_sudoku: MiniSudoku, shopping_recall: ShoppingRecall,
+};
+const HOWTO_SEEN_KEY = 'myday_game_howto_seen';
+const GAME_ICONS = { match_pairs: 'brain', word_puzzle: 'notes', number_pattern: 'pulse', quick_math: 'plus', odd_one_out: 'eye', orientation: 'calendar', word_search: 'eye', unscramble: 'notes', memory_sequence: 'sparkle', mini_sudoku: 'calendar', shopping_recall: 'cart' };
+const GAME_COLORS = { match_pairs: 'teal', word_puzzle: 'violet', number_pattern: 'orange', quick_math: '', odd_one_out: 'pink', orientation: 'green', word_search: 'violet', unscramble: 'pink', memory_sequence: 'teal', mini_sudoku: 'orange', shopping_recall: 'green' };
 
 // Consecutive days (ending today or yesterday) with at least one game played.
+// One game suggested per day, rotating through the list. Eleven games on a
+// screen is a choice, and a choice is exactly what someone who is tired does
+// not want — so the app picks one and the grid stays there for anyone who
+// would rather browse.
+function SuggestedGame({ onPick }) {
+  // Seeded by the date so it is the same all day and different tomorrow,
+  // rather than changing every time the screen re-renders.
+  const game = useMemo(() => {
+    const d = new Date();
+    const dayNumber = Math.floor(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 86400000);
+    return GAMES[dayNumber % GAMES.length];
+  }, []);
+
+  return (
+    <button className="suggest" onClick={() => onPick(game)}>
+      <span className="suggest__badge"><Icon name="sparkle" size={18} /> Suggested for you today</span>
+      <span className="suggest__name">{GAME_NAMES[game]}</span>
+      <span className="suggest__sub">{GAME_SUB[game]}</span>
+      <span className="suggest__go">Play <Icon name="chevron" size={20} /></span>
+    </button>
+  );
+}
+
 function streakFromResults(results) {
   const days = new Set(results.map((r) => new Date(r.played_at).toDateString()));
   let streak = 0;
@@ -65,7 +98,10 @@ function Menu({ onPick, onProgress, onHome }) {
         {streak > 0 && <span className="streak-badge"><span aria-hidden="true">🔥</span> {streak} day streak</span>}
       </div>
       <p className="muted" style={{ margin: 0 }}>Play daily to keep your brain sharp and build your streak.</p>
+      <SuggestedGame onPick={onPick} />
+
       <div className="game-grid">
+        {/* Suggested card is rendered above the grid, see below. */}
         {GAMES.map((g) => (
           <div key={g} className="game-card" role="button" tabIndex={0} aria-label={`Play ${GAME_NAMES[g]}`}
             onClick={() => onPick(g)}
@@ -128,20 +164,86 @@ function LevelPicker({ game, onStart, onBack }) {
 
 function Play({ game, level, onComplete, onQuit }) {
   const ui = useUI();
+  const Custom = CUSTOM_GAMES[game];
+  const saveAndFinish = useSaveResult(game, level, onComplete);
+  const CustomBoard = Custom;
+
+  // The how-to card appears before the FIRST play of each game, then only on
+  // request — so it teaches without getting in the way afterwards.
+  const [showHowTo, setShowHowTo] = useState(() => {
+    if (!GAME_HOWTO[game]) return false;
+    try { return !(JSON.parse(localStorage.getItem(HOWTO_SEEN_KEY) || '[]') || []).includes(game); }
+    catch { return true; }
+  });
+  function dismissHowTo() {
+    setShowHowTo(false);
+    try {
+      const seen = JSON.parse(localStorage.getItem(HOWTO_SEEN_KEY) || '[]') || [];
+      if (!seen.includes(game)) localStorage.setItem(HOWTO_SEEN_KEY, JSON.stringify([...seen, game]));
+    } catch {}
+  }
+
   async function quit() {
     const ok = await ui.confirm({ title: 'Leave this game?', message: 'Your progress in this round will not be saved.', confirmLabel: 'Leave game', cancelLabel: 'Keep playing', danger: true });
     if (ok) onQuit();
   }
+
+  if (showHowTo) return <div className="stack play"><HowToPlay game={game} onStart={dismissHowTo} onBack={onQuit} /></div>;
+
   return (
     <div className="stack play">
       <div className="play-head">
         <button className="play-quit" aria-label="Quit this game" onClick={quit}><Icon name="back" size={20} /> Quit</button>
         <span className="play-head__title">{GAME_NAMES[game]} · Level {level}</span>
-        <span style={{ width: 64 }} />
+        <button className="play-quit" aria-label="How to play" onClick={() => setShowHowTo(true)}>
+          <Icon name="notes" size={20} /> Help
+        </button>
       </div>
-      {game === 'match_pairs'
-        ? <Match level={level} onComplete={onComplete} />
-        : <Quiz game={game} level={level} onComplete={onComplete} />}
+      {Custom
+        ? <CustomBoard key={`${game}-${level}`} level={level} onComplete={saveAndFinish} />
+        : game === 'match_pairs'
+          ? <Match level={level} onComplete={onComplete} />
+          : <Quiz game={game} level={level} onComplete={onComplete} />}
+    </div>
+  );
+}
+
+/**
+ * Saving, adaptive difficulty and the result shape are the same for every new
+ * game, so they live here rather than being repeated in each board. A board
+ * only has to say how it did.
+ */
+function useSaveResult(game, level, onComplete) {
+  const ui = useUI();
+  return async function saveAndFinish({ score, max, details }) {
+    const ratio = max ? score / max : 0;
+    const newLevel = adapt(game, level, ratio);
+    try { await saveGameResult({ game_type: game, score, max_score: max, difficulty: level, details: details ?? null }); }
+    catch { ui.toast('Saved on this device — we will upload it when you are back online.', 'info'); }
+    onComplete({ game, score, max, ratio, newLevel, oldLevel: level });
+  };
+}
+
+// Shown before the first play of a game, and again from the Quit row.
+function HowToPlay({ game, onStart, onBack }) {
+  const steps = GAME_HOWTO[game] || [];
+  return (
+    <div className="stack">
+      <div className="howto">
+        <div className="howto__ic"><Icon name={GAME_ICONS[game] || 'brain'} size={30} /></div>
+        <h2 className="howto__title">{GAME_NAMES[game]}</h2>
+        <p className="howto__sub">{GAME_SUB[game]}</p>
+        <ol className="howto__steps">
+          {steps.map((step, i) => (
+            <li key={i}><span className="howto__n">{i + 1}</span><span>{step}</span></li>
+          ))}
+        </ol>
+        <p className="howto__calm">
+          <Icon name="clock" size={18} /> There is no time limit. Take as long as you like.
+        </p>
+      </div>
+      <Button size="lg" onClick={onStart}>Start playing</Button>
+      <Button variant="ghost" onClick={onBack}>Back to the games</Button>
     </div>
   );
 }

@@ -9,6 +9,11 @@ export const GAME_NAMES = {
   quick_math: 'Quick Math',
   odd_one_out: 'Odd One Out',
   orientation: 'Today',
+  word_search: 'Word Search',
+  unscramble: 'Unscramble the Word',
+  memory_sequence: 'Memory Sequence',
+  mini_sudoku: 'Mini Sudoku',
+  shopping_recall: 'Shopping List',
 };
 export const GAME_SUB = {
   match_pairs: 'Find the matching pairs',
@@ -17,6 +22,27 @@ export const GAME_SUB = {
   quick_math: 'Solve simple sums',
   odd_one_out: 'Spot the word that does not belong',
   orientation: 'Gentle questions about today',
+  word_search: 'Find the hidden words',
+  unscramble: 'Put the letters in order',
+  memory_sequence: 'Repeat the pattern',
+  mini_sudoku: 'Fill the grid, no repeats',
+  shopping_recall: 'Remember the list, then find it',
+};
+
+// How to play, shown once before the first game and available again from the
+// game screen. Written as plain sentences, not instructions in a manual.
+export const GAME_HOWTO = {
+  match_pairs: ['Tap a card to turn it over.', 'Tap a second card to find its match.', 'Keep going until every pair is found.'],
+  word_puzzle: ['Read the sentence with a missing word.', 'Tap the word you think belongs.'],
+  number_pattern: ['Look at the row of numbers.', 'Work out the pattern and tap the number that comes next.'],
+  quick_math: ['Read the sum.', 'Tap the answer. Take as long as you like.'],
+  odd_one_out: ['Four words, three belong together.', 'Tap the one that does not fit.'],
+  orientation: ['A few gentle questions about today.', 'Tap the answer you think is right.'],
+  word_search: ['Find each word from the list in the grid.', 'Tap the first letter, then the last letter.', 'Words can run across, down, backwards or diagonally.'],
+  unscramble: ['The letters of a word are jumbled.', 'Tap them in the right order to spell it.', 'Tap a letter you placed to take it back. Ask for a hint any time.'],
+  memory_sequence: ['Watch which buttons light up, and in what order.', 'Then tap them back in the same order.', 'Each round adds one more.'],
+  mini_sudoku: ['Fill every empty square with a number.', 'No number may repeat in a row, a column or a box.', 'A square turns red if it clashes — nothing is lost, just change it.'],
+  shopping_recall: ['Read the shopping list and try to remember it.', 'Then pick those items out of a bigger list.', 'A wrong pick cancels out a right one, so only pick what you remember.'],
 };
 export const MAX_LEVEL = 7;
 export const LEVELS = [1, 2, 3, 4, 5, 6, 7];
