@@ -242,9 +242,12 @@ function Dashboard({ onUnlinked }) {
 
       {!!d.diary?.length && <DiaryPanel entries={d.diary} />}
 
-      <CallPanel patient={d.patient?.name} contacts={d.contacts || []} />
-
-      <AlertsPanel notifications={d.notifications} patient={d.patient?.name} onChanged={() => load({ quiet: true })} />
+      {/* Calling and alerts are reference material rather than the answer the
+          guardian came for, so they pair up once there is room. */}
+      <div className="g-two">
+        <CallPanel patient={d.patient?.name} contacts={d.contacts || []} />
+        <AlertsPanel notifications={d.notifications} patient={d.patient?.name} onChanged={() => load({ quiet: true })} />
+      </div>
 
       <ReadOnlyNote permissions={d.permissions} onShowIntro={() => setIntro(true)} />
 

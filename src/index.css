@@ -1699,3 +1699,94 @@ html[data-motion='calm'] .wiz__disclose svg {
 }
 html[data-motion='calm'] .cv__img { transition: none !important; }
 @media (prefers-reduced-motion: reduce) { .cv__img { transition: none !important; } }
+
+/* =====================================================================
+   Part D1 — tablet and desktop
+   The app was capped at --maxw 600px everywhere, so an iPad rendered a
+   stretched phone with a bottom nav built for a thumb. From 768px the
+   content widens and gains a second column where a second column actually
+   helps; from 1024px the bottom nav becomes a side rail.
+   ===================================================================== */
+
+/* ---- 768px+: wider content, bigger type, two columns where it helps ---- */
+@media (min-width: 768px) {
+  :root { --maxw: 720px; }
+  body { font-size: 19px; }
+  .content { padding: 24px 24px calc(var(--nav-h) + 46px + env(safe-area-inset-bottom)); }
+  .topbar { padding-left: 24px; padding-right: 24px; }
+  .topbar__title { font-size: 26px; }
+
+  /* Side by side once there is room for both to stay readable. */
+  .two-col {
+    display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 18px; align-items: start;
+  }
+  .two-col > * { min-width: 0; }
+
+  .glance { grid-template-columns: repeat(3, 1fr); }
+  .timegrid { grid-template-columns: repeat(4, 1fr); }
+  .cal__cell { min-height: 58px; }
+  .g-status__name { font-size: 32px; }
+}
+
+/* ---- 1024px+: a side rail instead of the bottom nav ----
+   A tablet is held, not thumbed: the bottom edge is the farthest point
+   from where the hands are. The rail also frees the bottom of the screen,
+   which is where the big "Done - I took it" buttons live. */
+@media (min-width: 1024px) {
+  :root { --maxw: 860px; --rail-w: 232px; }
+
+  .app-shell { padding-left: var(--rail-w); }
+
+  .bottom-nav {
+    top: 0; bottom: 0; right: auto; width: var(--rail-w);
+    flex-direction: column; justify-content: flex-start; gap: 6px;
+    padding: 18px 14px calc(18px + env(safe-area-inset-bottom));
+    border-top: 0; border-right: 1px solid var(--line);
+    background: var(--surface);
+    backdrop-filter: none;
+    overflow-y: auto; overflow-x: hidden;
+  }
+  /* Room for the brand mark above the first item. */
+  .bottom-nav::before {
+    content: 'MyDay';
+    display: block; padding: 6px 12px 18px;
+    font-size: 24px; font-weight: 800; letter-spacing: -0.01em; color: var(--ink);
+  }
+  .bottom-nav__item {
+    flex: 0 0 auto; flex-direction: row; justify-content: flex-start; gap: 14px;
+    width: 100%; min-height: 56px; padding: 10px 14px; border-radius: 14px;
+    font-size: 17px;
+  }
+  .bottom-nav__ic { width: 40px; height: 40px; flex: 0 0 auto; }
+  .bottom-nav__item.is-active { background: var(--primary-soft); }
+
+  .topbar { padding-left: 28px; padding-right: 28px; }
+  /* Enough room below the last card for the floating button to sit over empty
+     space rather than on top of a "Done - I took it" the person is reaching
+     for. 64px button + 28px offset + breathing room. */
+  .content { padding-bottom: 120px; }
+  /* The FAB belongs beside the content, not over the rail. */
+  .fab { bottom: 28px; right: 28px; }
+  .toast-stack { left: var(--rail-w); bottom: 28px; }
+}
+
+/* ---- 1280px+: give the two-column layouts real room ---- */
+@media (min-width: 1280px) {
+  :root { --maxw: 1080px; }
+}
+
+/* ---- iPad split view and short landscape ----
+   Split view reports a narrow width on a big device, so the phone layout
+   is correct there — but a landscape tablet is short, and a sticky bar
+   plus a tall card leaves nothing to read. */
+@media (min-width: 768px) and (max-height: 560px) {
+  .topbar { position: static; }
+  .content { padding-top: 16px; }
+}
+
+/* At rail widths the sidebar already says MyDay, so the top bar repeating it
+   on Home is pure duplication. Every other route has a real page name there. */
+@media (min-width: 1024px) {
+  .app-shell[data-page='/'] .topbar__title { visibility: hidden; }
+}

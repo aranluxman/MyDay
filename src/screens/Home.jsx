@@ -124,6 +124,9 @@ export default function Home() {
         </Card>
       )}
 
+      {/* From 768px the glance chips and the calendar sit side by side rather
+          than stacking into a long scroll on a wide screen. */}
+      <div className="two-col">
       <section aria-label="Today at a glance">
         <h3 className="subsection" style={{ margin: '0 0 8px' }}>Today at a glance</h3>
         <div className="glance">
@@ -154,6 +157,8 @@ export default function Home() {
             onPick={(day) => navigate('/medication', { state: { view: 'calendar', day } })} />
         </section>
       )}
+
+      </div>
 
       {settings.homeGames && games === 0 && (
         <Card className="nudge" onClick={() => navigate('/games')}>

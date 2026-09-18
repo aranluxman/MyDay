@@ -42,7 +42,7 @@ export function AppShell() {
   }
 
   return (
-    <div className="app-shell">
+    <div className="app-shell" data-page={pathname}>
       <header className="topbar">
         <h1 className="topbar__title">{title}</h1>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
