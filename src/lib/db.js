@@ -195,10 +195,12 @@ export async function dosesForDate(isoDate) {
 export async function todaysDoses(tz = deviceTimezone()) {
   return dosesForDate(localDateStr(tz));
 }
-// All doses in a [from,to] date range (for the calendar).
+// All doses in a [from,to] date range (for the calendar and the adherence
+// summary). due_at comes along because doseState() needs it to tell a dose
+// that is genuinely missed from one whose time simply has not come.
 export async function dosesInRange(fromIso, toIso) {
   const { data, error } = await supabase.from('myday_doses')
-    .select('dose_date,status').gte('dose_date', fromIso).lte('dose_date', toIso);
+    .select('dose_date,status,due_at').gte('dose_date', fromIso).lte('dose_date', toIso);
   if (error) throw error;
   return data || [];
 }

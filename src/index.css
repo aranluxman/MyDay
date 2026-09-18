@@ -248,6 +248,10 @@ h3.subsection { font-size: 21px; margin: 8px 0 0; }
 .status__count { font-size: 15px; color: var(--ink-soft); }
 .bar { height: 12px; background: var(--surface-2); border-radius: 999px; overflow: hidden; margin: 12px 0 16px; }
 .bar__fill { height: 100%; background: linear-gradient(90deg, var(--good), #36b06a); border-radius: 999px; transition: width 0.5s ease; }
+/* The fill has to agree with the badge beside it. A green bar under a red
+   "62%" reads as though the week went well. */
+.bar__fill--warn { background: linear-gradient(90deg, var(--warn), var(--warn)); }
+.bar__fill--bad { background: linear-gradient(90deg, var(--bad), var(--bad)); }
 .status__row { display: flex; gap: 10px; }
 .stat { flex: 1; text-align: center; background: var(--surface-2); border-radius: 14px; padding: 12px 6px; }
 .stat__num { font-size: 32px; font-weight: 800; line-height: 1; }
@@ -2175,3 +2179,16 @@ html[data-motion='calm'] *::after {
 }
 .dose__reason:hover { border-color: var(--primary); color: var(--primary); }
 .dose__reason:focus-visible { outline: 3px solid var(--primary); outline-offset: 2px; }
+
+/* ---------- adherence summary on the History tab (H3) ---------- */
+.adh__head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.adh__title { margin: 0; font-size: 19px; font-weight: 800; color: var(--ink); }
+/* "19 of 21 doses" is the message; the percentage is only the badge. */
+.adh__line { margin: 8px 0 0; font-size: 18px; color: var(--ink); }
+.adh__sub { margin: 0; font-size: 16px; color: var(--ink-soft); }
+
+/* ---------- diary quick-add row (H4) ---------- */
+.quickadd { margin: 0; }
+.quickadd__h { margin: 0 0 10px; font-size: 17px; font-weight: 800; color: var(--ink-soft); }
+/* Left-aligned here, unlike the centred empty-state version. */
+.quickadd__tags { justify-content: flex-start; margin-top: 0; }

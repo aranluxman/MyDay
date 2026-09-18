@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useUI } from '../context/UIContext.jsx';
 import { useAsync } from '../hooks/useAsync.js';
@@ -9,10 +9,10 @@ import { MedicineWizard } from '../components/MedicineWizard.jsx';
 import { useApp } from '../context/AppContext.jsx';
 import {
   listMedications, deleteMedication, restoreMedication, duplicateMedication,
-  todaysDoses, dosesForDate, markDoseTaken, markDoseSkipped, markDosePending, medPhotoUrl,
+  todaysDoses, dosesForDate, dosesInRange, markDoseTaken, markDoseSkipped, markDosePending, medPhotoUrl,
 } from '../lib/db.js';
 import { prettyTime, prettyClock, prettyDate, localDateStr } from '../lib/format.js';
-import { doseState, sortForDisplay, summarise, STATE_UI } from '../lib/doseState.js';
+import { doseState, sortForDisplay, summarise, adherence, STATE_UI } from '../lib/doseState.js';
 import { describeSchedule } from '../lib/schedule.js';
 
 export default function Medication() {
@@ -103,7 +103,8 @@ export default function Medication() {
 
       {view === 'calendar' && (
         <>
-          <p className="muted" style={{ margin: 0 }}>Your medication history — tap any day to see which doses were taken.</p>
+          <AdherenceSummary windowMinutes={windowMinutes} />
+          <p className="muted" style={{ margin: 0 }}>Tap any day to see which doses were taken.</p>
           <MedCalendar selected={selectedDay} onPick={setSelectedDay} />
           <h3 className="subsection">{prettyDate(selectedDay)}</h3>
           <DayDoses dateStr={selectedDay} windowMinutes={windowMinutes} />
@@ -145,6 +146,55 @@ function TodayView({ state, onDone, onSkip, onAdd, windowMinutes }) {
         <DoseCard key={d.id} dose={d} onDone={onDone} onSkip={onSkip} windowMinutes={windowMinutes} />
       ))}
     </div>
+  );
+}
+
+// How the last week and month actually went, in a sentence rather than a
+// number. "You took 19 of 21 doses" is something a person can repeat to their
+// doctor; "90%" is a mark out of a hundred, and this is not a test.
+function AdherenceSummary({ windowMinutes }) {
+  const range = useMemo(() => {
+    const today = localDateStr();
+    const back = (n) => { const d = new Date(); d.setDate(d.getDate() - n); return localDateStr(undefined, d); };
+    return { today, week: back(6), month: back(29) };
+  }, []);
+  const { data, loading, error } = useAsync(() => dosesInRange(range.month, range.today), [range.month, range.today]);
+
+  if (loading) return <SkeletonCard lines={2} />;
+  // A summary is not worth an error message of its own; the calendar below
+  // still works, so failing quietly beats shouting about it.
+  if (error || !data.length) return null;
+
+  const opts = { windowMinutes };
+  const week = adherence(data.filter((d) => d.dose_date >= range.week), opts);
+  const month = adherence(data, opts);
+  if (!week.total && !month.total) return null;
+
+  // One decision, used by both the badge and the bar, so they cannot disagree.
+  const tone = week.pct == null || week.pct >= 90 ? { badge: 'taken', fill: '' }
+    : week.pct >= 70 ? { badge: 'overdue', fill: ' bar__fill--warn' }
+      : { badge: 'missed', fill: ' bar__fill--bad' };
+
+  return (
+    <Card>
+      <div className="adh__head">
+        <h3 className="adh__title">Your last 7 days</h3>
+        {week.pct != null && <span className={`g-badge g-badge--${tone.badge}`}>{week.pct}%</span>}
+      </div>
+      <p className="adh__line">
+        {week.total
+          ? <>You took <b>{week.taken} of {week.total}</b> {week.total === 1 ? 'dose' : 'doses'}.</>
+          : 'No doses were due in the last 7 days.'}
+      </p>
+      {week.pct != null && (
+        <div className="bar" role="img" aria-label={`${week.pct} per cent of doses taken in the last 7 days`}>
+          <div className={`bar__fill${tone.fill}`} style={{ width: `${week.pct}%` }} />
+        </div>
+      )}
+      {month.total > week.total && (
+        <p className="adh__sub">Over 30 days: {month.taken} of {month.total} doses{month.pct != null ? ` (${month.pct}%)` : ''}.</p>
+      )}
+    </Card>
   );
 }
 

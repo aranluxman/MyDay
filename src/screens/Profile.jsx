@@ -250,14 +250,29 @@ export default function Profile() {
         </Card>
       )}
 
-      {/* my details — menu rows in the style of the reference design */}
+      {/* Three named groups rather than one list of seven. Undifferentiated,
+          "About MyDay" sat directly under "Health goals" and the person had to
+          read every row to find the one they wanted. */}
       <Card>
+        <SectionTitle icon="user" title="My information" />
         <div className="menu-list">
           <MenuRow icon="user" title="Personal information" desc="Your name, birthday and more" onClick={() => setEditProfile(true)} />
           <MenuRow icon="cross" title="Health information" desc="Medications, supplements and conditions" onClick={() => setEditProfile(true)} />
+          <MenuRow icon="star" title="Health goals" desc="Set and track what you're working toward" onClick={() => setEditProfile(true)} />
+        </div>
+      </Card>
+
+      <Card>
+        <SectionTitle icon="pill" title="My health" />
+        <div className="menu-list">
           <MenuRow icon="pill" title="My medicines" desc="Manage your medicines and times" onClick={() => navigate('/medication', { state: { view: 'medicines' } })} />
           <MenuRow icon="cross" title="My cards" desc="Health card, insurance and other cards" onClick={() => navigate('/cards')} />
-          <MenuRow icon="star" title="Health goals" desc="Set and track what you're working toward" onClick={() => setEditProfile(true)} />
+        </div>
+      </Card>
+
+      <Card>
+        <SectionTitle icon="star" title="Explore" />
+        <div className="menu-list">
           <MenuRow icon="brain" title="Brain Games" desc="Play games and see your progress" onClick={() => navigate('/games')} />
           <MenuRow icon="shield" title="About MyDay" desc="Learn more about the app" onClick={() => setAboutOpen(true)} />
         </div>

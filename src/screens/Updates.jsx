@@ -42,7 +42,13 @@ export default function Updates() {
         </div>
       </div>
 
-      {!data.length && <FeelingPrompt onPick={(draft) => setEditing(draft)} />}
+      {/* The warm version only makes sense once. After that the same one-tap
+          starters stay available as a compact row: they were the fastest way
+          to write a note, and hiding them after the first entry meant every
+          note from then on had to be typed. */}
+      {!data.length
+        ? <FeelingPrompt onPick={(draft) => setEditing(draft)} />
+        : <QuickAdd onPick={(draft) => setEditing(draft)} />}
 
       <div className="timeline">
         {data.map((e) => {
@@ -97,6 +103,23 @@ function FeelingPrompt({ onPick }) {
         ))}
       </div>
     </Card>
+  );
+}
+
+// The same starters, compact, for a diary that already has entries.
+function QuickAdd({ onPick }) {
+  return (
+    <section className="quickadd" aria-labelledby="quickadd-h">
+      <h3 className="quickadd__h" id="quickadd-h">Quick add</h3>
+      <div className="feeling__tags quickadd__tags">
+        {FEELINGS.map((f) => (
+          <button key={f.label} type="button" className="feeling__tag"
+            onClick={() => onPick({ category: f.category, title: f.title })}>
+            {f.label}
+          </button>
+        ))}
+      </div>
+    </section>
   );
 }
 
