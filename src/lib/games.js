@@ -1,5 +1,5 @@
-// Pure brain-game logic: 4 game types, each with 7 difficulty levels, plus
-// adaptive difficulty. No React here.
+// Pure brain-game logic: the game types below, each with 7 difficulty levels,
+// plus adaptive difficulty. No React here.
 import { lastDifficulty } from './db.js';
 
 export const GAME_NAMES = {
@@ -18,8 +18,8 @@ export const GAME_SUB = {
   odd_one_out: 'Spot the word that does not belong',
   orientation: 'Gentle questions about today',
 };
-export const MAX_LEVEL = 10;
-export const LEVELS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+export const MAX_LEVEL = 7;
+export const LEVELS = [1, 2, 3, 4, 5, 6, 7];
 
 export function shuffle(arr) {
   const a = [...arr];
@@ -34,7 +34,13 @@ const clampLevel = (n) => Math.max(1, Math.min(MAX_LEVEL, n));
 // ---------- adaptive difficulty (device-local resume; history in DB) ----------
 function storedLevel(type) {
   const v = parseInt(localStorage.getItem('myday_diff_' + type) || '', 10);
-  return Number.isFinite(v) && v >= 1 ? clampLevel(v) : null;
+  if (!Number.isFinite(v) || v < 1) return null;
+  // The ceiling used to be 10. Anyone who reached 8-10 is clamped down to 7
+  // and the clamped value is written back, so the level picker and the saved
+  // value cannot disagree.
+  const clamped = clampLevel(v);
+  if (clamped !== v) { try { localStorage.setItem('myday_diff_' + type, String(clamped)); } catch {} }
+  return clamped;
 }
 export function setLevel(type, n) {
   const lvl = clampLevel(n);

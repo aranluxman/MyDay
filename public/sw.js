@@ -1,6 +1,7 @@
 // MyDay service worker: offline app-shell + web-push handling.
 // Vite emits hashed asset filenames, so we cache at runtime rather than precache.
-const CACHE = 'myday-v6';
+const CACHE = 'myday-v7';
+const CARD_CACHE = 'myday-cards-v1';
 // '/guardian' and its manifest are precached too: a guardian's installed app
 // starts there, and it has to open with no signal (they may be in a clinic
 // basement). The navigate handler below falls back to the cached index.html,
@@ -16,9 +17,45 @@ self.addEventListener('install', (e) => {
 });
 self.addEventListener('activate', (e) => {
   e.waitUntil(
-    caches.keys().then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
+    // CARD_CACHE is versioned separately and deliberately survives an app
+    // update: a card must still open offline straight after a new release,
+    // which is exactly when someone is least able to re-download it.
+    caches.keys()
+      .then((keys) => Promise.all(
+        keys.filter((k) => k !== CACHE && k !== CARD_CACHE).map((k) => caches.delete(k))))
       .then(() => self.clients.claim())
   );
+});
+
+// ---------- offline health cards ----------
+// Card images are served from a PRIVATE bucket behind short-lived signed URLs,
+// so the URL cannot be the cache key — it expires. The page sends the storage
+// path alongside a currently-valid URL, and the response body is stored under
+// a stable key derived from that path (see cardCacheKey in src/lib/cards.js).
+self.addEventListener('message', (e) => {
+  const data = e.data;
+  if (!data || data.type !== 'myday-cache-cards' || !Array.isArray(data.items)) return;
+  e.waitUntil((async () => {
+    const cache = await caches.open(CARD_CACHE);
+    const wanted = new Set();
+    for (const item of data.items) {
+      if (!item?.path || !item?.url) continue;
+      const key = `https://myday.local/card-image/${encodeURIComponent(item.path)}`;
+      wanted.add(key);
+      try {
+        // Only re-fetch what is not already held: these are the person's own
+        // card photos and they do not change without a re-upload.
+        if (await cache.match(key)) continue;
+        const res = await fetch(item.url);
+        if (res.ok) await cache.put(key, res.clone());
+      } catch { /* offline, or the signed URL lapsed — try again next visit */ }
+    }
+    // Drop images for cards that have been deleted, so a deleted card's photo
+    // does not linger on the device.
+    for (const req of await cache.keys()) {
+      if (!wanted.has(req.url)) await cache.delete(req);
+    }
+  })());
 });
 self.addEventListener('fetch', (e) => {
   const req = e.request;

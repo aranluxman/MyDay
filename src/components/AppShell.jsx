@@ -13,6 +13,7 @@ const TITLES = {
   '/appointments': 'Appointments',
   '/profile': 'Profile',
   '/profile/notifications': 'Alerts',
+  '/cards': 'My cards',
   '/games': 'Brain Games',
 };
 
