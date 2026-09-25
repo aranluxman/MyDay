@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Icon } from './Icon.jsx';
 
@@ -119,9 +119,13 @@ export function Toggle({ checked, onChange, label }) {
   );
 }
 
+// iOS-style segmented control: a single thumb slides between options rather
+// than each button lighting up on its own.
 export function SegmentedControl({ options, value, onChange }) {
+  const idx = Math.max(0, options.findIndex((o) => o.value === value));
   return (
-    <div className="segmented" role="tablist">
+    <div className="segmented" role="tablist" style={{ '--seg-n': options.length, '--seg-i': idx }}>
+      <span className="segmented__thumb" aria-hidden="true" />
       {options.map((o) => (
         <button key={o.value} role="tab" aria-selected={value === o.value}
           className={`segmented__item${value === o.value ? ' is-active' : ''}`}
@@ -131,22 +135,31 @@ export function SegmentedControl({ options, value, onChange }) {
   );
 }
 
-// Bottom-sheet modal.
+// Bottom-sheet modal. Closing from inside the sheet (Escape, the X, a tap on
+// the backdrop) plays the slide-down first; a parent that simply unmounts it
+// after a save still closes instantly, which is what you want after an action.
 export function Modal({ title, children, onClose, wide }) {
+  const [leaving, setLeaving] = useState(false);
+  const close = useCallback(() => {
+    if (!onClose) return;
+    setLeaving(true);
+    setTimeout(() => onClose(), 220);
+  }, [onClose]);
+
   useEffect(() => {
-    const onKey = (e) => e.key === 'Escape' && onClose?.();
+    const onKey = (e) => e.key === 'Escape' && close();
     window.addEventListener('keydown', onKey);
     document.body.classList.add('no-scroll');
     return () => { window.removeEventListener('keydown', onKey); document.body.classList.remove('no-scroll'); };
-  }, [onClose]);
+  }, [close]);
   return createPortal(
-    <div className="sheet-overlay" onClick={(e) => e.target === e.currentTarget && onClose?.()}>
-      <div className={`sheet${wide ? ' sheet--wide' : ''}`} role="dialog" aria-modal="true" aria-label={title || 'Dialog'}>
+    <div className={`sheet-overlay${leaving ? ' is-leaving' : ''}`} onClick={(e) => e.target === e.currentTarget && close()}>
+      <div className={`sheet${wide ? ' sheet--wide' : ''}${leaving ? ' is-leaving' : ''}`} role="dialog" aria-modal="true" aria-label={title || 'Dialog'}>
         <div className="sheet__grab" />
         {title && (
           <div className="sheet__head">
             <span className="sheet__title">{title}</span>
-            <button className="icon-btn" aria-label="Close" onClick={onClose}><Icon name="close" size={22} /></button>
+            <button className="icon-btn sheet__close" aria-label="Close" onClick={close}><Icon name="close" size={18} stroke={2.6} /></button>
           </div>
         )}
         <div className="sheet__body">{children}</div>

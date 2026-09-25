@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Icon } from '../components/Icon.jsx';
 import { InstallButton } from '../components/InstallButton.jsx';
@@ -7,6 +8,18 @@ export default function Landing() {
   const start = () => navigate('/get-started');
   const signin = () => navigate('/signin');
   const guardian = () => navigate('/guardian');
+
+  // Sections glide in as they scroll into view. Without IntersectionObserver
+  // (or with motion turned off in CSS) everything is simply shown.
+  useEffect(() => {
+    const els = document.querySelectorAll('.mkt [data-reveal]');
+    if (!('IntersectionObserver' in window)) { els.forEach((el) => el.classList.add('is-in')); return undefined; }
+    const io = new IntersectionObserver((entries) => {
+      for (const e of entries) if (e.isIntersecting) { e.target.classList.add('is-in'); io.unobserve(e.target); }
+    }, { rootMargin: '0px 0px -8% 0px' });
+    els.forEach((el) => io.observe(el));
+    return () => io.disconnect();
+  }, []);
 
   return (
     <div className="mkt">
@@ -58,16 +71,16 @@ export default function Landing() {
       {/* features */}
       <section className="mkt-section mkt-section--tint" id="features">
         <div className="mkt-wrap">
-          <p className="mkt-eyebrow">Everything in one place</p>
-          <h2 className="mkt-h2">Built around your day</h2>
-          <p className="mkt-lede">Simple, large, and clear — designed so it's easy to use every single day.</p>
+          <p className="mkt-eyebrow" data-reveal>Everything in one place</p>
+          <h2 className="mkt-h2" data-reveal>Built around your day</h2>
+          <p className="mkt-lede" data-reveal>Simple, large, and clear — designed so it's easy to use every single day.</p>
           <div className="feat-grid">
-            <Feature ic="blue" icon="pill" title="Medication reminders" text="Add any medicine or vitamin with its times. Tap one big button when you take it — pending, taken, and missed are tracked for you." />
-            <Feature ic="green" icon="calendar" title="Calendar &amp; history" text="A clear month calendar shows exactly which doses were taken, so you can look back over the whole month at a glance." />
-            <Feature ic="red" icon="bell" title="Family alerts" text="If a dose isn't taken within an hour, a notification goes to a family member's phone — quietly keeping everyone in the loop." />
-            <Feature ic="purple" icon="brain" title="Brain games" text="Match-the-pairs, word puzzles, number patterns, and gentle daily questions — across seven friendly difficulty levels." />
-            <Feature ic="orange" icon="notes" title="Health diary" text="Jot down symptoms, health events, and anything worth remembering, all on a simple timeline you can show your doctor." />
-            <Feature ic="teal" icon="phone" title="Contacts &amp; profile" text="Keep your pharmacy, doctors, clinic, and insurance in one tap-to-call place, alongside your personal health profile." />
+            <Feature i={0} ic="blue" icon="pill" title="Medication reminders" text="Add any medicine or vitamin with its times. Tap one big button when you take it — pending, taken, and missed are tracked for you." />
+            <Feature i={1} ic="green" icon="calendar" title="Calendar &amp; history" text="A clear month calendar shows exactly which doses were taken, so you can look back over the whole month at a glance." />
+            <Feature i={2} ic="red" icon="bell" title="Family alerts" text="If a dose isn't taken within an hour, a notification goes to a family member's phone — quietly keeping everyone in the loop." />
+            <Feature i={0} ic="purple" icon="brain" title="Brain games" text="Match-the-pairs, word puzzles, number patterns, and gentle daily questions — across seven friendly difficulty levels." />
+            <Feature i={1} ic="orange" icon="notes" title="Health diary" text="Jot down symptoms, health events, and anything worth remembering, all on a simple timeline you can show your doctor." />
+            <Feature i={2} ic="teal" icon="phone" title="Contacts &amp; profile" text="Keep your pharmacy, doctors, clinic, and insurance in one tap-to-call place, alongside your personal health profile." />
           </div>
         </div>
       </section>
@@ -75,12 +88,12 @@ export default function Landing() {
       {/* how it works */}
       <section className="mkt-section" id="how">
         <div className="mkt-wrap">
-          <p className="mkt-eyebrow">Get going in minutes</p>
-          <h2 className="mkt-h2">How it works</h2>
+          <p className="mkt-eyebrow" data-reveal>Get going in minutes</p>
+          <h2 className="mkt-h2" data-reveal>How it works</h2>
           <div className="steps" style={{ marginTop: 36 }}>
-            <Step n="1" title="Create your account" text="Answer a few simple questions and you're in — no complicated setup." />
-            <Step n="2" title="Add your medicines" text="Enter each medicine and the times you take it. We'll handle the daily reminders." />
-            <Step n="3" title="Relax — we'll remind you" text="Tap Done when you take a dose. If one's missed, your family is gently notified." />
+            <Step i={0} n="1" title="Create your account" text="Answer a few simple questions and you're in — no complicated setup." />
+            <Step i={1} n="2" title="Add your medicines" text="Enter each medicine and the times you take it. We'll handle the daily reminders." />
+            <Step i={2} n="3" title="Relax — we'll remind you" text="Tap Done when you take a dose. If one's missed, your family is gently notified." />
           </div>
         </div>
       </section>
@@ -88,20 +101,20 @@ export default function Landing() {
       {/* phone showcase */}
       <section className="mkt-section mkt-section--tint">
         <div className="mkt-wrap">
-          <p className="mkt-eyebrow">In your pocket</p>
-          <h2 className="mkt-h2">Lovely on your phone, too</h2>
-          <p className="mkt-lede">Add MyDay to your home screen and it works just like an app.</p>
+          <p className="mkt-eyebrow" data-reveal>In your pocket</p>
+          <h2 className="mkt-h2" data-reveal>Lovely on your phone, too</h2>
+          <p className="mkt-lede" data-reveal>Add MyDay to your home screen and it works just like an app.</p>
           <div className="show-grid">
-            <Phone src="/shots/home.png" title="Your day at a glance" sub="Today's medicines &amp; reminders" />
-            <Phone src="/shots/calendar.png" title="A clear calendar" sub="See every dose you've taken" />
-            <Phone src="/shots/game.png" title="Keep your mind sharp" sub="Games with seven levels" />
+            <Phone i={0} src="/shots/home.png" title="Your day at a glance" sub="Today's medicines &amp; reminders" />
+            <Phone i={1} src="/shots/calendar.png" title="A clear calendar" sub="See every dose you've taken" />
+            <Phone i={2} src="/shots/game.png" title="Keep your mind sharp" sub="Games with seven levels" />
           </div>
         </div>
       </section>
 
       {/* testimonial */}
       <section className="mkt-section">
-        <div className="mkt-wrap quote">
+        <div className="mkt-wrap quote" data-reveal>
           <Icon name="star" size={28} className="" />
           <p>"My dad finally takes his pills on time, and I get a little nudge on my phone if he forgets. It gave our whole family peace of mind."</p>
           <div className="quote__who">— Sarah, daughter &amp; caregiver</div>
@@ -112,9 +125,9 @@ export default function Landing() {
       <section className="mkt-section mkt-section--tint" id="trust">
         <div className="mkt-wrap">
           <div className="trust-grid">
-            <Trust ic="blue" icon="clock" title="Here to help" text="Simple, friendly, and made to be used every day — with large text and big buttons." />
-            <Trust ic="green" icon="shield" title="Secure &amp; private" text="Your health information is protected and only ever visible to you and those you choose." />
-            <Trust ic="pink" icon="pulse" title="Caring by design" text="Built for older adults and the families who look after them." />
+            <Trust i={0} ic="blue" icon="clock" title="Here to help" text="Simple, friendly, and made to be used every day — with large text and big buttons." />
+            <Trust i={1} ic="green" icon="shield" title="Secure &amp; private" text="Your health information is protected and only ever visible to you and those you choose." />
+            <Trust i={2} ic="pink" icon="pulse" title="Caring by design" text="Built for older adults and the families who look after them." />
           </div>
         </div>
       </section>
@@ -122,7 +135,7 @@ export default function Landing() {
       {/* CTA */}
       <section className="mkt-section">
         <div className="mkt-wrap">
-          <div className="cta-band">
+          <div className="cta-band" data-reveal>
             <h2>Start taking care of today</h2>
             <p>Create your free account in under a minute.</p>
             <button className="mkt-btn mkt-btn--ghost mkt-btn--lg" onClick={start}>Get started free <Icon name="chevron" size={20} /></button>
@@ -174,29 +187,29 @@ function DashboardPreview() {
   );
 }
 
-function Feature({ ic, icon, title, text }) {
+function Feature({ ic, icon, title, text, i }) {
   return (
-    <div className="feat">
+    <div className="feat" data-reveal style={{ '--i': i }}>
       <span className={`ic ic--${ic}`}><Icon name={icon} size={26} /></span>
       <h3 dangerouslySetInnerHTML={{ __html: title }} />
       <p dangerouslySetInnerHTML={{ __html: text }} />
     </div>
   );
 }
-function Step({ n, title, text }) {
-  return <div className="step"><div className="step__n">{n}</div><h3>{title}</h3><p>{text}</p></div>;
+function Step({ n, title, text, i }) {
+  return <div className="step" data-reveal style={{ '--i': i }}><div className="step__n">{n}</div><h3>{title}</h3><p>{text}</p></div>;
 }
-function Phone({ src, title, sub }) {
+function Phone({ src, title, sub, i }) {
   return (
-    <div>
+    <div data-reveal style={{ '--i': i }}>
       <div className="phone"><img src={src} alt={title} loading="lazy" /></div>
       <div className="phone__cap">{title}<span>{sub}</span></div>
     </div>
   );
 }
-function Trust({ ic, icon, title, text }) {
+function Trust({ ic, icon, title, text, i }) {
   return (
-    <div className="trust">
+    <div className="trust" data-reveal style={{ '--i': i }}>
       <span className={`ic ic--${ic}`}><Icon name={icon} size={24} /></span>
       <div><h3 dangerouslySetInnerHTML={{ __html: title }} /><p>{text}</p></div>
     </div>
