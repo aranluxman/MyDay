@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { BottomNav } from './BottomNav.jsx';
 import { Icon } from './Icon.jsx';
@@ -29,12 +29,23 @@ export function AppShell() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const [addOpen, setAddOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
   const title = TITLES[pathname] || 'MyDay';
   const isDark = theme === 'dark' || theme === 'midnight';
   const isHome = pathname === '/';
   // Nothing in the quick-add menu applies while playing a game, and the button
   // sits right on top of the last card in the grid.
   const showAdd = pathname !== '/games';
+
+  // The large title shrinks into a compact bar once the page moves, the way
+  // iOS navigation bars do.
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 12);
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+  useEffect(() => { window.scrollTo(0, 0); }, [pathname]);
 
   function doAdd(a) {
     setAddOpen(false);
@@ -43,7 +54,8 @@ export function AppShell() {
 
   return (
     <div className="app-shell" data-page={pathname}>
-      <header className="topbar">
+      <Ambient />
+      <header className={`topbar${scrolled ? ' is-scrolled' : ''}`}>
         <h1 className="topbar__title">{title}</h1>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <InstallButton />
@@ -54,10 +66,11 @@ export function AppShell() {
         </div>
       </header>
 
-      <main className="content"><Outlet /></main>
+      {/* Keyed on the route so each screen plays its entrance. */}
+      <main className="content"><div className="page" key={pathname}><Outlet /></div></main>
 
       {showAdd && (
-        <button className={`fab${isHome ? ' fab--labeled' : ''}`} aria-label="Quick add" title="Quick add" onClick={() => setAddOpen(true)}>
+        <button className={`fab${isHome ? ' fab--labeled' : ''}${addOpen ? ' is-open' : ''}`} aria-label="Quick add" title="Quick add" onClick={() => setAddOpen(true)}>
           <Icon name="plus" size={30} stroke={2.6} />
           {isHome && <span className="fab__label">Add</span>}
         </button>
@@ -77,6 +90,18 @@ export function AppShell() {
           </div>
         </Modal>
       )}
+    </div>
+  );
+}
+
+// Soft colour fields drifting slowly behind the glass. Purely decorative, so
+// hidden from assistive tech and frozen by Calm screen / reduced motion.
+export function Ambient() {
+  return (
+    <div className="ambient" aria-hidden="true">
+      <span className="ambient__blob ambient__blob--a" />
+      <span className="ambient__blob ambient__blob--b" />
+      <span className="ambient__blob ambient__blob--c" />
     </div>
   );
 }

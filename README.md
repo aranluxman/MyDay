@@ -57,6 +57,7 @@ public/                                     -> static assets copied as-is
 src/
   main.jsx, App.jsx                         -> entry + routes (auth gate)
   index.css                                 -> design system + light/dark themes
+  glass.css                                 -> Apple-style glass layer (loaded last): palette, frosted surfaces, motion, alerts
   context/AppContext.jsx                    -> session, profile, theme
   context/UIContext.jsx                     -> toasts + confirm dialogs
   components/                               -> Icon, ui primitives, AppShell, BottomNav, MedCalendar

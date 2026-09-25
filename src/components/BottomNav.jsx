@@ -1,4 +1,5 @@
-import { NavLink } from 'react-router-dom';
+import { useLayoutEffect, useRef } from 'react';
+import { NavLink, useLocation } from 'react-router-dom';
 import { Icon } from './Icon.jsx';
 
 // Six destinations. Brain Games used to be reachable only from Home and from a
@@ -14,8 +15,31 @@ const ITEMS = [
 ];
 
 export function BottomNav() {
+  const ref = useRef(null);
+  const { pathname } = useLocation();
+
+  // One highlight that glides to the active tab instead of each tab lighting
+  // up separately. Measured, so it works for the bottom bar and the side rail.
+  useLayoutEffect(() => {
+    const nav = ref.current;
+    if (!nav) return undefined;
+    const place = () => {
+      const a = nav.querySelector('.bottom-nav__item.is-active');
+      if (!a) { nav.style.setProperty('--ind-o', '0'); return; }
+      nav.style.setProperty('--ind-x', `${a.offsetLeft}px`);
+      nav.style.setProperty('--ind-y', `${a.offsetTop}px`);
+      nav.style.setProperty('--ind-w', `${a.offsetWidth}px`);
+      nav.style.setProperty('--ind-h', `${a.offsetHeight}px`);
+      nav.style.setProperty('--ind-o', '1');
+    };
+    place();
+    window.addEventListener('resize', place);
+    return () => window.removeEventListener('resize', place);
+  }, [pathname]);
+
   return (
-    <nav className="bottom-nav" aria-label="Main navigation">
+    <nav className="bottom-nav" aria-label="Main navigation" ref={ref}>
+      <span className="bottom-nav__ind" aria-hidden="true" />
       {ITEMS.map((it) => (
         <NavLink key={it.to} to={it.to} end={it.end}
           aria-label={it.aria || it.label}
