@@ -37,15 +37,18 @@ const STEP_TITLES = {
   review: 'Does this look right?',
 };
 
-export function MedicineWizard({ med, onClose, onSaved }) {
+// `prefill` comes from reading a photo of the label (see MedicinePhotoScan):
+// the fields are filled in and the sheet opens on the review step, so the
+// person checks the AI's reading against the box before anything is saved.
+export function MedicineWizard({ med, prefill, onClose, onSaved }) {
   const ui = useUI();
   const editing = !!med?.id;
-  const [step, setStep] = useState(0);
+  const [step, setStep] = useState(() => (prefill && !editing ? STEPS.length - 1 : 0));
   // +1 forward, -1 back: the step transition slides in the direction of travel.
   const [dir, setDir] = useState(1);
   const [busy, setBusy] = useState(false);
   const [touched, setTouched] = useState({});
-  const [form, setForm] = useState(() => initialForm(med));
+  const [form, setForm] = useState(() => initialForm(med, prefill?.form));
   const [recent, setRecent] = useState([]);
 
   useEffect(() => { recentMedicineNames().then(setRecent).catch(() => {}); }, []);
@@ -166,7 +169,8 @@ export function MedicineWizard({ med, onClose, onSaved }) {
                 dateProblem={touched.often && problemFor('end_date')} />
             )}
             {stepId === 'extras' && <ExtrasStep form={form} set={set} />}
-            {stepId === 'review' && <ReviewStep form={form} onJump={(id) => { setDir(-1); setStep(STEPS.indexOf(id)); }} />}
+            {stepId === 'review' && <ReviewStep form={form} scan={editing ? null : prefill}
+              onJump={(id) => { setDir(-1); setStep(STEPS.indexOf(id)); }} />}
           </div>
         </AutoHeight>
 
@@ -194,7 +198,7 @@ export function MedicineWizard({ med, onClose, onSaved }) {
   );
 }
 
-function initialForm(med) {
+function initialForm(med, fromPhoto) {
   // Editing: prefer the structured columns, then fall back to parsing the old
   // free-text dose, then to showing the raw text as "other" so nothing is lost.
   if (med?.id) {
@@ -215,16 +219,19 @@ function initialForm(med) {
       photo_path: med.photo_path || null,
     };
   }
+  const blank = {
+    name: '', dose_amount: 1, dose_unit: 'tablet', dose_other: '',
+    times: ['08:00'], frequency: 'daily', days_of_week: [],
+    start_date: '', end_date: '', with_food: false, note: '', color: COLORS[0], photo_path: null,
+  };
+  // Read from a photo: that reading wins over any old draft.
+  if (fromPhoto) return { ...blank, ...fromPhoto };
   // New: resume a draft if one is recent enough to still be what they meant.
   try {
     const raw = JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null');
     if (raw?.form && Date.now() - raw.at < 24 * 3600 * 1000) return raw.form;
   } catch {}
-  return {
-    name: '', dose_amount: 1, dose_unit: 'tablet', dose_other: '',
-    times: ['08:00'], frequency: 'daily', days_of_week: [],
-    start_date: '', end_date: '', with_food: false, note: '', color: COLORS[0], photo_path: null,
-  };
+  return blank;
 }
 
 /* ------------------------------- 1. name ------------------------------- */
@@ -607,13 +614,27 @@ function ProgressRing({ value }) {
 
 /* ------------------------------ 6. review ------------------------------ */
 
-function ReviewStep({ form, onJump }) {
+function ReviewStep({ form, scan, onJump }) {
   const dose = buildDoseString(form.dose_amount, form.dose_unit, form.dose_other);
   const schedule = describeSchedule(form, { prettyTime });
   const name = form.name.trim() || 'this medicine';
 
   return (
     <div className="wiz__step">
+      {scan && (
+        <div className={`aiscan-note${scan.confidence === 'low' || scan.warnings?.length ? ' aiscan-note--warn' : ''}`} role="status">
+          <Icon name="sparkle" size={20} />
+          <div>
+            <b>Filled in from your photo.</b> Please check each line against the label and tap
+            Change to fix anything.
+            {!!scan.warnings?.length && (
+              <ul className="aiscan-note__list">
+                {scan.warnings.map((w) => <li key={w}>{w}</li>)}
+              </ul>
+            )}
+          </div>
+        </div>
+      )}
       {/* One sentence, in the order a person would say it out loud. */}
       <p className="wiz__summary">
         <b>{dose}</b> of <b>{name}</b>, {schedule}.

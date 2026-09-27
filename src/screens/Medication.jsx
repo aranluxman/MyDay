@@ -6,6 +6,8 @@ import { Card, Button, EmptyState, HeroEmpty, TipCard, SegmentedControl, Skeleto
 import { Icon } from '../components/Icon.jsx';
 import { MedCalendar } from '../components/MedCalendar.jsx';
 import { MedicineWizard } from '../components/MedicineWizard.jsx';
+import { MedicinePhotoScan, PhotoPrivacyNote } from '../components/MedicinePhotoScan.jsx';
+import { MedicineInsights } from '../components/MedicineInsights.jsx';
 import { useApp } from '../context/AppContext.jsx';
 import {
   listMedications, deleteMedication, restoreMedication, duplicateMedication,
@@ -24,6 +26,8 @@ export default function Medication() {
   // Home's calendar links here with { view: 'calendar', day } to open a day's history.
   const [view, setView] = useState(() => location.state?.view || 'today');
   const [editing, setEditing] = useState(null);
+  // A label read from a photo, waiting in the wizard for the person to check.
+  const [scanned, setScanned] = useState(null);
   const [selectedDay, setSelectedDay] = useState(() => location.state?.day || localDateStr());
 
   const meds = useAsync(() => listMedications(), []);
@@ -113,11 +117,13 @@ export default function Medication() {
 
       {view === 'medicines' && (
         <MedicinesView state={meds} onAdd={() => setEditing({})} onEdit={setEditing}
-          onRemove={remove} onDuplicate={duplicate} />
+          onScanned={setScanned} onRemove={remove} onDuplicate={duplicate} />
       )}
 
       {editing && <MedicineWizard med={editing.id ? editing : null} onClose={() => setEditing(null)}
         onSaved={() => { setEditing(null); reloadAll(); }} />}
+      {scanned && <MedicineWizard prefill={scanned} onClose={() => setScanned(null)}
+        onSaved={() => { setScanned(null); reloadAll(); }} />}
     </div>
   );
 }
@@ -275,7 +281,7 @@ function DoseCard({ dose, onDone, onSkip, readOnly, windowMinutes }) {
 // recorded as "dafs", and none of these need spelling or typing.
 const SKIP_REASONS = ['Doctor said to stop', 'I felt unwell', 'I ran out', 'I took it already'];
 
-function MedicinesView({ state, onAdd, onEdit, onRemove, onDuplicate }) {
+function MedicinesView({ state, onAdd, onEdit, onScanned, onRemove, onDuplicate }) {
   const { data: meds, loading, error, reload } = state;
   if (loading) return <div className="stack"><SkeletonCard lines={2} /><SkeletonCard lines={2} /></div>;
   if (error) return <Card className="center"><p className="lead">Could not load.</p><Button onClick={reload}>Try again</Button></Card>;
@@ -283,14 +289,19 @@ function MedicinesView({ state, onAdd, onEdit, onRemove, onDuplicate }) {
     <div className="stack">
       {!meds.length && (
         <HeroEmpty icon="pill" title="No medicines yet"
-          action={<Button icon="plus" onClick={onAdd}>Add your first medicine</Button>}>
-          Add your medicines and vitamins with the times you take them, and MyDay will remind you every day.
+          action={<MedicinePhotoScan onResult={onScanned} label="Take a photo of the label" />}>
+          Snap a photo of the box or bottle and MyDay fills in the details for you — or add it by hand below.
         </HeroEmpty>
       )}
       {meds.map((m) => (
         <MedicineCard key={m.id} med={m} onEdit={onEdit} onRemove={onRemove} onDuplicate={onDuplicate} />
       ))}
-      <Button icon="plus" onClick={onAdd}>Add a medicine</Button>
+      {!!meds.length && <MedicinePhotoScan onResult={onScanned} />}
+      <Button icon="plus" variant={meds.length ? 'ghost' : 'primary'} onClick={onAdd}>
+        {meds.length ? 'Add a medicine by hand' : 'Add your first medicine by hand'}
+      </Button>
+      <PhotoPrivacyNote />
+      <MedicineInsights meds={meds} />
     </div>
   );
 }

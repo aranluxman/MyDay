@@ -35,6 +35,17 @@ Built with **React + Vite (JSX)**, **Supabase** (Auth + Postgres + Edge Function
   **10 difficulty levels** with a level picker plus adaptive difficulty. Scores
   are saved with a progress view, and a result that fails to upload is kept on
   the device and replayed on reconnect rather than lost.
+- **AI helpers** (OpenAI, via the `ai-assist` Edge Function — the key never reaches the browser):
+  - **Add from a photo** — photograph a pill bottle or box; the AI reads the name, dose,
+    times and directions and opens the Add Medicine wizard on its review step so the
+    person checks it before saving. Warnings (anything it couldn't read) are shown.
+  - **How your medicines work together** — on the Medicines tab: what each medicine is
+    for, its benefits, how they group around shared goals, and calm "worth asking your
+    pharmacist" notes. Cached on the device until the medicine list changes.
+  - **MyDay helper** — a bar at the top of Profile: "make the text much bigger",
+    "my birthday is May 5, 1950", "I want a calmer screen". The AI only proposes actions
+    from a fixed list; `src/lib/aiParse.js` validates them before anything is applied,
+    and every change has an Undo.
 - **Add button (FAB)** — a floating + opens a quick menu to add a medication,
   appointment, health note, or contact from anywhere.
 - **Light & dark themes** — toggle in the top bar or in Profile; remembered per user.
@@ -140,7 +151,7 @@ No environment variables are required (the publishable key is public and lives i
 
 - Schema, RLS, dose functions and the 5-minute cron are applied (see
   `supabase/migrations/`).
-- Edge Functions deployed: `signup` (instant pre-confirmed accounts) and
+- Edge Functions: `ai-assist` (OpenAI, see below — deploy it yourself), `signup` (instant pre-confirmed accounts) and
   `missed-dose-check` (cron + multi-user web push). Both are implemented with Web
   Crypto — no external push library.
 - A pre-existing, broken `handle_new_user` trigger on `auth.users` (from another app
@@ -148,6 +159,20 @@ No environment variables are required (the publishable key is public and lives i
   exception-safe so a profile insert can never block account creation.
 - Web-push VAPID keys are stored in `myday_push_config` (private key server-side
   only); the public key is in `src/lib/supabase.js`.
+
+### AI helpers setup (OpenAI)
+The OpenAI key is a Supabase **function secret** — never put it in the frontend.
+
+```bash
+supabase secrets set OPENAI_API_KEY=sk-...          # required
+supabase secrets set OPENAI_MODEL=gpt-4o-mini       # optional; must support images + JSON schema
+supabase functions deploy ai-assist
+```
+
+Only signed-in users can call it (it checks the session token). Set a monthly
+spending limit in the OpenAI dashboard, since every scan/explain/helper turn is a
+paid call. Photos and medicine names are sent to OpenAI; the person's name and notes
+are not.
 
 ### iPhone / iPad note
 On iOS and iPadOS, web push only works when the app is **added to the Home Screen**
