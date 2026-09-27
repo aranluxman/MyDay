@@ -13,6 +13,7 @@ import { supabase } from '../lib/supabase.js';
 import { pushSupported, enablePush } from '../lib/push.js';
 import { useInstallPrompt } from '../hooks/useInstallPrompt.js';
 import { InstallButton } from '../components/InstallButton.jsx';
+import { AssistantBar } from '../components/AssistantBar.jsx';
 import { ageFromBirthday, prettyClock, shortDate } from '../lib/format.js';
 import { THEMES, TEXT_SIZES, profileCompleteness } from '../lib/appearance.js';
 
@@ -208,6 +209,27 @@ export default function Profile() {
 
   return (
     <div className="stack">
+      {/* the helper — change settings and details by just saying so */}
+      <AssistantBar />
+
+      {/* alerts — first on the page: the setting people most often come here for */}
+      <Card>
+        <SectionTitle icon="bell" title="Alerts and reminders" />
+        <p className="muted" style={{ margin: '0 0 10px' }}>
+          Reminders when a dose is due, alerts if one is missed, appointment reminders and quiet
+          hours — all in one place.
+        </p>
+        <MenuRow icon="bell" title="Notification settings"
+          desc="Turn alerts on, choose what you are told about, and set quiet hours"
+          onClick={() => navigate('/profile/notifications')} />
+        <div style={{ height: 10 }} />
+        <p className="muted" style={{ margin: '0 0 6px', fontWeight: 600 }}>Alert me after a dose is</p>
+        <SegmentedControl value={alertWindow} onChange={savingWindow ? () => {} : setAlertWindow}
+          options={ALERT_WINDOWS.map((w) => ({ value: w.value, label: w.label }))} />
+        <div style={{ height: 14 }} />
+        <AlertsEnabler devices={devices} onEnable={enableAlerts} onTest={testAlert} />
+      </Card>
+
       {/* identity — tap to view and edit your details */}
       <Card>
         <div className="account-card">
@@ -362,24 +384,6 @@ export default function Profile() {
         <SettingRow icon="brain" title="Brain games on Home" desc="Show the games card and daily reminder.">
           <Toggle checked={settings.homeGames} onChange={(v) => setSetting({ homeGames: v })} label="Brain games on Home" />
         </SettingRow>
-      </Card>
-
-      {/* alerts */}
-      <Card>
-        <SectionTitle icon="bell" title="Alerts and reminders" />
-        <p className="muted" style={{ margin: '0 0 10px' }}>
-          Reminders when a dose is due, alerts if one is missed, appointment reminders and quiet
-          hours — all in one place.
-        </p>
-        <MenuRow icon="bell" title="Notification settings"
-          desc="Turn alerts on, choose what you are told about, and set quiet hours"
-          onClick={() => navigate('/profile/notifications')} />
-        <div style={{ height: 10 }} />
-        <p className="muted" style={{ margin: '0 0 6px', fontWeight: 600 }}>Alert me after a dose is</p>
-        <SegmentedControl value={alertWindow} onChange={savingWindow ? () => {} : setAlertWindow}
-          options={ALERT_WINDOWS.map((w) => ({ value: w.value, label: w.label }))} />
-        <div style={{ height: 14 }} />
-        <AlertsEnabler devices={devices} onEnable={enableAlerts} onTest={testAlert} />
       </Card>
 
       {/* guardians — a linked person who gets the alerts on their own device */}
