@@ -329,7 +329,7 @@ function MedicineCard({ med: m, onEdit, onRemove, onDuplicate }) {
           ? <img className="medrow__photo" src={photo} alt={`${m.name}, as photographed`} />
           : <span className="dose__chip" style={{ background: m.color || '#2563a8' }}><Icon name="pill" size={20} /></span>}
         <div className="medrow__main">
-          <div className="card__title">{m.name}</div>
+          <div className="card__title" translate="no">{m.name}</div>
           {m.dose && <div className="medrow__dose">{m.dose}</div>}
           <div className="medrow__meta">
             <span className="medrow__tag">

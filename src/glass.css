@@ -117,7 +117,7 @@ h3.subsection { font-size: 18px; }
 
 /* ---------- glass surfaces ---------- */
 .card, .cal, .quick, .glance__chip, .stat-tile, .game-card, .auth__card,
-.add-grid__item, .streak-badge, .tip-card, .nudge {
+.streak-badge, .tip-card, .nudge {
   background: var(--glass);
   -webkit-backdrop-filter: var(--glass-blur);
   backdrop-filter: var(--glass-blur);
@@ -127,14 +127,14 @@ h3.subsection { font-size: 18px; }
 .card { padding: 16px; border-radius: var(--radius); }
 .card__title { font-size: 17px; font-weight: 700; }
 .card__meta { font-size: 14px; }
-.card--tap, .quick, .game-card, .glance__chip, .add-grid__item {
+.card--tap, .quick, .game-card, .glance__chip {
   transition: transform 0.35s var(--ease-spring), box-shadow 0.3s ease, background-color 0.3s ease;
 }
-.card--tap:active, .quick:active, .game-card:active, .glance__chip:active, .add-grid__item:active {
+.card--tap:active, .quick:active, .game-card:active, .glance__chip:active {
   transform: scale(0.97); transition-duration: 0.12s;
 }
 @media (hover: hover) {
-  .card--tap:hover, .quick:hover, .game-card:hover, .add-grid__item:hover, .glance__chip:hover {
+  .card--tap:hover, .quick:hover, .game-card:hover, .glance__chip:hover {
     transform: translateY(-3px); box-shadow: var(--shadow-lg); border-color: var(--glass-edge);
   }
 }
@@ -275,7 +275,7 @@ h3.subsection { font-size: 18px; }
 .fab svg { width: 26px; height: 26px; transition: transform 0.45s var(--ease-spring); }
 .fab.is-open svg { transform: rotate(135deg); }
 .fab:active { transform: scale(0.9); }
-.fab--labeled { height: 52px; padding: 0 20px 0 16px; }
+.fab--labeled { height: 52px; padding: 0 20px 0 16px; display: inline-flex; align-items: center; }
 .fab__label { font-size: 16px; font-weight: 700; }
 @keyframes fab-in { from { transform: scale(0.4); opacity: 0; } to { transform: none; opacity: 1; } }
 
@@ -393,20 +393,56 @@ h3.subsection { font-size: 18px; }
 .sheet__grab { width: 38px; height: 5px; background: color-mix(in srgb, var(--ink-soft) 35%, transparent); }
 .sheet__title { font-size: 19px; font-weight: 750; }
 .sheet__close { width: 32px; height: 32px; background: color-mix(in srgb, var(--ink-soft) 14%, transparent); color: var(--ink-soft); }
-.add-grid { gap: 10px; }
-.add-grid__item { padding: 16px 10px; border-radius: 18px; font-size: 14px; font-weight: 650; }
-.add-grid__icon {
-  width: 46px; height: 46px; border-radius: 14px; color: #fff;
+/* ---------- + button menu ---------- */
+.add-menu__scrim {
+  position: fixed; inset: 0; z-index: 24;
+  background: rgba(8, 12, 24, 0.28);
+  -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px);
+  animation: fade-in 0.2s ease both;
+}
+.add-menu {
+  position: fixed; z-index: 26;
+  right: 16px; bottom: calc(var(--nav-h) + 90px + env(safe-area-inset-bottom));
+  width: min(320px, calc(100vw - 28px));
+  max-height: calc(100dvh - 160px); overflow-y: auto;
+  padding: 8px; border-radius: 24px;
+  display: flex; flex-direction: column; gap: 4px;
+  background: var(--glass-strong);
+  -webkit-backdrop-filter: blur(30px) saturate(180%); backdrop-filter: blur(30px) saturate(180%);
+  border: 1px solid var(--glass-edge);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.22);
+  transform-origin: bottom right;
+  animation: menu-pop 0.32s var(--ease-spring) both;
+  overscroll-behavior: contain;
+}
+@keyframes menu-pop { from { opacity: 0; transform: translateY(12px) scale(0.9); } to { opacity: 1; transform: none; } }
+.add-menu__item {
+  display: flex; align-items: center; gap: 14px; width: 100%; min-height: 64px;
+  padding: 8px 12px; border: 0; border-radius: 18px; background: transparent;
+  color: var(--ink); font: inherit; text-align: left; cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  animation: rise-glass 0.4s var(--ease-spring) both;
+}
+.add-menu__item:nth-child(1) { animation-delay: 0.02s; }
+.add-menu__item:nth-child(2) { animation-delay: 0.05s; }
+.add-menu__item:nth-child(3) { animation-delay: 0.08s; }
+.add-menu__item:nth-child(4) { animation-delay: 0.11s; }
+.add-menu__item:active, .add-menu__item:focus-visible { background: var(--primary-soft); outline: none; }
+@media (hover: hover) { .add-menu__item:hover { background: var(--primary-soft); } }
+.add-menu__ic {
+  width: 46px; height: 46px; flex: none; border-radius: 14px; display: grid; place-items: center; color: #fff;
   background: linear-gradient(160deg, var(--primary-2), var(--primary));
   box-shadow: 0 6px 16px color-mix(in srgb, var(--primary) 32%, transparent);
 }
-.add-grid__item:nth-child(2) .add-grid__icon { background: linear-gradient(160deg, #ff8a5c, #ff5e3a); box-shadow: 0 6px 16px rgba(255, 94, 58, 0.3); }
-.add-grid__item:nth-child(3) .add-grid__icon { background: linear-gradient(160deg, #b18cff, #7a4dff); box-shadow: 0 6px 16px rgba(122, 77, 255, 0.3); }
-.add-grid__item:nth-child(4) .add-grid__icon { background: linear-gradient(160deg, #4fe0b0, #1fb58b); box-shadow: 0 6px 16px rgba(31, 181, 139, 0.3); }
-.add-grid__item { animation: rise-glass 0.5s var(--ease-spring) both; }
-.add-grid__item:nth-child(2) { animation-delay: 0.04s; }
-.add-grid__item:nth-child(3) { animation-delay: 0.08s; }
-.add-grid__item:nth-child(4) { animation-delay: 0.12s; }
+.add-menu__item:nth-child(2) .add-menu__ic { background: linear-gradient(160deg, #ff8a5c, #ff5e3a); box-shadow: 0 6px 16px rgba(255, 94, 58, 0.3); }
+.add-menu__item:nth-child(3) .add-menu__ic { background: linear-gradient(160deg, #b18cff, #7a4dff); box-shadow: 0 6px 16px rgba(122, 77, 255, 0.3); }
+.add-menu__item:nth-child(4) .add-menu__ic { background: linear-gradient(160deg, #4fe0b0, #1fb58b); box-shadow: 0 6px 16px rgba(31, 181, 139, 0.3); }
+.add-menu__main { display: flex; flex-direction: column; min-width: 0; }
+.add-menu__t { font-size: 18px; font-weight: 750; }
+.add-menu__d { font-size: 15px; color: var(--ink-soft); }
+.fab.is-open { z-index: 27; }
+html[data-motion='calm'] .add-menu, html[data-motion='calm'] .add-menu__item, html[data-motion='calm'] .add-menu__scrim { animation: none; }
+@media (prefers-reduced-motion: reduce) { .add-menu, .add-menu__item, .add-menu__scrim { animation: none; } }
 
 /* ---------- toasts: banners that drop from the top ---------- */
 .toast-stack {

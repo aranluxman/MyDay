@@ -255,8 +255,13 @@ export async function listDiary(limit = 50) {
 }
 export async function saveDiary(entry) {
   const row = { category: entry.category, title: entry.title || null, body: entry.body || null, entry_at: entry.entry_at || new Date().toISOString() };
-  if (entry.id) { const { error } = await supabase.from('myday_diary').update(row).eq('id', entry.id); if (error) throw error; }
-  else { const { error } = await supabase.from('myday_diary').insert(row); if (error) throw error; }
+  // Returns the saved row, so a new note can go straight into "Talk it through".
+  const q = entry.id
+    ? supabase.from('myday_diary').update(row).eq('id', entry.id)
+    : supabase.from('myday_diary').insert(row);
+  const { data, error } = await q.select().single();
+  if (error) throw error;
+  return data;
 }
 export async function deleteDiary(id) {
   const { error } = await supabase.from('myday_diary').delete().eq('id', id);

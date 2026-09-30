@@ -1,8 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { BottomNav } from './BottomNav.jsx';
 import { Icon } from './Icon.jsx';
-import { Modal } from './ui.jsx';
 import { InstallButton } from './InstallButton.jsx';
 import { useApp } from '../context/AppContext.jsx';
 
@@ -15,13 +14,14 @@ const TITLES = {
   '/profile/notifications': 'Alerts',
   '/cards': 'My cards',
   '/games': 'Brain Games',
+  '/help': 'Guide',
 };
 
 const ADD_ACTIONS = [
-  { icon: 'pill', label: 'Medication', to: '/medication', add: 'med' },
-  { icon: 'calendar', label: 'Appointment', to: '/appointments', add: 'appt' },
-  { icon: 'notes', label: 'Health note', to: '/updates', add: 'diary' },
-  { icon: 'phone', label: 'Contact', to: '/profile', add: 'contact' },
+  { icon: 'pill', label: 'Add a medicine', desc: 'Pills, vitamins, drops', to: '/medication', add: 'med' },
+  { icon: 'calendar', label: 'Add a visit', desc: 'Doctor, clinic, dentist', to: '/appointments', add: 'appt' },
+  { icon: 'notes', label: 'Add a health note', desc: 'How you feel today', to: '/updates', add: 'diary' },
+  { icon: 'phone', label: 'Add a contact', desc: 'Pharmacy, doctor, family', to: '/profile', add: 'contact' },
 ];
 
 export function AppShell() {
@@ -45,7 +45,7 @@ export function AppShell() {
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
-  useEffect(() => { window.scrollTo(0, 0); }, [pathname]);
+  useEffect(() => { window.scrollTo(0, 0); setAddOpen(false); }, [pathname]);
 
   function doAdd(a) {
     setAddOpen(false);
@@ -69,28 +69,71 @@ export function AppShell() {
       {/* Keyed on the route so each screen plays its entrance. */}
       <main className="content"><div className="page" key={pathname}><Outlet /></div></main>
 
+      {showAdd && addOpen && <AddMenu onPick={doAdd} onClose={() => setAddOpen(false)} />}
+
       {showAdd && (
-        <button className={`fab${isHome ? ' fab--labeled' : ''}${addOpen ? ' is-open' : ''}`} aria-label="Quick add" title="Quick add" onClick={() => setAddOpen(true)}>
-          <Icon name="plus" size={30} stroke={2.6} />
-          {isHome && <span className="fab__label">Add</span>}
+        <button className={`fab${isHome ? ' fab--labeled' : ''}${addOpen ? ' is-open' : ''}`}
+          aria-label={addOpen ? 'Close the add menu' : 'Add something'} aria-haspopup="menu" aria-expanded={addOpen}
+          onClick={() => setAddOpen((v) => !v)}>
+          <Icon name="plus" size={30} stroke={2.6} className="fab__ic" />
+          {isHome && <span className="fab__label">{addOpen ? 'Close' : 'Add'}</span>}
         </button>
       )}
 
       <BottomNav />
-
-      {addOpen && (
-        <Modal title="Add something" onClose={() => setAddOpen(false)}>
-          <div className="add-grid">
-            {ADD_ACTIONS.map((a) => (
-              <button key={a.add} className="add-grid__item" onClick={() => doAdd(a)}>
-                <span className="add-grid__icon"><Icon name={a.icon} size={28} /></span>
-                <span>{a.label}</span>
-              </button>
-            ))}
-          </div>
-        </Modal>
-      )}
     </div>
+  );
+}
+
+// The + button's menu: a short list that drops out of the button itself, so it
+// reads as "the things this button does" rather than a new screen to learn.
+function AddMenu({ onPick, onClose }) {
+  const ref = useRef(null);
+  const [pos, setPos] = useState(null);
+  // Hang the menu off the button wherever the layout has put it (phone bar,
+  // tablet rail, desktop corner) instead of repeating each breakpoint here.
+  useLayoutEffect(() => {
+    const place = () => {
+      const fab = document.querySelector('.fab');
+      if (!fab) return;
+      const r = fab.getBoundingClientRect();
+      setPos({ right: Math.max(12, window.innerWidth - r.right), bottom: window.innerHeight - r.top + 12 });
+    };
+    place();
+    window.addEventListener('resize', place);
+    return () => window.removeEventListener('resize', place);
+  }, []);
+  useEffect(() => {
+    ref.current?.querySelector('button')?.focus();
+    const onKey = (e) => {
+      if (e.key === 'Escape') onClose();
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        const items = [...ref.current.querySelectorAll('button')];
+        const i = items.indexOf(document.activeElement);
+        const next = e.key === 'ArrowDown' ? (i + 1) % items.length : (i - 1 + items.length) % items.length;
+        items[next]?.focus();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  return (
+    <>
+      <div className="add-menu__scrim" onClick={onClose} aria-hidden="true" />
+      <div className="add-menu" role="menu" aria-label="Add something" ref={ref} style={pos || undefined}>
+        {ADD_ACTIONS.map((a) => (
+          <button key={a.add} role="menuitem" className="add-menu__item" onClick={() => onPick(a)}>
+            <span className="add-menu__ic"><Icon name={a.icon} size={24} /></span>
+            <span className="add-menu__main">
+              <span className="add-menu__t">{a.label}</span>
+              <span className="add-menu__d">{a.desc}</span>
+            </span>
+          </button>
+        ))}
+      </div>
+    </>
   );
 }
 

@@ -5,13 +5,16 @@
 // session, and this function calls OpenAI. A key in the web bundle would be
 // readable by anyone who opens DevTools.
 //
-// Three jobs, picked by `mode`:
+// Four jobs, picked by `mode`:
 //   * scan_medicine     — read a photo of a pill box / bottle into the fields
 //                          the Add Medicine wizard asks for.
 //   * analyze_medicines — plain-language "what each one is for" and "how they
 //                          work together" for the person's whole list.
 //   * assistant         — turn "make the text much bigger" into a small list of
 //                          whitelisted actions the app applies itself.
+//   * feeling_chat      — a gentle back-and-forth about a health-diary note
+//                          ("I feel dizzy"), helping the person think through
+//                          why. Never a diagnosis; red flags go to 911.
 //
 // Every answer is forced into a JSON schema so the app never has to guess at
 // free text, and the app re-validates it anyway (src/lib/aiParse.js): the
@@ -34,6 +37,7 @@ const CORS = {
 const MAX_IMAGE_CHARS = 4_000_000;
 const MAX_MESSAGE_CHARS = 500;
 const MAX_MEDS = 40;
+const MAX_CHAT_TURNS = 12;
 
 /* ------------------------------- schemas ------------------------------- */
 
@@ -132,6 +136,17 @@ const ASSISTANT_SCHEMA = {
   },
 };
 
+const FEELING_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['reply', 'suggestions', 'urgent'],
+  properties: {
+    reply: { type: 'string' },
+    suggestions: { type: 'array', items: { type: 'string' } },
+    urgent: { type: 'boolean' },
+  },
+};
+
 /* ------------------------------- prompts ------------------------------- */
 
 const SCAN_PROMPT = `You read photos of medicine packaging (pill bottles, boxes, blister packs, pharmacy labels) for MyDay, a medication app used mostly by older adults.
@@ -164,6 +179,25 @@ together.goals: group the medicines by the shared health goal they serve (e.g. "
 ask_pharmacist: 0-4 short, calm points worth checking with a pharmacist or doctor — well-known interactions, duplicates, or timing issues between THESE medicines (e.g. "Calcium can make levothyroxine work less well if taken at the same time — ask about spacing them apart."). Empty if nothing notable.
 overview: one friendly sentence summing up the list.
 disclaimer: exactly "This is general information, not medical advice. Always check with your doctor or pharmacist before changing how you take any medicine."`;
+
+function feelingPrompt(context: unknown) {
+  return `You are the MyDay feelings helper — a kind, patient companion inside MyDay, a medication and health app used mostly by older adults. The person wrote a note in their health diary about how they feel, and wants help understanding WHY they might feel this way.
+
+How to talk:
+- Warm, calm, plain words, about a grade 6 reading level. 2 to 4 short sentences per reply.
+- Ask ONE gentle question at a time to explore common, everyday causes: sleep, drinking enough water, meals and blood sugar, a missed, late or new medicine, standing up too fast, stress or worry, loneliness, heat or weather, activity, pain, caffeine or alcohol.
+- Use what you know: the note, their recent diary notes, and today's medicines (taken or missed). If a dose was missed or a medicine is new, you may gently mention it could be related — never tell them to take, skip, double, stop or change a medicine; suggest asking their pharmacist or doctor instead.
+- After a few questions, sum up the likely everyday reasons in simple words and give 1-3 small, safe things they can try (drink a glass of water, sit down and rest, eat a snack, call a family member), plus when to call their doctor.
+- Never diagnose. Never claim certainty. You are not a doctor.
+- Reply in the same language the person writes in.
+
+Safety — set urgent to true and tell them clearly, in the first sentence, to call 911 now (or have someone call) if they mention: chest pain or pressure, trouble breathing, face drooping, arm or leg weakness or numbness, slurred or confused speech, sudden severe headache, fainting or passing out, a bad fall or hitting their head, coughing or vomiting blood, a very fast or very slow heartbeat with feeling unwell, signs of a severe allergic reaction, or thoughts of hurting themselves (then also give the 988 Suicide Crisis Helpline — call or text 988). Otherwise urgent is false.
+
+suggestions: 2-3 very short replies (under 6 words each) the person could tap to answer your question, written as the person speaking (e.g. "I slept badly", "I skipped lunch", "Not sure"). Empty array if you are not asking a question.
+
+What you know (their own data): ${JSON.stringify(context)}
+Today's date: ${new Date().toISOString().slice(0, 10)}.`;
+}
 
 function assistantPrompt(state: unknown) {
   return `You are the MyDay helper, inside the Profile screen of MyDay — a calm medication and health app used mostly by older adults. You help the person change how the app looks and update their profile, and you answer questions about using the app.
@@ -283,6 +317,28 @@ Deno.serve(async (req) => {
         { role: 'user', content: message },
       ], 'assistant_turn', ASSISTANT_SCHEMA, 400);
       console.log(JSON.stringify({ fn: 'ai-assist', mode, actions: result?.actions?.length ?? 0, outcome: 'ok' }));
+      return json({ result });
+    }
+
+    if (mode === 'feeling_chat') {
+      const clip = (v: unknown, n: number) => String(v ?? '').slice(0, n);
+      const e = body.entry || {};
+      const entry = { type: clip(e.category, 20), title: clip(e.title, 80), details: clip(e.body, 1000), written: clip(e.entry_at, 30) };
+      if (!entry.title && !entry.details) return json({ error: 'Write how you feel first.' }, 400);
+      const recent = (Array.isArray(body.recent) ? body.recent : []).slice(0, 5)
+        .map((r: any) => ({ title: clip(r?.title, 80), type: clip(r?.category, 20), when: clip(r?.entry_at, 30) }));
+      const medicines = (Array.isArray(body.doses) ? body.doses : []).slice(0, MAX_MEDS)
+        .map((d: any) => ({ name: clip(d?.name, 80), time: clip(d?.time, 10), status: clip(d?.status, 12) }));
+      const history = (Array.isArray(body.history) ? body.history : []).slice(-MAX_CHAT_TURNS)
+        .filter((h: any) => h && (h.role === 'user' || h.role === 'assistant'))
+        .map((h: any) => ({ role: h.role, content: clip(h.content, MAX_MESSAGE_CHARS) }));
+      const message = clip(body.message, MAX_MESSAGE_CHARS).trim();
+      const result = await openai([
+        { role: 'system', content: feelingPrompt({ note: entry, recent_notes: recent, todays_medicines: medicines }) },
+        ...history,
+        { role: 'user', content: message || 'Can you help me understand why I might be feeling like this?' },
+      ], 'feeling_turn', FEELING_SCHEMA, 500);
+      console.log(JSON.stringify({ fn: 'ai-assist', mode, turns: history.length, urgent: !!result?.urgent, outcome: 'ok' }));
       return json({ result });
     }
 
