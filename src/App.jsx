@@ -5,6 +5,7 @@ import { UIProvider } from './context/UIContext.jsx';
 import { SettingsProvider } from './context/SettingsContext.jsx';
 import { AppShell } from './components/AppShell.jsx';
 import { PageSkeleton } from './components/ui.jsx';
+import { isGuardianDevice } from './lib/guardian.js';
 
 // Code-split every screen so the first paint ships only what it needs and
 // navigation loads the rest on demand (with a skeleton, never a blank spinner).
@@ -55,6 +56,12 @@ function Root() {
     return publicFallback;
   }
   if (!user) {
+    // A guardian's phone opening MyDay again — from a bookmark, history, or
+    // just typing the address — goes straight back to their dashboard. Landing
+    // here instead is what made guardians feel "lost" after closing the tab.
+    // `?home=1` is the way out for someone who is not a guardian after all.
+    const wantsHome = new URLSearchParams(window.location.search).has('home');
+    if (pathname === '/' && !wantsHome && isGuardianDevice()) return <Navigate to="/guardian" replace />;
     return (
       <Suspense fallback={publicFallback}>
         <Routes>

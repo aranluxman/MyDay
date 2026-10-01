@@ -5,7 +5,7 @@ import { MedCalendar } from '../components/MedCalendar.jsx';
 import { SegmentedControl, Skeleton, SkeletonCard, Pill, Modal } from '../components/ui.jsx';
 import {
   getGuardianToken, linkWithCode, fetchDashboard, disconnectThisDevice,
-  enableGuardianPush, disableGuardianPush, setDailySummary, GuardianUnlinked,
+  enableGuardianPush, disableGuardianPush, setDailySummary, GuardianUnlinked, forgetGuardianMode,
 } from '../lib/guardian.js';
 import { pushSupported, enablePush, isInstalled } from '../lib/push.js';
 import { doseState, summarise, sortForDisplay, adherence, dayMarkFromCounts, STATE_UI } from '../lib/doseState.js';
@@ -69,7 +69,7 @@ function LinkDevice({ onLinked }) {
   return (
     <div className="mkt ob">
       <div className="ob__top">
-        <a className="mkt-btn mkt-btn--link" href="/"><Icon name="back" size={20} /> Back</a>
+        <a className="mkt-btn mkt-btn--link" href="/?home=1" onClick={forgetGuardianMode}><Icon name="back" size={20} /> Back</a>
         <div className="mkt-brand" style={{ fontSize: 20 }}>
           <span className="mkt-brand__mark" style={{ width: 30, height: 30 }}><Icon name="pulse" size={16} /></span>MyDay
         </div>
@@ -91,6 +91,9 @@ function LinkDevice({ onLinked }) {
           </div>
 
           <CodeEntry error={error} busy={busy} onSubmit={submit} />
+          <p className="ob__switch">
+            Not a guardian? <a href="/?home=1" onClick={forgetGuardianMode}>Use MyDay for myself</a>
+          </p>
         </div>
       </div>
     </div>
@@ -682,7 +685,8 @@ function IntroSheet({ permissions, patient, onClose }) {
     <Modal title="What you can see" onClose={onClose}>
       <p className="dialog-msg">
         This page shows you how {patient} is doing with their medicines. It stays on this device,
-        so you can come back any time without a code.
+        so you can come back any time without a code — just open <b>myday-1rn.pages.dev</b> again
+        (or add it to your home screen) and you'll land right here.
       </p>
       <ul className="g-can">
         <li className="g-can__yes"><Icon name="check" size={20} /> Today's medicines and whether each was taken</li>

@@ -4,6 +4,7 @@ import { InstallButton } from '../components/InstallButton.jsx';
 import { useInstallPrompt } from '../hooks/useInstallPrompt.js';
 import { supabase } from '../lib/supabase.js';
 import { pushSupported, enablePush } from '../lib/push.js';
+import { markGuardianDevice } from '../lib/guardian.js';
 
 // Calls the guardian-join edge function and normalises errors. On a non-2xx the
 // function's JSON body arrives via error.context (a Response), so read the real
@@ -68,6 +69,7 @@ export default function GuardianJoin() {
       const subscription = sub.toJSON ? sub.toJSON() : sub;
       const { error: err } = await callGuardianJoin({ action: 'subscribe', ...credential, name: name.trim(), subscription });
       if (err) throw new Error(err);
+      markGuardianDevice();
       setStatus('done');
     } catch (e) {
       setError(e.message || 'Could not turn on alerts. Please try again.');
@@ -80,7 +82,7 @@ export default function GuardianJoin() {
   return (
     <div className="mkt ob">
       <div className="ob__top">
-        <a className="mkt-btn mkt-btn--link" href="/"><Icon name="back" size={20} /> Back</a>
+        <a className="mkt-btn mkt-btn--link" href="/?home=1"><Icon name="back" size={20} /> Back</a>
         <div className="mkt-brand" style={{ fontSize: 20 }}>
           <span className="mkt-brand__mark" style={{ width: 30, height: 30 }}><Icon name="pulse" size={16} /></span>MyDay
         </div>
