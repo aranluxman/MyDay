@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext.jsx';
 import { Icon } from '../components/Icon.jsx';
+import { GoogleButton } from '../components/GoogleButton.jsx';
 
 // Someone helping a loved one usually wants the guardian page, not a second
 // account, so their path adds a "How to help them" step that explains the
@@ -36,7 +37,8 @@ export default function Onboarding() {
   async function finish() {
     setError('');
     if (!email.trim() || !password) { setError('Please enter your email and a password.'); return; }
-    if (password.length < 6) { setError('Password must be at least 6 characters.'); return; }
+    if (password.length < 8) { setError('Please choose a password of at least 8 characters.'); return; }
+    if (!/[0-9]/.test(password) || !/[a-zA-Z]/.test(password)) { setError('Please use letters and at least one number in your password.'); return; }
     setBusy(true);
     try {
       await signUp(email, password, name, { for_whom: forWhom, age: age ? parseInt(age, 10) : null });
@@ -131,7 +133,7 @@ export default function Onboarding() {
               <div className="ob-field">
                 <label>Password</label>
                 <div className="ob-passwrap">
-                  <input className="ob-input" type={show ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="At least 6 characters" autoComplete="new-password" />
+                  <input className="ob-input" type={show ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="At least 8 characters, with a number" autoComplete="new-password" />
                   <button type="button" className="eye" onClick={() => setShow(!show)} aria-label="Show password"><Icon name="eye" size={22} /></button>
                 </div>
               </div>
@@ -140,6 +142,7 @@ export default function Onboarding() {
                   {busy ? 'Creating your account...' : 'Create account'}
                 </button>
               </div>
+              {self && <GoogleButton label="Sign up with Google" onError={setError} />}
             </>
           )}
 

@@ -1,6 +1,6 @@
 // MyDay service worker: offline app-shell + web-push handling.
 // Vite emits hashed asset filenames, so we cache at runtime rather than precache.
-const CACHE = 'myday-v10';
+const CACHE = 'myday-v11';
 const CARD_CACHE = 'myday-cards-v1';
 // '/guardian' and its manifest are precached too: a guardian's installed app
 // starts there, and it has to open with no signal (they may be in a clinic
