@@ -2208,41 +2208,6 @@ html[data-motion='calm'] *::after {
 }
 .assist__send:disabled { opacity: 0.4; cursor: default; }
 
-/* ---------- AI: talk it through (diary feelings chat) ---------- */
-.tl__talk { margin-top: 12px; }
-.fchat { display: flex; flex-direction: column; gap: 12px; }
-.fchat__note {
-  display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border-radius: 14px;
-  background: var(--surface-2); color: var(--ink-soft); font-size: 16px;
-}
-.fchat__note > svg { flex: none; margin-top: 2px; color: var(--primary); }
-.fchat__note b { color: var(--ink); }
-.fchat__log { display: flex; flex-direction: column; gap: 10px; min-height: 80px; }
-.fchat__msg { display: flex; gap: 8px; align-items: flex-end; max-width: 92%; }
-.fchat__msg p { margin: 0; padding: 12px 14px; border-radius: 20px; font-size: 18px; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; }
-.fchat__msg--ai p { background: var(--surface); border: 1px solid var(--line); border-bottom-left-radius: 6px; color: var(--ink); }
-.fchat__msg--me { align-self: flex-end; }
-.fchat__msg--me p { background: var(--primary); color: var(--on-primary); border-bottom-right-radius: 6px; }
-.fchat__av {
-  flex: none; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center;
-  background: linear-gradient(160deg, #b18cff, #7a4dff); color: #fff;
-}
-.fchat__typing { display: flex; gap: 5px; align-items: center; min-height: 50px; }
-.fchat__typing span { width: 8px; height: 8px; border-radius: 50%; background: var(--ink-soft); animation: fchat-dot 1.2s infinite ease-in-out; }
-.fchat__typing span:nth-child(2) { animation-delay: 0.15s; }
-.fchat__typing span:nth-child(3) { animation-delay: 0.3s; }
-@keyframes fchat-dot { 0%, 80%, 100% { opacity: 0.25; transform: none; } 40% { opacity: 1; transform: translateY(-3px); } }
-html[data-motion='calm'] .fchat__typing span { animation: none; opacity: 0.6; }
-.fchat__chips { margin-top: 0; }
-.fchat__chips .chip { min-height: 48px; font-size: 16px; }
-.fchat__fail { padding: 10px 12px; border-radius: 14px; background: var(--bad-bg); color: var(--bad-ink); }
-.fchat__fail p { margin: 0 0 8px; font-weight: 600; }
-.fchat__urgent { padding: 14px; border-radius: 16px; background: var(--bad-bg); border: 2px solid var(--bad); color: var(--ink); }
-.fchat__urgent-t { display: flex; align-items: center; gap: 8px; font-size: 19px; font-weight: 800; color: var(--bad-ink); }
-.fchat__urgent p { margin: 6px 0 10px; font-weight: 600; }
-.fchat__bar { position: sticky; bottom: 0; }
-.fchat__disclaimer { margin: 0; font-size: 14px; color: var(--ink-soft); text-align: center; }
-
 /* ---------- AI: medicine photo scan ---------- */
 .aiscan-privacy { margin: -4px 4px 0; font-size: 14px; text-align: center; }
 .aiscan-note {

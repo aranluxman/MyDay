@@ -3,7 +3,7 @@
 // the database.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { normaliseScan, validateActions, validBirthday, medsSignature, normaliseFeelingReply } from '../src/lib/aiParse.js';
+import { normaliseScan, validateActions, validBirthday, medsSignature } from '../src/lib/aiParse.js';
 
 const TODAY = new Date(2026, 8, 27); // 27 Sep 2026
 
@@ -108,23 +108,4 @@ test('the medicine-list signature ignores order but notices changes', () => {
   assert.equal(medsSignature(a), medsSignature([...a].reverse()));
   assert.notEqual(medsSignature(a), medsSignature([a[0]]));
   assert.notEqual(medsSignature(a), medsSignature([{ ...a[0], dose: '2 tablets' }, a[1]]));
-});
-
-test('a feelings-chat reply is trimmed, capped and never urgent by accident', () => {
-  const r = normaliseFeelingReply({
-    reply: '  Did you drink much water today?  ',
-    suggestions: ['Not much', 'Not much', '', 'A lot', 'Not sure', 'Way too many words in this one to fit on a tap button ok'],
-    urgent: 'true',
-  });
-  assert.equal(r.reply, 'Did you drink much water today?');
-  assert.deepEqual(r.suggestions, ['Not much', 'A lot', 'Not sure'], 'deduped, blanks and long ones dropped, max 3');
-  assert.equal(r.urgent, false, 'only a real boolean true counts');
-  assert.equal(normaliseFeelingReply({ reply: 'Call 911 now.', suggestions: [], urgent: true }).urgent, true);
-});
-
-test('an empty or broken feelings-chat reply still gives the person something to read', () => {
-  const r = normaliseFeelingReply(null);
-  assert.ok(r.reply.length > 0);
-  assert.deepEqual(r.suggestions, []);
-  assert.equal(r.urgent, false);
 });

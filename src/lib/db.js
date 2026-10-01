@@ -255,7 +255,7 @@ export async function listDiary(limit = 50) {
 }
 export async function saveDiary(entry) {
   const row = { category: entry.category, title: entry.title || null, body: entry.body || null, entry_at: entry.entry_at || new Date().toISOString() };
-  // Returns the saved row, so a new note can go straight into "Talk it through".
+  // Returns the saved row.
   const q = entry.id
     ? supabase.from('myday_diary').update(row).eq('id', entry.id)
     : supabase.from('myday_diary').insert(row);

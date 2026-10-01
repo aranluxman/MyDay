@@ -42,10 +42,6 @@ Built with **React + Vite (JSX)**, **Supabase** (Auth + Postgres + Edge Function
   - **How your medicines work together** — on the Medicines tab: what each medicine is
     for, its benefits, how they group around shared goals, and calm "worth asking your
     pharmacist" notes. Cached on the device until the medicine list changes.
-  - **Talk it through** — on any health-diary note (Updates): a gentle chat that asks
-    one question at a time (sleep? water? a missed pill?) to help the person see why
-    they might feel that way. Never diagnoses; red-flag symptoms get a "Call 911" button.
-    Nothing is stored unless they tap "Save this to my note".
 - **Add button (FAB)** — a floating + drops out a menu to add a medication,
   appointment, health note, or contact from anywhere.
 - **How to use MyDay** (`/help`, Profile → Explore) — a step-by-step guide for first-time users.
