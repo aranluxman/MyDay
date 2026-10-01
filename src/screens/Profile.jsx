@@ -7,8 +7,7 @@ import { Card, Button, Spinner, Modal, Field, Input, Textarea, EmptyState, Segme
 import { useSettings } from '../context/SettingsContext.jsx';
 import { Icon } from '../components/Icon.jsx';
 import { listContacts, saveContact, deleteContact, listFamilyDevices, saveFamilyDevice, uploadAvatar,
-  createGuardianInvite, listGuardians, deleteGuardian, regenerateGuardianInvite, guardianInviteLink,
-  formatGuardianCode, issueGuardianCode, revokeGuardianDevice, setGuardianShareDiary } from '../lib/db.js';
+  createGuardianInvite, listGuardians, deleteGuardian, formatGuardianCode, issueGuardianCode, revokeGuardianDevice, setGuardianShareDiary } from '../lib/db.js';
 import { supabase } from '../lib/supabase.js';
 import { pushSupported, enablePush } from '../lib/push.js';
 import { useInstallPrompt } from '../hooks/useInstallPrompt.js';
@@ -154,17 +153,6 @@ export default function Profile() {
       ui.toast('Test alert sent.', 'info');
     } catch { ui.toast('Could not send a test alert.', 'bad'); }
   }
-  // Share a guardian's invite link via the native share sheet, falling back to
-  // copying it to the clipboard.
-  async function shareInvite(token) {
-    const url = guardianInviteLink(token);
-    const text = `Join MyDay to get ${profile?.full_name ? `${profile.full_name}'s` : 'my'} medication alerts on your phone.`;
-    try {
-      if (navigator.share) { await navigator.share({ title: 'MyDay guardian invite', text, url }); return; }
-      await navigator.clipboard.writeText(url);
-      ui.toast('Invite link copied.');
-    } catch { /* user dismissed the share sheet — nothing to do */ }
-  }
   async function createInvite() {
     if (!inviteName.trim()) { ui.toast('Please enter a name.', 'bad'); return; }
     setBusyInvite(true);
@@ -192,15 +180,6 @@ export default function Profile() {
       setCreatedInvite(updated);
       setInviteOpen(true);
     } catch { ui.toast('Could not make a new code.', 'bad'); }
-  }
-  // Regenerates the long-lived shareable LINK, which is a separate credential
-  // from the short code and still lasts weeks.
-  async function newLink(g) {
-    try {
-      const updated = await regenerateGuardianInvite(g.id);
-      guardians.reload();
-      return updated;
-    } catch { ui.toast('Could not make a new link.', 'bad'); return null; }
   }
   // Kills one device's token. Takes effect on that device's next request.
   async function revokeDevice(g, device) {
@@ -452,15 +431,6 @@ export default function Profile() {
                   : <>This code has expired — tap “Make a new code”.</>}
                 <br />Only share it with someone you trust.
               </p>
-              <Button icon="share" variant="ghost"
-                onClick={async () => {
-                  // The link is a separate, longer-lived credential; refresh it
-                  // if it has lapsed so "send a link" never sends a dead one.
-                  const live = new Date(createdInvite.expires_at || 0).getTime() > Date.now();
-                  const g = live ? createdInvite : (await newLink(createdInvite)) || createdInvite;
-                  if (g.token) shareInvite(g.token);
-                }}>Send a link instead</Button>
-              <div style={{ height: 8 }} />
               <Button icon="plus" variant="ghost" onClick={() => newCode(createdInvite)}>Make a new code</Button>
               <div style={{ height: 8 }} />
               <Button onClick={closeInvite}>Done</Button>

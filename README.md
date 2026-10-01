@@ -161,6 +161,20 @@ No environment variables are required (the publishable key is public and lives i
 - Web-push VAPID keys are stored in `myday_push_config` (private key server-side
   only); the public key is in `src/lib/supabase.js`.
 
+### Sign in with Google
+
+The "Continue with Google" button appears on Sign in and Create account by itself once Google is
+switched on in Supabase (it checks the project's public auth settings, so it is hidden until then).
+
+1. Google Cloud Console → APIs & Services → **OAuth consent screen**: app name `MyDay`, your email, publish.
+2. **Credentials** → Create credentials → **OAuth client ID** → Web application.
+   - Authorized JavaScript origins: `https://myday-1rn.pages.dev`
+   - Authorized redirect URIs: `https://zciulgqkqusjxomyapcz.supabase.co/auth/v1/callback`
+3. Supabase (project `zciulgqkqusjxomyapcz`) → Authentication → **Sign In / Providers** → **Google** →
+   enable, paste the Client ID and Client Secret → Save.
+4. Supabase → Authentication → **URL Configuration**: Site URL `https://myday-1rn.pages.dev`, and add it to
+   Redirect URLs.
+
 ### Branded password-reset email
 
 Supabase sends the "forgot password" email. By default it is titled for Supabase, which confuses people.

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext.jsx';
 import { Icon } from '../components/Icon.jsx';
+import { GoogleButton } from '../components/GoogleButton.jsx';
 
 export default function SignIn() {
   const { signIn } = useApp();
@@ -47,6 +48,7 @@ export default function SignIn() {
           <div className="ob__actions">
             <button type="submit" className="mkt-btn mkt-btn--primary mkt-btn--block" disabled={busy}>{busy ? 'Signing in...' : 'Sign in'}</button>
           </div>
+          <GoogleButton onError={setError} />
           <p className="ob__switch" style={{ marginBottom: 4 }}>
             <button type="button" onClick={() => navigate('/forgot')}>I forgot my password</button>
           </p>

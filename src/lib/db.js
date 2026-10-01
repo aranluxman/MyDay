@@ -15,10 +15,13 @@ export async function ensureProfile(user) {
   const tz = deviceTimezone();
   let prof = await getProfile();
   if (!prof) {
-    const full_name = user?.user_metadata?.full_name || (user?.email ? user.email.split('@')[0] : '');
+    const meta = user?.user_metadata || {};
+    const full_name = meta.full_name || meta.name || (user?.email ? user.email.split('@')[0] : '');
+    // Signing up with Google brings a profile photo; keep it rather than ask again.
+    const avatar_url = meta.avatar_url || meta.picture || null;
     // conflict-safe: sign-up may create this row concurrently
     await supabase.from('myday_profiles')
-      .upsert({ user_id: user.id, full_name, timezone: tz }, { onConflict: 'user_id', ignoreDuplicates: true });
+      .upsert({ user_id: user.id, full_name, timezone: tz, ...(avatar_url ? { avatar_url } : {}) }, { onConflict: 'user_id', ignoreDuplicates: true });
     prof = await getProfile();
   } else if (prof.timezone !== tz) {
     await supabase.from('myday_profiles').update({ timezone: tz }).eq('user_id', user.id);

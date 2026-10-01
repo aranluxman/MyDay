@@ -242,3 +242,14 @@
   content: counter(hs); position: absolute; left: 0; top: 0; width: 30px; height: 30px; border-radius: 50%;
   display: grid; place-items: center; font-weight: 800; font-size: 15px; color: #fff; background: var(--m-primary);
 }
+
+/* Continue with Google */
+.ob-or { display: flex; align-items: center; gap: 12px; margin: 18px 0 12px; color: var(--m-soft); font-size: 15px; }
+.ob-or::before, .ob-or::after { content: ''; flex: 1; height: 1px; background: currentColor; opacity: 0.3; }
+.google-btn {
+  width: 100%; min-height: 56px; display: flex; align-items: center; justify-content: center; gap: 12px;
+  border: 2px solid #dadce0; border-radius: 14px; background: #fff; color: #1f1f1f;
+  font: inherit; font-size: 18px; font-weight: 700; cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.google-btn:active { transform: scale(0.98); }
+.google-btn:disabled { opacity: 0.7; cursor: default; }
