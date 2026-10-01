@@ -165,6 +165,19 @@ No environment variables are required (the publishable key is public and lives i
 - Web-push VAPID keys are stored in `myday_push_config` (private key server-side
   only); the public key is in `src/lib/supabase.js`.
 
+### Branded password-reset email
+
+Supabase sends the "forgot password" email. By default it is titled for Supabase, which confuses people.
+To make it say MyDay (about 2 minutes):
+
+1. Supabase Dashboard → **Authentication** → **Emails** (Email Templates) → **Reset password**.
+2. **Subject:** `Reset your MyDay password`
+3. **Body:** paste the contents of `supabase/email-templates/reset-password.html`.
+4. **Save.** Send yourself a test with "I forgot my password".
+
+The sender name ("Supabase Auth") only changes with custom SMTP (Authentication → Emails → SMTP
+Settings, e.g. Brevo or Resend) — set the sender name to `MyDay` there when you're ready.
+
 ### AI helpers setup (OpenAI)
 The OpenAI key is a Supabase **function secret** — never put it in the frontend.
 

@@ -19,11 +19,21 @@ export const TEXT_SIZES = [
   { id: 'huge', name: 'Largest' },
 ];
 
-// Profile-completeness fields (each worth an equal share).
-const COMPLETE_FIELDS = ['full_name', 'avatar_url', 'birthday', 'for_whom', 'on_treatment', 'goal'];
+// Profile completeness. Creating the account (name + who MyDay is for, both
+// asked at sign-up) is worth a third on its own, so a brand-new person starts
+// at 33% rather than near zero; the four extras share the remaining two thirds.
+const BASE_FIELDS = ['full_name', 'for_whom'];
+const EXTRA_FIELDS = ['avatar_url', 'birthday', 'on_treatment', 'goal'];
+const COMPLETE_FIELDS = [...BASE_FIELDS, ...EXTRA_FIELDS];
+export const BASE_PCT = 33;
+
+const isFilled = (profile, f) => profile?.[f] != null && String(profile[f]).trim() !== '';
+
 export function profileCompleteness(profile) {
-  if (!profile) return { pct: 0, done: 0, total: COMPLETE_FIELDS.length, missing: COMPLETE_FIELDS };
-  const filled = COMPLETE_FIELDS.filter((f) => profile[f] != null && String(profile[f]).trim() !== '');
+  const filled = COMPLETE_FIELDS.filter((f) => isFilled(profile, f));
   const missing = COMPLETE_FIELDS.filter((f) => !filled.includes(f));
-  return { pct: Math.round((filled.length / COMPLETE_FIELDS.length) * 100), done: filled.length, total: COMPLETE_FIELDS.length, missing };
+  const extras = EXTRA_FIELDS.filter((f) => isFilled(profile, f)).length;
+  const pct = Math.min(100, Math.max(0, BASE_PCT + Math.round(((100 - BASE_PCT) * extras) / EXTRA_FIELDS.length)));
+  // 100% only when nothing at all is left on the checklist.
+  return { pct: missing.length ? Math.min(pct, 99) : 100, done: filled.length, total: COMPLETE_FIELDS.length, missing };
 }

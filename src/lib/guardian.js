@@ -10,6 +10,9 @@ import { SUPABASE_URL, SUPABASE_KEY } from './supabase.js';
 
 const TOKEN_KEY = 'myday_guardian_token';
 const CACHE_KEY = 'myday_guardian_cache';
+// "This device belongs to a guardian." Outlives a revoked token, so a guardian
+// whose link was cut still comes back to the code screen, not the sign-up page.
+const MODE_KEY = 'myday_guardian_mode';
 const ENDPOINT = `${SUPABASE_URL}/functions/v1/guardian-data`;
 
 export function getGuardianToken() {
@@ -17,9 +20,23 @@ export function getGuardianToken() {
 }
 function setGuardianToken(t) {
   try { localStorage.setItem(TOKEN_KEY, t); } catch { /* private mode */ }
+  markGuardianDevice();
 }
+export function markGuardianDevice() {
+  try { localStorage.setItem(MODE_KEY, '1'); } catch {}
+}
+/** True when this phone or tablet has been used as a guardian's. */
+export function isGuardianDevice() {
+  try { return !!localStorage.getItem(TOKEN_KEY) || localStorage.getItem(MODE_KEY) === '1'; } catch { return false; }
+}
+// Keeps MODE_KEY on purpose when the server says the link is gone (unlinked):
+// they are still a guardian, they just need a new code.
 export function clearGuardianDevice() {
   try { localStorage.removeItem(TOKEN_KEY); localStorage.removeItem(CACHE_KEY); } catch {}
+}
+/** "I'm not a guardian on this device" — stop sending the home page to /guardian. */
+export function forgetGuardianMode() {
+  try { localStorage.removeItem(MODE_KEY); } catch {}
 }
 
 // ---------- offline cache ----------
@@ -157,7 +174,7 @@ export async function setDailySummary(at) {
 /** "This is not my device" — revokes the token server-side, then forgets it. */
 export async function disconnectThisDevice() {
   const token = getGuardianToken();
-  if (!token) { clearGuardianDevice(); return; }
+  if (!token) { clearGuardianDevice(); forgetGuardianMode(); return; }
   try { await call({ action: 'disconnect', token }); }
-  finally { clearGuardianDevice(); }
+  finally { clearGuardianDevice(); forgetGuardianMode(); }
 }

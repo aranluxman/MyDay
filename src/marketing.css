@@ -196,6 +196,7 @@
 .ob-passwrap { position: relative; }
 .ob-passwrap .eye { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: none; border: 0; color: var(--m-soft); padding: 10px; cursor: pointer; }
 .ob__switch { text-align: center; color: var(--m-soft); margin-top: 18px; }
+.ob__switch a { color: var(--m-primary); font-weight: 700; }
 .ob__switch button { background: none; border: 0; color: var(--m-primary); font-weight: 700; cursor: pointer; font-size: 16px; }
 
 /* ---------- landing hover polish ---------- */
@@ -233,3 +234,11 @@
 .mkt-helper__main { display: block; flex: 1; min-width: 0; }
 .mkt-helper__main b { display: block; font-size: 16px; }
 .mkt-helper__main small { display: block; color: var(--m-soft); font-size: 13.5px; margin-top: 2px; }
+
+/* Sign-up: "How to help them" numbered steps */
+.ob-helpsteps { list-style: none; counter-reset: hs; margin: 0 0 6px; padding: 0; display: grid; gap: 14px; text-align: left; }
+.ob-helpsteps li { counter-increment: hs; position: relative; padding-left: 44px; font-size: 17px; line-height: 1.45; }
+.ob-helpsteps li::before {
+  content: counter(hs); position: absolute; left: 0; top: 0; width: 30px; height: 30px; border-radius: 50%;
+  display: grid; place-items: center; font-weight: 800; font-size: 15px; color: #fff; background: var(--m-primary);
+}
