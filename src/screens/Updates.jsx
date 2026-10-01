@@ -4,6 +4,7 @@ import { useUI } from '../context/UIContext.jsx';
 import { useAsync } from '../hooks/useAsync.js';
 import { Card, Button, Modal, Field, Input, Textarea, EmptyState, SegmentedControl, SkeletonCard } from '../components/ui.jsx';
 import { Icon } from '../components/Icon.jsx';
+import { FeelingChat } from '../components/FeelingChat.jsx';
 import { listDiary, saveDiary, deleteDiary } from '../lib/db.js';
 import { relativeTime } from '../lib/format.js';
 
@@ -18,6 +19,7 @@ export default function Updates() {
   const ui = useUI();
   const location = useLocation();
   const [editing, setEditing] = useState(null);
+  const [chatting, setChatting] = useState(null);
   const { data, loading, error, reload } = useAsync(() => listDiary(80), []);
 
   useEffect(() => {
@@ -30,6 +32,17 @@ export default function Updates() {
     try { await deleteDiary(e.id); ui.toast('Deleted.', 'info'); reload(); } catch { ui.toast('Could not delete.', 'bad'); }
   }
 
+  // Right after writing how they feel is when "why?" is on their mind.
+  async function offerChat(row) {
+    if (row.category === 'event') return;
+    const ok = await ui.confirm({
+      title: 'Want to talk it through?',
+      message: 'MyDay\'s helper can ask a few gentle questions to help you understand why you might feel this way.',
+      confirmLabel: 'Yes, let\'s talk', cancelLabel: 'Not now',
+    });
+    if (ok) setChatting(row);
+  }
+
   if (loading) return <div className="stack"><SkeletonCard lines={2} /><SkeletonCard lines={3} /></div>;
   if (error) return <Card className="center"><p className="lead">Could not load.</p><Button onClick={reload}>Try again</Button></Card>;
 
@@ -38,7 +51,7 @@ export default function Updates() {
       <div className="updates-head">
         <div>
           <h2 className="section">Health diary</h2>
-          <p className="muted">Symptoms, health events, and anything worth remembering.</p>
+          <p className="muted">Write how you feel — then tap <b>Talk it through</b> to work out why.</p>
         </div>
       </div>
 
@@ -63,6 +76,7 @@ export default function Updates() {
                 </div>
                 {e.title && <div className="card__title">{e.title}</div>}
                 {e.body && <div className="tl__body">{e.body}</div>}
+                <Button size="sm" icon="sparkle" className="tl__talk" onClick={() => setChatting(e)}>Talk it through</Button>
                 <div className="btn-row">
                   <Button variant="ghost" size="sm" icon="edit" onClick={() => setEditing(e)}>Edit</Button>
                   <Button variant="danger" size="sm" icon="trash" onClick={() => remove(e)}>Delete</Button>
@@ -74,7 +88,9 @@ export default function Updates() {
       </div>
 
       <Button icon="plus" onClick={() => setEditing({})}>Add a health note</Button>
-      {editing && <DiaryForm entry={editing.id ? editing : null} draft={editing.id ? null : editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); reload(); }} />}
+      {editing && <DiaryForm entry={editing.id ? editing : null} draft={editing.id ? null : editing} onClose={() => setEditing(null)}
+        onSaved={(row, isNew) => { setEditing(null); reload(); if (isNew && row) offerChat(row); }} />}
+      {chatting && <FeelingChat entry={chatting} recent={data} onClose={() => setChatting(null)} onSaved={reload} />}
     </div>
   );
 }
@@ -136,9 +152,9 @@ function DiaryForm({ entry, draft, onClose, onSaved }) {
     if (!title.trim() && !body.trim()) { ui.toast('Please write something.', 'bad'); return; }
     setBusy(true);
     try {
-      await saveDiary({ id: entry?.id, category, title: title.trim(), body: body.trim(), entry_at: entry?.entry_at });
+      const row = await saveDiary({ id: entry?.id, category, title: title.trim(), body: body.trim(), entry_at: entry?.entry_at });
       ui.toast(editing ? 'Note updated.' : 'Note saved.');
-      onSaved();
+      onSaved(row, !editing);
     } catch { ui.toast('Could not save.', 'bad'); setBusy(false); }
   }
 

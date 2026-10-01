@@ -42,12 +42,17 @@ Built with **React + Vite (JSX)**, **Supabase** (Auth + Postgres + Edge Function
   - **How your medicines work together** — on the Medicines tab: what each medicine is
     for, its benefits, how they group around shared goals, and calm "worth asking your
     pharmacist" notes. Cached on the device until the medicine list changes.
-  - **MyDay helper** — a bar at the top of Profile: "make the text much bigger",
-    "my birthday is May 5, 1950", "I want a calmer screen". The AI only proposes actions
-    from a fixed list; `src/lib/aiParse.js` validates them before anything is applied,
-    and every change has an Undo.
-- **Add button (FAB)** — a floating + opens a quick menu to add a medication,
+  - **Talk it through** — on any health-diary note (Updates): a gentle chat that asks
+    one question at a time (sleep? water? a missed pill?) to help the person see why
+    they might feel that way. Never diagnoses; red-flag symptoms get a "Call 911" button.
+    Nothing is stored unless they tap "Save this to my note".
+- **Add button (FAB)** — a floating + drops out a menu to add a medication,
   appointment, health note, or contact from anywhere.
+- **How to use MyDay** (`/help`, Profile → Explore) — a step-by-step guide for first-time users.
+- **Languages** — Profile → Language shows the whole app in French, Chinese, Tamil,
+  Punjabi, Hindi, Urdu, Spanish, Portuguese, Italian and more (Google page translation,
+  `src/lib/translate.js`).
+- **Guardian nudge** — Home asks people with no connected guardian to set one up.
 - **Light & dark themes** — toggle in the top bar or in Profile; remembered per user.
 - **Missed-dose push alerts** — a cron Edge Function flips overdue doses to missed
   and web-pushes the user's family devices, e.g. *"Mary has not taken their 9:00 AM

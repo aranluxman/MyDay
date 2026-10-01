@@ -48,7 +48,18 @@ export async function analyzeMedicines(meds, goal) {
   });
 }
 
-/** One turn with the Profile helper. Returns { reply, actions } (unvalidated). */
-export async function askAssistant(message, state, history = []) {
-  return call({ mode: 'assistant', message, state, history });
+/**
+ * One turn of the "talk it through" chat about a diary note. `doses` is today's
+ * list as { name, time, status }. Returns { reply, suggestions, urgent } (raw —
+ * pass it through normaliseFeelingReply).
+ */
+export async function chatAboutFeeling({ entry, recent = [], doses = [], history = [], message = '' }) {
+  return call({
+    mode: 'feeling_chat',
+    entry: { category: entry.category, title: entry.title, body: entry.body, entry_at: entry.entry_at },
+    recent: recent.map((r) => ({ title: r.title, category: r.category, entry_at: r.entry_at })),
+    doses,
+    history,
+    message,
+  });
 }

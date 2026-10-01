@@ -7,7 +7,7 @@ import { Card, Button, Avatar, Skeleton, SkeletonCard } from '../components/ui.j
 import { Icon } from '../components/Icon.jsx';
 import { MedCalendar } from '../components/MedCalendar.jsx';
 import { useSettings } from '../context/SettingsContext.jsx';
-import { todaysDoses, upcomingAppointments, playedTodayCount, markDoseTaken } from '../lib/db.js';
+import { todaysDoses, upcomingAppointments, playedTodayCount, markDoseTaken, listGuardians } from '../lib/db.js';
 import { prettyTime, prettyDate, localDateStr } from '../lib/format.js';
 import { profileCompleteness } from '../lib/appearance.js';
 import { summarise, sortForDisplay, doseState, STATE_UI } from '../lib/doseState.js';
@@ -23,14 +23,17 @@ export default function Home() {
   const { settings } = useSettings();
   const navigate = useNavigate();
   const { data, loading, error, reload } = useAsync(async () => {
-    const [doses, appts, games] = await Promise.all([todaysDoses(), upcomingAppointments(), playedTodayCount()]);
-    return { doses, appts, games };
+    // Guardians are a nudge, not the day: if they fail to load, show nothing.
+    const [doses, appts, games, guardians] = await Promise.all([
+      todaysDoses(), upcomingAppointments(), playedTodayCount(), listGuardians().catch(() => null),
+    ]);
+    return { doses, appts, games, guardians };
   });
 
   if (loading) return <HomeSkeleton />;
   if (error) return <Card className="center"><p className="lead">We could not load your information.</p><Button onClick={reload}>Try again</Button></Card>;
 
-  const { doses, appts, games } = data;
+  const { doses, appts, games, guardians } = data;
   // Every number on this screen now comes from one place, so the header, the
   // counters, the glance chip and the calendar cannot drift apart. They used
   // to be computed separately here, which is how "0 of 3 taken" ended up
@@ -66,6 +69,8 @@ export default function Home() {
           screen says so rather than letting someone believe they are covered. */}
       <ReminderWarning installed={installed} />
 
+      <GuardianNudge guardians={guardians} />
+
       {completeness.pct < 100 && (
         <Card onClick={() => navigate('/profile')} role="button" tabIndex={0} aria-label={`Profile progress ${completeness.pct} percent — open profile`}
           onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate('/profile'); } }}>
@@ -87,7 +92,7 @@ export default function Home() {
               ? `Overdue — your ${prettyTime(dueNow.scheduled_time)} medicine`
               : `Time for your ${prettyTime(dueNow.scheduled_time)} medicine`}
           </div>
-          <div className="reminder__name">{dueNow.medication?.name}{dueNow.medication?.dose ? ` - ${dueNow.medication.dose}` : ''}</div>
+          <div className="reminder__name" translate="no">{dueNow.medication?.name}{dueNow.medication?.dose ? ` - ${dueNow.medication.dose}` : ''}</div>
           {dueNow.medication?.note && <div className="reminder__note">{dueNow.medication.note}</div>}
           <Button variant="good" size="lg" icon="check" onClick={() => done(dueNow.id)}>Done - I took it</Button>
         </Card>
@@ -206,6 +211,43 @@ function ReminderWarning({ installed }) {
           try { localStorage.setItem('myday_reminder_warning_hidden', '1'); } catch {}
         }}>Hide this</Button>
         <Button size="sm" onClick={() => navigate('/profile/notifications')}>Fix it</Button>
+      </div>
+    </Card>
+  );
+}
+
+// Nobody is watching out for missed doses yet: say so on Home, where it will
+// be seen, with one tap to fix it. "Not now" quiets it for a week, not forever.
+const GUARDIAN_NUDGE_KEY = 'myday_guardian_nudge_hidden_until';
+function GuardianNudge({ guardians }) {
+  const navigate = useNavigate();
+  const [hidden, setHidden] = useState(() => {
+    try { return Number(localStorage.getItem(GUARDIAN_NUDGE_KEY) || 0) > Date.now(); } catch { return false; }
+  });
+  if (!guardians || hidden || guardians.some((g) => g.deviceCount > 0)) return null;
+  const waiting = guardians[0];
+
+  return (
+    <Card className="gnudge">
+      <div className="gnudge__head">
+        <span className="gnudge__ic"><Icon name="user" size={24} /></span>
+        <div>
+          <div className="gnudge__t">{waiting ? `Finish connecting ${waiting.name}` : 'Add a family guardian'}</div>
+          <p className="gnudge__d">
+            {waiting
+              ? `${waiting.name} hasn't typed in their code yet. Show them a new one — it takes a minute.`
+              : 'A family member gets an alert on their phone if you miss a medicine. It takes about a minute.'}
+          </p>
+        </div>
+      </div>
+      <div className="btn-row">
+        <Button variant="ghost" size="sm" onClick={() => {
+          setHidden(true);
+          try { localStorage.setItem(GUARDIAN_NUDGE_KEY, String(Date.now() + 7 * 86400000)); } catch {}
+        }}>Not now</Button>
+        <Button size="sm" icon="plus" onClick={() => navigate('/profile', { state: { add: 'guardian', guardianId: waiting?.id } })}>
+          {waiting ? 'Show code' : 'Set it up'}
+        </Button>
       </div>
     </Card>
   );

@@ -13,7 +13,7 @@ import { supabase } from '../lib/supabase.js';
 import { pushSupported, enablePush } from '../lib/push.js';
 import { useInstallPrompt } from '../hooks/useInstallPrompt.js';
 import { InstallButton } from '../components/InstallButton.jsx';
-import { AssistantBar } from '../components/AssistantBar.jsx';
+import { LANGUAGES, MORE_LANGUAGES, currentLanguage, setLanguage } from '../lib/translate.js';
 import { ageFromBirthday, prettyClock, shortDate } from '../lib/format.js';
 import { THEMES, TEXT_SIZES, profileCompleteness } from '../lib/appearance.js';
 
@@ -75,7 +75,6 @@ export default function Profile() {
   const [uploading, setUploading] = useState(false);
   const [editProfile, setEditProfile] = useState(false);
   const [editContact, setEditContact] = useState(null);
-  const [aboutOpen, setAboutOpen] = useState(false);
   const [savingWindow, setSavingWindow] = useState(false);
   const completeness = profileCompleteness(profile);
   const alertWindow = profile?.alert_window_minutes ?? 60;
@@ -103,7 +102,19 @@ export default function Profile() {
 
   useEffect(() => {
     if (location.state?.add === 'contact') { setEditContact({}); window.history.replaceState({}, ''); }
+    if (location.state?.add === 'guardian' && !location.state.guardianId) { setInviteOpen(true); window.history.replaceState({}, ''); }
   }, [location.key]);
+  // From Home's "Finish connecting…": put that guardian's fresh code on screen
+  // once the list has loaded.
+  const handledGuardianLink = useRef(null);
+  useEffect(() => {
+    const id = location.state?.guardianId;
+    if (!id || !guardians.data || handledGuardianLink.current === location.key) return;
+    handledGuardianLink.current = location.key;
+    window.history.replaceState({}, '');
+    const g = guardians.data.find((x) => x.id === id);
+    if (g) newCode(g); else setInviteOpen(true);
+  }, [location.key, guardians.data]);
 
   const age = profile?.age ?? ageFromBirthday(profile?.birthday);
 
@@ -209,27 +220,6 @@ export default function Profile() {
 
   return (
     <div className="stack">
-      {/* the helper — change settings and details by just saying so */}
-      <AssistantBar />
-
-      {/* alerts — first on the page: the setting people most often come here for */}
-      <Card>
-        <SectionTitle icon="bell" title="Alerts and reminders" />
-        <p className="muted" style={{ margin: '0 0 10px' }}>
-          Reminders when a dose is due, alerts if one is missed, appointment reminders and quiet
-          hours — all in one place.
-        </p>
-        <MenuRow icon="bell" title="Notification settings"
-          desc="Turn alerts on, choose what you are told about, and set quiet hours"
-          onClick={() => navigate('/profile/notifications')} />
-        <div style={{ height: 10 }} />
-        <p className="muted" style={{ margin: '0 0 6px', fontWeight: 600 }}>Alert me after a dose is</p>
-        <SegmentedControl value={alertWindow} onChange={savingWindow ? () => {} : setAlertWindow}
-          options={ALERT_WINDOWS.map((w) => ({ value: w.value, label: w.label }))} />
-        <div style={{ height: 14 }} />
-        <AlertsEnabler devices={devices} onEnable={enableAlerts} onTest={testAlert} />
-      </Card>
-
       {/* identity — tap to view and edit your details */}
       <Card>
         <div className="account-card">
@@ -247,6 +237,65 @@ export default function Profile() {
           </button>
           <Icon name="chevron" size={24} />
         </div>
+      </Card>
+
+      {/* guardians — high up: the family link is what keeps someone safe */}
+      <Card>
+        <SectionTitle icon="user" title="Guardians" />
+        <p className="muted" style={{ margin: '0 0 12px' }}>
+          A guardian is someone in your family who can check on their own phone or tablet whether you have
+          taken your medicines, and gets an alert if you miss one. Tap <b>Show code</b> and read them the
+          6-digit code — it works for 15 minutes and once only. They don't need an account.
+        </p>
+        <Button icon="plus" onClick={() => setInviteOpen(true)}>Invite a guardian</Button>
+        <div style={{ height: 12 }} />
+        <p className="muted" style={{ margin: '0 0 12px' }}>
+          They can only <b>look</b>. A guardian can never change your medicines or appointments, and can never
+          mark a dose as taken. You can disconnect any of their devices below at any time.
+        </p>
+        {guardians.data?.length ? (
+          <div className="guardian-list">
+            {guardians.data.map((g) => (
+              <GuardianRow key={g.id} guardian={g}
+                onShowCode={() => newCode(g)}
+                onRevokeDevice={(d) => revokeDevice(g, d)}
+                onToggleDiary={(v) => toggleDiary(g, v)}
+                onRemove={() => removeGuardian(g)} />
+            ))}
+          </div>
+        ) : null}
+      </Card>
+
+      {/* language — near the top, because someone who can't read English
+          can't go looking for it further down */}
+      <Card>
+        <SectionTitle icon="globe" title="Language" />
+        <p className="muted" style={{ margin: '0 0 10px' }}>Show MyDay in your language. The page reloads once.</p>
+        <select className="lang-select notranslate" translate="no" aria-label="Language" value={currentLanguage()}
+          onChange={(e) => setLanguage(e.target.value)}>
+          {LANGUAGES.map((l) => <option key={l.code} value={l.code}>{l.en ? `${l.name} — ${l.en}` : l.name}</option>)}
+          <optgroup label="More languages">
+            {MORE_LANGUAGES.map((l) => <option key={l.code} value={l.code}>{`${l.name} — ${l.en}`}</option>)}
+          </optgroup>
+        </select>
+      </Card>
+
+      {/* alerts */}
+      <Card>
+        <SectionTitle icon="bell" title="Alerts and reminders" />
+        <p className="muted" style={{ margin: '0 0 10px' }}>
+          Reminders when a dose is due, alerts if one is missed, appointment reminders and quiet
+          hours — all in one place.
+        </p>
+        <MenuRow icon="bell" title="Notification settings"
+          desc="Turn alerts on, choose what you are told about, and set quiet hours"
+          onClick={() => navigate('/profile/notifications')} />
+        <div style={{ height: 10 }} />
+        <p className="muted" style={{ margin: '0 0 6px', fontWeight: 600 }}>Alert me after a dose is</p>
+        <SegmentedControl value={alertWindow} onChange={savingWindow ? () => {} : setAlertWindow}
+          options={ALERT_WINDOWS.map((w) => ({ value: w.value, label: w.label }))} />
+        <div style={{ height: 14 }} />
+        <AlertsEnabler devices={devices} onEnable={enableAlerts} onTest={testAlert} />
       </Card>
 
       {completeness.pct < 100 && (
@@ -295,8 +344,8 @@ export default function Profile() {
       <Card>
         <SectionTitle icon="star" title="Explore" />
         <div className="menu-list">
+          <MenuRow icon="info" title="How to use MyDay" desc="A simple step-by-step guide to every part of the app" onClick={() => navigate('/help')} />
           <MenuRow icon="brain" title="Brain Games" desc="Play games and see your progress" onClick={() => navigate('/games')} />
-          <MenuRow icon="shield" title="About MyDay" desc="Learn more about the app" onClick={() => setAboutOpen(true)} />
         </div>
       </Card>
 
@@ -386,33 +435,6 @@ export default function Profile() {
         </SettingRow>
       </Card>
 
-      {/* guardians — a linked person who gets the alerts on their own device */}
-      <Card>
-        <SectionTitle icon="user" title="Guardians" />
-        <p className="muted" style={{ margin: '0 0 12px' }}>
-          A guardian is someone in your family who can check on their own phone or tablet whether you have
-          taken your medicines, and gets an alert if you miss one. Tap <b>Show code</b> and read them the
-          6-digit code — it works for 15 minutes and once only. They don't need an account.
-        </p>
-        <p className="muted" style={{ margin: '0 0 12px' }}>
-          They can only <b>look</b>. A guardian can never change your medicines or appointments, and can never
-          mark a dose as taken. You can disconnect any of their devices below at any time.
-        </p>
-        {guardians.data?.length ? (
-          <div className="guardian-list">
-            {guardians.data.map((g) => (
-              <GuardianRow key={g.id} guardian={g}
-                onShowCode={() => newCode(g)}
-                onRevokeDevice={(d) => revokeDevice(g, d)}
-                onToggleDiary={(v) => toggleDiary(g, v)}
-                onRemove={() => removeGuardian(g)} />
-            ))}
-          </div>
-        ) : null}
-        <div style={{ height: 12 }} />
-        <Button icon="plus" onClick={() => setInviteOpen(true)}>Invite a guardian</Button>
-      </Card>
-
       {inviteOpen && (
         <Modal title={createdInvite ? `${createdInvite.name}'s code` : 'Invite a guardian'} onClose={closeInvite}>
           {createdInvite ? (
@@ -456,28 +478,7 @@ export default function Profile() {
         </Modal>
       )}
 
-      {/* privacy / storage note */}
-      <Card className="storage-note">
-        <span className="storage-note__ic"><Icon name="shield" size={22} /></span>
-        <p className="muted" style={{ margin: 0 }}>
-          Your health information is stored securely in your own private MyDay account and synced across your devices.
-          Only you — and the family phones you choose for alerts — can see it.
-        </p>
-      </Card>
-
       <Button variant="danger" icon="logout" onClick={onSignOut}>Sign out</Button>
-
-      {aboutOpen && (
-        <Modal title="About MyDay" onClose={() => setAboutOpen(false)}>
-          <p className="dialog-msg">
-            MyDay helps you keep track of your medicines, appointments, and health notes — all in one
-            simple place. Play brain games to stay sharp, and let family phones receive an alert if a
-            dose is missed.
-          </p>
-          <p className="muted">Your information is private: only you and the family phones you choose can see it.</p>
-          <Button onClick={() => setAboutOpen(false)}>Close</Button>
-        </Modal>
-      )}
 
       {editProfile && <ProfileForm profile={profile} onClose={() => setEditProfile(false)}
         onSaved={async (patch) => { await updateProfile(patch); await reloadProfile(); setEditProfile(false); ui.toast('Saved.'); }} />}
