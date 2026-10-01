@@ -1,67 +1,65 @@
-// Regenerates every derived app icon from a single source logo.
+// Regenerates every app icon from the same mark the website shows
+// (.mkt-brand__mark in src/glass.css): a blue-to-violet gradient tile with the
+// white "pulse" line from src/components/Icon.jsx.
 //
-//   1. Replace  public/icons/icon-512.png  with your 512x512 PNG logo.
-//   2. Run      npm run icons
+//   Run  npm run icons
 //
-// From that one file this writes: icon-192, icon-maskable-512 (padded safe zone),
-// apple-touch-icon (180, opaque), and badge-72 (monochrome white glyph on
-// transparent, for the Android notification small-icon). favicon.svg is authored
-// by hand (a simplified single shape that stays legible at 16px) and only
-// rasterised to favicon-32.png here.
+// Change the colours or the glyph here and every size follows: icon-192/512
+// (rounded tile on transparent), icon-maskable-512 and apple-touch-icon
+// (full-bleed — Android and iOS cut their own shape), badge-72 (white glyph
+// only, for the Android notification small-icon) and favicon.svg / favicon-32.
 import sharp from 'sharp';
+import { writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const icons = join(root, 'public', 'icons');
-const SRC = join(icons, 'icon-512.png');
 
-// The logo's background colour: average of the opaque border ring, falling back
-// to the centre pixel when the border is transparent (e.g. a rounded logo).
-async function bgColor() {
-  const { data, info } = await sharp(SRC).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
-  const { width: w, height: h, channels: c } = info;
-  const at = (x, y) => { const i = (y * w + x) * c; return [data[i], data[i + 1], data[i + 2], data[i + 3]]; };
-  let r = 0, g = 0, b = 0, n = 0;
-  const step = Math.max(1, Math.floor(w / 64));
-  for (let x = 0; x < w; x += step) { for (const y of [0, h - 1]) { const p = at(x, y); if (p[3] > 200) { r += p[0]; g += p[1]; b += p[2]; n++; } } }
-  for (let y = 0; y < h; y += step) { for (const x of [0, w - 1]) { const p = at(x, y); if (p[3] > 200) { r += p[0]; g += p[1]; b += p[2]; n++; } } }
-  if (n < 8) { const cpx = at(w >> 1, h >> 1); return { r: cpx[0], g: cpx[1], b: cpx[2] }; }
-  return { r: Math.round(r / n), g: Math.round(g / n), b: Math.round(b / n) };
+// The website's gradient: linear-gradient(150deg, #5aa2ff, #0a6cff 60%, #7a4dff).
+// 150deg in CSS runs from (0.25, 0.067) to (0.75, 0.933) of the box.
+const GRADIENT = `<linearGradient id="g" x1="0.25" y1="0.067" x2="0.75" y2="0.933">
+    <stop offset="0" stop-color="#5aa2ff"/><stop offset="0.6" stop-color="#0a6cff"/><stop offset="1" stop-color="#7a4dff"/>
+  </linearGradient>
+  <linearGradient id="shine" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#fff" stop-opacity="0.22"/><stop offset="0.5" stop-color="#fff" stop-opacity="0"/>
+  </linearGradient>`;
+const PULSE = 'M3 12h4l2 6 4-14 2 8h6';
+
+// glyph: fraction of the tile the 24-unit icon spans (the site uses 22px in 36px).
+function svg({ size = 512, radius = 0.305, glyph = 0.6, stroke = 2.3, tile = true, shine = true } = {}) {
+  const g = size * glyph;
+  const s = g / 24;
+  const off = (size - g) / 2;
+  const r = size * radius;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}" width="${size}" height="${size}" role="img" aria-label="MyDay">
+  <defs>${GRADIENT}</defs>
+  ${tile ? `<rect width="${size}" height="${size}" rx="${r}" fill="url(#g)"/>` : ''}
+  ${tile && shine ? `<rect width="${size}" height="${size}" rx="${r}" fill="url(#shine)"/>` : ''}
+  <path d="${PULSE}" transform="translate(${off} ${off}) scale(${s})" fill="none" stroke="#fff"
+        stroke-width="${stroke}" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>`;
 }
 
+const png = (markup, size, file) =>
+  sharp(Buffer.from(markup)).resize(size, size).png().toFile(join(icons, file));
+
 async function main() {
-  const bg = await bgColor();
+  const rounded = svg();
+  const fullBleed = svg({ radius: 0 });
+  await png(rounded, 512, 'icon-512.png');
+  await png(rounded, 192, 'icon-192.png');
+  // Maskable: the glyph already sits inside the 80% safe circle.
+  await png(fullBleed, 512, 'icon-maskable-512.png');
+  await png(fullBleed, 180, 'apple-touch-icon.png');
+  await png(svg({ tile: false, glyph: 0.84, stroke: 2.6 }), 72, 'badge-72.png');
 
-  // Standard square (kept with its own alpha).
-  await sharp(SRC).resize(192, 192).png().toFile(join(icons, 'icon-192.png'));
+  // Favicon: same tile, thicker line so it survives 16px.
+  const fav = svg({ size: 32, radius: 0.28, glyph: 0.72, stroke: 3, shine: false });
+  writeFileSync(join(icons, 'favicon.svg'), fav + '\n');
+  await png(fav, 32, 'favicon-32.png');
 
-  // Maskable: logo at ~80% on a solid tile so nothing is clipped by a circle mask.
-  const inner = 410;
-  const scaled = await sharp(SRC).resize(inner, inner, { fit: 'contain', background: { ...bg, alpha: 1 } }).png().toBuffer();
-  await sharp({ create: { width: 512, height: 512, channels: 4, background: { ...bg, alpha: 1 } } })
-    .composite([{ input: scaled, gravity: 'center' }]).png().toFile(join(icons, 'icon-maskable-512.png'));
-
-  // Apple touch icon: opaque (iOS ignores transparency), flattened onto the bg.
-  await sharp(SRC).flatten({ background: bg }).resize(180, 180).png().toFile(join(icons, 'apple-touch-icon.png'));
-
-  // Notification badge: white silhouette of the bright glyph on transparent.
-  const { data, info } = await sharp(SRC).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
-  const out = Buffer.alloc(data.length);
-  for (let i = 0; i < data.length; i += 4) {
-    const bright = (data[i] + data[i + 1] + data[i + 2]) / 3;
-    const on = data[i + 3] > 60 && bright > 170;
-    out[i] = out[i + 1] = out[i + 2] = 255;
-    out[i + 3] = on ? 255 : 0;
-  }
-  await sharp(out, { raw: { width: info.width, height: info.height, channels: 4 } })
-    .resize(72, 72).png().toFile(join(icons, 'badge-72.png'));
-
-  // Favicon raster from the hand-authored simplified shape.
-  const favSvg = join(icons, 'favicon.svg');
-  await sharp(favSvg).resize(32, 32).png().toFile(join(icons, 'favicon-32.png'));
-
-  console.log('icons regenerated (bg', `rgb(${bg.r},${bg.g},${bg.b})`, ')');
+  console.log('icons regenerated');
 }
 
 main().catch((e) => { console.error(e); process.exit(1); });

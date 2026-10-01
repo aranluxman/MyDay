@@ -27,12 +27,21 @@ function toDataUrl(blob) {
   });
 }
 
-/** Reads a photo of a medicine label. Returns the raw scan (see normaliseScan). */
-export async function scanMedicinePhoto(file) {
-  // Big enough to read small print on a pharmacy label, small enough to send
-  // quickly on hospital wifi.
-  const blob = await compressImage(file, 1600, 0.85);
-  return call({ mode: 'scan_medicine', image: await toDataUrl(blob) });
+export const MAX_SCAN_PHOTOS = 3;
+
+/**
+ * Reads up to three photos of the same medicine — front, back, pharmacy label —
+ * as one. Returns the raw scan (see normaliseScan).
+ */
+export async function scanMedicinePhotos(files) {
+  const list = [...files].slice(0, MAX_SCAN_PHOTOS);
+  if (!list.length) throw new Error('Please add a photo first.');
+  // Big enough to read small print on a pharmacy label, small enough that
+  // three of them still send quickly on hospital wifi.
+  const edge = list.length > 1 ? 1400 : 1600;
+  const images = await Promise.all(list.map(async (f) => toDataUrl(await compressImage(f, edge, 0.82))));
+  // `image` keeps an older deployed ai-assist working (it reads just the first).
+  return call({ mode: 'scan_medicine', image: images[0], images });
 }
 
 /** Plain-language explanation of the whole medicine list. */
@@ -45,5 +54,21 @@ export async function analyzeMedicines(meds, goal) {
       dose: m.dose,
       schedule: describeSchedule(m, { prettyTime }),
     })),
+  });
+}
+
+/**
+ * One turn of the encouraging chat about a health-diary note (Updates).
+ * `doses` is today's list as { name, time, status }. Returns the raw
+ * { reply, suggestions, urgent } — pass it through normaliseChatReply.
+ */
+export async function chatAboutNote({ entry, recent = [], doses = [], history = [], message = '' }) {
+  return call({
+    mode: 'note_chat',
+    entry: { category: entry.category, title: entry.title, body: entry.body, entry_at: entry.entry_at },
+    recent: recent.map((r) => ({ title: r.title, category: r.category, entry_at: r.entry_at })),
+    doses,
+    history,
+    message,
   });
 }

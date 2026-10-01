@@ -4,6 +4,7 @@ import { useUI } from '../context/UIContext.jsx';
 import { useAsync } from '../hooks/useAsync.js';
 import { Card, Button, Modal, Field, Input, Textarea, EmptyState, SegmentedControl, SkeletonCard } from '../components/ui.jsx';
 import { Icon } from '../components/Icon.jsx';
+import { NoteChat } from '../components/NoteChat.jsx';
 import { listDiary, saveDiary, deleteDiary } from '../lib/db.js';
 import { relativeTime } from '../lib/format.js';
 
@@ -18,6 +19,7 @@ export default function Updates() {
   const ui = useUI();
   const location = useLocation();
   const [editing, setEditing] = useState(null);
+  const [chatting, setChatting] = useState(null);
   const { data, loading, error, reload } = useAsync(() => listDiary(80), []);
 
   useEffect(() => {
@@ -30,6 +32,16 @@ export default function Updates() {
     try { await deleteDiary(e.id); ui.toast('Deleted.', 'info'); reload(); } catch { ui.toast('Could not delete.', 'bad'); }
   }
 
+  // Right after writing an update is when a kind word lands best.
+  async function offerChat(row) {
+    const ok = await ui.confirm({
+      title: 'Nice work writing that down!',
+      message: 'Want to chat about it with MyDay? It can cheer you on, or help you work out why you feel this way.',
+      confirmLabel: 'Yes, let\'s chat', cancelLabel: 'Not now',
+    });
+    if (ok) setChatting(row);
+  }
+
   if (loading) return <div className="stack"><SkeletonCard lines={2} /><SkeletonCard lines={3} /></div>;
   if (error) return <Card className="center"><p className="lead">Could not load.</p><Button onClick={reload}>Try again</Button></Card>;
 
@@ -38,7 +50,7 @@ export default function Updates() {
       <div className="updates-head">
         <div>
           <h2 className="section">Health diary</h2>
-          <p className="muted">Symptoms, health events, and anything worth remembering.</p>
+          <p className="muted">Write how you feel — then tap <b>Chat with MyDay</b> to talk it over.</p>
         </div>
       </div>
 
@@ -63,6 +75,7 @@ export default function Updates() {
                 </div>
                 {e.title && <div className="card__title">{e.title}</div>}
                 {e.body && <div className="tl__body">{e.body}</div>}
+                <Button size="sm" icon="chat" className="tl__talk" onClick={() => setChatting(e)}>Chat with MyDay</Button>
                 <div className="btn-row">
                   <Button variant="ghost" size="sm" icon="edit" onClick={() => setEditing(e)}>Edit</Button>
                   <Button variant="danger" size="sm" icon="trash" onClick={() => remove(e)}>Delete</Button>
@@ -75,7 +88,8 @@ export default function Updates() {
 
       <Button icon="plus" onClick={() => setEditing({})}>Add a health note</Button>
       {editing && <DiaryForm entry={editing.id ? editing : null} draft={editing.id ? null : editing} onClose={() => setEditing(null)}
-        onSaved={() => { setEditing(null); reload(); }} />}
+        onSaved={(row, isNew) => { setEditing(null); reload(); if (isNew && row) offerChat(row); }} />}
+      {chatting && <NoteChat entry={chatting} recent={data} onClose={() => setChatting(null)} onSaved={reload} />}
     </div>
   );
 }

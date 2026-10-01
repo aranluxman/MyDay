@@ -5,13 +5,15 @@
 // session, and this function calls OpenAI. A key in the web bundle would be
 // readable by anyone who opens DevTools.
 //
-// Three jobs, picked by `mode`:
+// Four jobs, picked by `mode`:
 //   * scan_medicine     — read a photo of a pill box / bottle into the fields
 //                          the Add Medicine wizard asks for.
 //   * analyze_medicines — plain-language "what each one is for" and "how they
 //                          work together" for the person's whole list.
 //   * assistant         — turn "make the text much bigger" into a small list of
 //                          whitelisted actions the app applies itself.
+//   * note_chat         — an upbeat, encouraging chat about a health-diary note
+//                          (Updates). Never a diagnosis; red flags go to 911.
 //
 // Every answer is forced into a JSON schema so the app never has to guess at
 // free text, and the app re-validates it anyway (src/lib/aiParse.js): the
@@ -32,8 +34,11 @@ const CORS = {
 // A compressed phone photo is ~200-400 KB; base64 adds a third. Anything far
 // past that is not a photo from the app.
 const MAX_IMAGE_CHARS = 4_000_000;
+// Front, back and the pharmacy label of ONE medicine, read together.
+const MAX_IMAGES = 3;
 const MAX_MESSAGE_CHARS = 500;
 const MAX_MEDS = 40;
+const MAX_CHAT_TURNS = 12;
 
 /* ------------------------------- schemas ------------------------------- */
 
@@ -132,9 +137,22 @@ const ASSISTANT_SCHEMA = {
   },
 };
 
+const NOTE_CHAT_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['reply', 'suggestions', 'urgent'],
+  properties: {
+    reply: { type: 'string' },
+    suggestions: { type: 'array', items: { type: 'string' } },
+    urgent: { type: 'boolean' },
+  },
+};
+
 /* ------------------------------- prompts ------------------------------- */
 
 const SCAN_PROMPT = `You read photos of medicine packaging (pill bottles, boxes, blister packs, pharmacy labels) for MyDay, a medication app used mostly by older adults.
+
+You may get up to three photos. They are different sides of the SAME medicine (e.g. the front of the box, the back, and the pharmacy label). Combine everything they show into one answer: the name may be on the front while the dose and directions are on the pharmacy label. If photos disagree, trust the pharmacy label for directions, and mention the disagreement in warnings. If the photos clearly show two different medicines, use the one on the first photo and add a warning saying to add the other one separately.
 
 Extract what the label actually says. Never invent a dose or schedule the label does not show.
 - name: the medicine's name as a person would say it, with the brand OR generic name (e.g. "Metformin", "Vitamin D3"). Do not include the strength here.
@@ -164,6 +182,26 @@ together.goals: group the medicines by the shared health goal they serve (e.g. "
 ask_pharmacist: 0-4 short, calm points worth checking with a pharmacist or doctor — well-known interactions, duplicates, or timing issues between THESE medicines (e.g. "Calcium can make levothyroxine work less well if taken at the same time — ask about spacing them apart."). Empty if nothing notable.
 overview: one friendly sentence summing up the list.
 disclaimer: exactly "This is general information, not medical advice. Always check with your doctor or pharmacist before changing how you take any medicine."`;
+
+function noteChatPrompt(context: unknown) {
+  return `You are MyDay's cheerful companion — a warm, upbeat, encouraging friend inside MyDay, a medication and health app used mostly by older adults. The person just wrote a note in their health diary (an "update"), and you are chatting with them about it.
+
+Your job is to make them feel good about looking after themselves, and to help them a little.
+- Be genuinely encouraging. Notice and praise the small wins: writing the note at all, taking their medicines today, getting out for a walk, going to an appointment, asking for help.
+- Good news (a good day, feeling better, a fine check-up): celebrate it with them, ask what helped, and cheer them on to keep it going.
+- Not feeling well (tired, dizzy, a headache, pain, worried): be kind first, then ask ONE gentle question at a time about common everyday causes — sleep, drinking enough water, meals, a missed, late or new medicine, standing up too fast, stress, loneliness, heat, activity. After a few questions, sum up the likely everyday reasons in simple words and suggest 1-3 small, safe things to try (a glass of water, rest, a snack, calling a family member), plus when to call their doctor. End on hope.
+- Warm, plain words at about a grade 6 reading level. 2 to 4 short sentences per reply. A friendly exclamation is fine; never fake or over the top.
+- Use what you know: the note, their recent notes, and today's medicines (taken or missed). If a dose was missed, mention it kindly, never as blame. Never tell them to take, skip, double, stop or change a medicine; suggest asking their pharmacist or doctor instead.
+- Never diagnose. Never claim certainty. You are not a doctor.
+- Reply in the same language the person writes in.
+
+Safety — set urgent to true and tell them clearly, in the first sentence, to call 911 now (or have someone call) if they mention: chest pain or pressure, trouble breathing, face drooping, arm or leg weakness or numbness, slurred or confused speech, sudden severe headache, fainting or passing out, a bad fall or hitting their head, coughing or vomiting blood, a very fast or very slow heartbeat with feeling unwell, signs of a severe allergic reaction, or thoughts of hurting themselves (then also give the 988 Suicide Crisis Helpline — call or text 988). Otherwise urgent is false.
+
+suggestions: 2-3 very short replies (under 6 words each) the person could tap, written as the person speaking (e.g. "I slept badly", "I went for a walk", "Not sure"). Empty array if you are not asking anything.
+
+What you know (their own data): ${JSON.stringify(context)}
+Today's date: ${new Date().toISOString().slice(0, 10)}.`;
+}
 
 function assistantPrompt(state: unknown) {
   return `You are the MyDay helper, inside the Profile screen of MyDay — a calm medication and health app used mostly by older adults. You help the person change how the app looks and update their profile, and you answer questions about using the app.
@@ -239,17 +277,22 @@ Deno.serve(async (req) => {
 
   try {
     if (mode === 'scan_medicine') {
-      const image = String(body.image || '');
-      if (!/^data:image\/(png|jpe?g|webp|gif);base64,/.test(image)) return json({ error: 'Please choose a photo.' }, 400);
-      if (image.length > MAX_IMAGE_CHARS) return json({ error: 'That photo is too large.' }, 413);
+      // `images` (up to three); `image` alone is the older one-photo app.
+      const images = (Array.isArray(body.images) && body.images.length ? body.images : [body.image])
+        .map((i: unknown) => String(i || ''));
+      if (images.length > MAX_IMAGES) return json({ error: `Please use up to ${MAX_IMAGES} photos.` }, 400);
+      if (!images.every((i) => /^data:image\/(png|jpe?g|webp|gif);base64,/.test(i))) return json({ error: 'Please choose a photo.' }, 400);
+      if (images.some((i) => i.length > MAX_IMAGE_CHARS)) return json({ error: 'That photo is too large.' }, 413);
       const result = await openai([
         { role: 'system', content: SCAN_PROMPT },
         { role: 'user', content: [
-          { type: 'text', text: 'Read this medicine label.' },
-          { type: 'image_url', image_url: { url: image, detail: 'high' } },
+          { type: 'text', text: images.length > 1
+            ? `Read this medicine label. These ${images.length} photos are different sides of the same medicine.`
+            : 'Read this medicine label.' },
+          ...images.map((url) => ({ type: 'image_url', image_url: { url, detail: 'high' } })),
         ] },
-      ], 'medicine_scan', SCAN_SCHEMA, 600);
-      console.log(JSON.stringify({ fn: 'ai-assist', mode, outcome: 'ok' }));
+      ], 'medicine_scan', SCAN_SCHEMA, 700);
+      console.log(JSON.stringify({ fn: 'ai-assist', mode, photos: images.length, outcome: 'ok' }));
       return json({ result });
     }
 
@@ -283,6 +326,28 @@ Deno.serve(async (req) => {
         { role: 'user', content: message },
       ], 'assistant_turn', ASSISTANT_SCHEMA, 400);
       console.log(JSON.stringify({ fn: 'ai-assist', mode, actions: result?.actions?.length ?? 0, outcome: 'ok' }));
+      return json({ result });
+    }
+
+    if (mode === 'note_chat') {
+      const clip = (v: unknown, n: number) => String(v ?? '').slice(0, n);
+      const e = body.entry || {};
+      const entry = { type: clip(e.category, 20), title: clip(e.title, 80), details: clip(e.body, 1000), written: clip(e.entry_at, 30) };
+      if (!entry.title && !entry.details) return json({ error: 'Write your note first.' }, 400);
+      const recent = (Array.isArray(body.recent) ? body.recent : []).slice(0, 5)
+        .map((r: any) => ({ title: clip(r?.title, 80), type: clip(r?.category, 20), when: clip(r?.entry_at, 30) }));
+      const medicines = (Array.isArray(body.doses) ? body.doses : []).slice(0, MAX_MEDS)
+        .map((d: any) => ({ name: clip(d?.name, 80), time: clip(d?.time, 10), status: clip(d?.status, 12) }));
+      const history = (Array.isArray(body.history) ? body.history : []).slice(-MAX_CHAT_TURNS)
+        .filter((h: any) => h && (h.role === 'user' || h.role === 'assistant'))
+        .map((h: any) => ({ role: h.role, content: clip(h.content, MAX_MESSAGE_CHARS) }));
+      const message = clip(body.message, MAX_MESSAGE_CHARS).trim();
+      const result = await openai([
+        { role: 'system', content: noteChatPrompt({ note: entry, recent_notes: recent, todays_medicines: medicines }) },
+        ...history,
+        { role: 'user', content: message || 'I just wrote this note. Can we chat about it?' },
+      ], 'note_chat_turn', NOTE_CHAT_SCHEMA, 500);
+      console.log(JSON.stringify({ fn: 'ai-assist', mode, turns: history.length, urgent: !!result?.urgent, outcome: 'ok' }));
       return json({ result });
     }
 

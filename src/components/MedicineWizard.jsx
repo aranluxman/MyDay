@@ -625,7 +625,7 @@ function ReviewStep({ form, scan, onJump }) {
         <div className={`aiscan-note${scan.confidence === 'low' || scan.warnings?.length ? ' aiscan-note--warn' : ''}`} role="status">
           <Icon name="sparkle" size={20} />
           <div>
-            <b>Filled in from your photo.</b> Please check each line against the label and tap
+            <b>Filled in from your {scan.photoCount > 1 ? `${scan.photoCount} photos` : 'photo'}.</b> Please check each line against the label and tap
             Change to fix anything.
             {!!scan.warnings?.length && (
               <ul className="aiscan-note__list">

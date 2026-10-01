@@ -36,12 +36,19 @@ Built with **React + Vite (JSX)**, **Supabase** (Auth + Postgres + Edge Function
   are saved with a progress view, and a result that fails to upload is kept on
   the device and replayed on reconnect rather than lost.
 - **AI helpers** (OpenAI, via the `ai-assist` Edge Function — the key never reaches the browser):
-  - **Add from a photo** — photograph a pill bottle or box; the AI reads the name, dose,
-    times and directions and opens the Add Medicine wizard on its review step so the
+  - **Add from a photo** — take up to 3 photos of a pill bottle or box (front, back,
+    pharmacy label); the AI reads them together for the name, dose, times and directions and opens the Add Medicine wizard on its review step so the
     person checks it before saving. Warnings (anything it couldn't read) are shown.
   - **How your medicines work together** — on the Medicines tab: what each medicine is
     for, its benefits, how they group around shared goals, and calm "worth asking your
     pharmacist" notes. Cached on the device until the medicine list changes.
+  - **Chat with MyDay** — on any health-diary note (Updates), and offered right after
+    saving one: an upbeat, encouraging chat that celebrates good days and, for symptoms,
+    asks one gentle question at a time (sleep? water? a missed pill?). Never diagnoses;
+    red-flag symptoms get a "Call 911" button. Nothing is stored unless they tap
+    "Save this to my note".
+- **Add a medicine** (Home or the + menu) first asks "Take photos of the box" or
+  "Type it in myself".
 - **Add button (FAB)** — a floating + drops out a menu to add a medication,
   appointment, health note, or contact from anywhere.
 - **How to use MyDay** (`/help`, Profile → Explore) — a step-by-step guide for first-time users.
@@ -199,8 +206,8 @@ supabase functions deploy ai-assist
 
 Only signed-in users can call it (it checks the session token). Set a monthly
 spending limit in the OpenAI dashboard, since every scan/explain/helper turn is a
-paid call. Photos and medicine names are sent to OpenAI; the person's name and notes
-are not.
+paid call. Photos and medicine names are sent to OpenAI, and a diary note is sent only when
+the person opens "Chat with MyDay" on it; the person's name is never sent.
 
 ### iPhone / iPad note
 On iOS and iPadOS, web push only works when the app is **added to the Home Screen**
