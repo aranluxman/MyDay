@@ -157,3 +157,18 @@ export function medsSignature(meds) {
     .sort()
     .join('\n');
 }
+
+/* ----------------------------- diary note chat ----------------------------- */
+
+/**
+ * A note-chat turn made safe to show: always a reply, at most three short
+ * tap-to-answer suggestions, and `urgent` only when the model said exactly true.
+ */
+export function normaliseChatReply(raw) {
+  const r = raw && typeof raw === 'object' ? raw : {};
+  const reply = String(r.reply || '').trim().slice(0, 1200)
+    || 'Sorry, I did not catch that. Could you tell me a little more?';
+  const suggestions = [...new Set((Array.isArray(r.suggestions) ? r.suggestions : [])
+    .map((x) => String(x || '').trim()).filter((x) => x && x.length <= 40))].slice(0, 3);
+  return { reply, suggestions, urgent: r.urgent === true };
+}

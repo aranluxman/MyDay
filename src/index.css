@@ -2208,6 +2208,41 @@ html[data-motion='calm'] *::after {
 }
 .assist__send:disabled { opacity: 0.4; cursor: default; }
 
+/* ---------- AI: chat with MyDay (diary note chat) ---------- */
+.tl__talk { margin-top: 12px; }
+.nchat { display: flex; flex-direction: column; gap: 12px; }
+.nchat__note {
+  display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border-radius: 14px;
+  background: var(--surface-2); color: var(--ink-soft); font-size: 16px;
+}
+.nchat__note > svg { flex: none; margin-top: 2px; color: var(--primary); }
+.nchat__note b { color: var(--ink); }
+.nchat__log { display: flex; flex-direction: column; gap: 10px; min-height: 80px; }
+.nchat__msg { display: flex; gap: 8px; align-items: flex-end; max-width: 92%; }
+.nchat__msg p { margin: 0; padding: 12px 14px; border-radius: 20px; font-size: 18px; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; }
+.nchat__msg--ai p { background: var(--surface); border: 1px solid var(--line); border-bottom-left-radius: 6px; color: var(--ink); }
+.nchat__msg--me { align-self: flex-end; }
+.nchat__msg--me p { background: var(--primary); color: var(--on-primary); border-bottom-right-radius: 6px; }
+.nchat__av {
+  flex: none; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center;
+  background: linear-gradient(150deg, #5aa2ff, #0a6cff 60%, #7a4dff); color: #fff;
+}
+.nchat__typing { display: flex; gap: 5px; align-items: center; min-height: 50px; }
+.nchat__typing span { width: 8px; height: 8px; border-radius: 50%; background: var(--ink-soft); animation: nchat-dot 1.2s infinite ease-in-out; }
+.nchat__typing span:nth-child(2) { animation-delay: 0.15s; }
+.nchat__typing span:nth-child(3) { animation-delay: 0.3s; }
+@keyframes nchat-dot { 0%, 80%, 100% { opacity: 0.25; transform: none; } 40% { opacity: 1; transform: translateY(-3px); } }
+html[data-motion='calm'] .nchat__typing span { animation: none; opacity: 0.6; }
+.nchat__chips { margin-top: 0; }
+.nchat__chips .chip { min-height: 48px; font-size: 16px; }
+.nchat__fail { padding: 10px 12px; border-radius: 14px; background: var(--bad-bg); color: var(--bad-ink); }
+.nchat__fail p { margin: 0 0 8px; font-weight: 600; }
+.nchat__urgent { padding: 14px; border-radius: 16px; background: var(--bad-bg); border: 2px solid var(--bad); color: var(--ink); }
+.nchat__urgent-t { display: flex; align-items: center; gap: 8px; font-size: 19px; font-weight: 800; color: var(--bad-ink); }
+.nchat__urgent p { margin: 6px 0 10px; font-weight: 600; }
+.nchat__bar { position: sticky; bottom: 0; }
+.nchat__disclaimer { margin: 0; font-size: 14px; color: var(--ink-soft); text-align: center; }
+
 /* ---------- AI: medicine photo scan ---------- */
 .aiscan-privacy { margin: -4px 4px 0; font-size: 14px; text-align: center; }
 .aiscan-note {
@@ -2219,6 +2254,45 @@ html[data-motion='calm'] *::after {
 .aiscan-note--warn { background: var(--warn-bg); }
 .aiscan-note--warn > svg { color: var(--warn-ink); }
 .aiscan-note__list { margin: 6px 0 0; padding-left: 18px; color: var(--warn-ink); font-weight: 600; }
+
+/* Up to three photos of one medicine, read together. */
+.phototray { display: flex; flex-direction: column; gap: 14px; }
+.phototray__lead { margin: 0; }
+.phototray__slots { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.phototray__slot {
+  position: relative; aspect-ratio: 3 / 4; border-radius: 16px; overflow: hidden;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+  padding: 8px; text-align: center; font: inherit; font-size: 14px; font-weight: 600; line-height: 1.2;
+}
+.phototray__slot--empty {
+  border: 2px dashed var(--line); background: var(--surface-2); color: var(--ink-soft); cursor: default;
+}
+.phototray__slot--empty.is-next { border-color: var(--primary); color: var(--primary); cursor: pointer; }
+.phototray__slot--empty:disabled { opacity: 0.55; }
+.phototray__slot--full { border: 1px solid var(--line); background: var(--surface-2); padding: 0; }
+.phototray__slot--full img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.phototray__x {
+  position: absolute; top: 6px; right: 6px; width: 34px; height: 34px; border-radius: 50%; border: 0;
+  display: grid; place-items: center; cursor: pointer; background: rgba(0, 0, 0, 0.6); color: #fff;
+}
+.phototray .aiscan-note { margin-bottom: 0; }
+
+/* "How do you want to add it?" */
+.addchoice { display: flex; flex-direction: column; gap: 12px; }
+.addchoice__opt {
+  display: flex; align-items: center; gap: 14px; width: 100%; padding: 16px; border-radius: 18px;
+  border: 1px solid var(--line); background: var(--surface); color: var(--ink);
+  font: inherit; text-align: left; cursor: pointer;
+}
+.addchoice__opt:focus-visible { outline: 3px solid var(--primary); outline-offset: 2px; }
+.addchoice__opt--main { border: 2px solid var(--primary); background: var(--primary-soft); }
+.addchoice__ic {
+  flex: none; width: 52px; height: 52px; border-radius: 16px; display: grid; place-items: center;
+  background: var(--primary); color: var(--on-primary);
+}
+.addchoice__opt:not(.addchoice__opt--main) .addchoice__ic { background: var(--surface-2); color: var(--primary); }
+.addchoice__t { display: block; font-size: 19px; font-weight: 750; }
+.addchoice__d { display: block; margin-top: 2px; font-size: 15px; color: var(--ink-soft); }
 
 /* ---------- AI: how your medicines work together ---------- */
 .chip--static { cursor: default; min-height: 36px; padding: 6px 12px; font-size: 15px; }

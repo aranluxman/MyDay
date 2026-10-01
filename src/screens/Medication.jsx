@@ -2,11 +2,11 @@ import { useEffect, useMemo, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useUI } from '../context/UIContext.jsx';
 import { useAsync } from '../hooks/useAsync.js';
-import { Card, Button, EmptyState, HeroEmpty, TipCard, SegmentedControl, SkeletonCard } from '../components/ui.jsx';
+import { Card, Button, EmptyState, HeroEmpty, TipCard, SegmentedControl, SkeletonCard, Modal } from '../components/ui.jsx';
 import { Icon } from '../components/Icon.jsx';
 import { MedCalendar } from '../components/MedCalendar.jsx';
 import { MedicineWizard } from '../components/MedicineWizard.jsx';
-import { MedicinePhotoScan, PhotoPrivacyNote } from '../components/MedicinePhotoScan.jsx';
+import { MedicinePhotoScan, MedicinePhotoTray, PhotoPrivacyNote } from '../components/MedicinePhotoScan.jsx';
 import { MedicineInsights } from '../components/MedicineInsights.jsx';
 import { useApp } from '../context/AppContext.jsx';
 import {
@@ -28,13 +28,16 @@ export default function Medication() {
   const [editing, setEditing] = useState(null);
   // A label read from a photo, waiting in the wizard for the person to check.
   const [scanned, setScanned] = useState(null);
+  // "Add a medicine" from Home or the + menu first asks: photo or by hand?
+  const [choosing, setChoosing] = useState(false);
+  const [photoTray, setPhotoTray] = useState(false);
   const [selectedDay, setSelectedDay] = useState(() => location.state?.day || localDateStr());
 
   const meds = useAsync(() => listMedications(), []);
   const today = useAsync(() => todaysDoses(), []);
 
   useEffect(() => {
-    if (location.state?.add === 'med') { setView('medicines'); setEditing({}); window.history.replaceState({}, ''); }
+    if (location.state?.add === 'med') { setView('medicines'); setChoosing(true); window.history.replaceState({}, ''); }
     else if (location.state?.view) {
       setView(location.state.view);
       if (location.state.day) setSelectedDay(location.state.day);
@@ -103,7 +106,7 @@ export default function Medication() {
       ]} />
 
       {view === 'today' && <TodayView state={today} onDone={done} onSkip={skip} windowMinutes={windowMinutes}
-        onAdd={() => { setView('medicines'); setEditing({}); }} />}
+        onAdd={() => { setView('medicines'); setChoosing(true); }} />}
 
       {view === 'calendar' && (
         <>
@@ -122,9 +125,40 @@ export default function Medication() {
 
       {editing && <MedicineWizard med={editing.id ? editing : null} onClose={() => setEditing(null)}
         onSaved={() => { setEditing(null); reloadAll(); }} />}
+      {choosing && <AddChoice onClose={() => setChoosing(false)}
+        onPhoto={() => { setChoosing(false); setPhotoTray(true); }}
+        onHand={() => { setChoosing(false); setEditing({}); }} />}
+      {photoTray && <MedicinePhotoTray onClose={() => setPhotoTray(false)}
+        onResult={(scan) => { setPhotoTray(false); setScanned(scan); }} />}
       {scanned && <MedicineWizard prefill={scanned} onClose={() => setScanned(null)}
         onSaved={() => { setScanned(null); reloadAll(); }} />}
     </div>
+  );
+}
+
+// The first question when adding a medicine: photos are the easy way (no
+// spelling, no reading small print), so they come first and stand out.
+function AddChoice({ onPhoto, onHand, onClose }) {
+  return (
+    <Modal title="Add a medicine" onClose={onClose}>
+      <div className="addchoice">
+        <button type="button" className="addchoice__opt addchoice__opt--main" onClick={onPhoto}>
+          <span className="addchoice__ic"><Icon name="camera" size={28} /></span>
+          <span>
+            <span className="addchoice__t">Take photos of the box</span>
+            <span className="addchoice__d">Up to 3 photos. MyDay reads the name, dose and directions for you.</span>
+          </span>
+        </button>
+        <button type="button" className="addchoice__opt" onClick={onHand}>
+          <span className="addchoice__ic"><Icon name="edit" size={26} /></span>
+          <span>
+            <span className="addchoice__t">Type it in myself</span>
+            <span className="addchoice__d">Answer a few simple questions, one at a time.</span>
+          </span>
+        </button>
+        <PhotoPrivacyNote />
+      </div>
+    </Modal>
   );
 }
 
