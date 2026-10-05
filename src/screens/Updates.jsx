@@ -75,7 +75,7 @@ export default function Updates() {
                 </div>
                 {e.title && <div className="card__title">{e.title}</div>}
                 {e.body && <div className="tl__body">{e.body}</div>}
-                <Button size="sm" icon="chat" className="tl__talk" onClick={() => setChatting(e)}>Chat with MyDay</Button>
+                <Button variant="ghost" size="sm" icon="chat" className="tl__talk" onClick={() => setChatting(e)}>Chat with MyDay</Button>
                 <div className="btn-row">
                   <Button variant="ghost" size="sm" icon="edit" onClick={() => setEditing(e)}>Edit</Button>
                   <Button variant="danger" size="sm" icon="trash" onClick={() => remove(e)}>Delete</Button>

@@ -265,7 +265,13 @@ function DoseCard({ dose, onDone, onSkip, readOnly, windowMinutes }) {
       <div className="dose">
         <span className="dose__chip" style={{ background: color }} aria-hidden="true"><Icon name="pill" size={20} /></span>
         <div className="dose__main">
-          <div className="card__title">{m.name || 'Medicine'}</div>
+          <div className="dose__head">
+            <div className="card__title">{m.name || 'Medicine'}</div>
+            {/* Colour plus an icon plus a word, never colour alone. */}
+            <span className={`g-badge g-badge--${ui.tone}`}>
+              <Icon name={ui.icon} size={16} /> {ui.label}
+            </span>
+          </div>
           {m.dose && <div className="medrow__dose">{m.dose}</div>}
           <div className="card__meta">Scheduled for {prettyTime(dose.scheduled_time)}</div>
           {st === 'taken' && dose.taken_at && (
@@ -273,10 +279,6 @@ function DoseCard({ dose, onDone, onSkip, readOnly, windowMinutes }) {
           )}
           {m.note && <div className="card__meta">{m.note}</div>}
         </div>
-        {/* Colour plus an icon plus a word, never colour alone. */}
-        <span className={`g-badge g-badge--${ui.tone}`}>
-          <Icon name={ui.icon} size={16} /> {ui.label}
-        </span>
       </div>
       {st === 'skipped' && (
         <div className="dose__when dose__when--skip">{dose.skip_reason ? `Not today: ${dose.skip_reason}` : 'Marked as not needed today'}</div>
@@ -343,6 +345,8 @@ function MedicinesView({ state, onAdd, onEdit, onScanned, onRemove, onDuplicate 
 // The list card now shows everything the wizard asked for — dose, the times,
 // how often, and the photo — instead of just "name - dose" and a time list.
 // A photo is the fastest way to tell two similar white tablets apart.
+const capitalise = (t) => t.charAt(0).toUpperCase() + t.slice(1);
+
 function MedicineCard({ med: m, onEdit, onRemove, onDuplicate }) {
   const [photo, setPhoto] = useState(null);
 
@@ -372,7 +376,7 @@ function MedicineCard({ med: m, onEdit, onRemove, onDuplicate }) {
             </span>
             <span className="medrow__tag">
               <Icon name="calendar" size={15} />
-              {describeSchedule({ ...m, times: [] }, { prettyTime }).replace(' at no set time', '')}
+              {capitalise(describeSchedule({ ...m, times: [], with_food: false }, { prettyTime }).replace(' at no set time', ''))}
             </span>
             {m.with_food && <span className="medrow__tag"><Icon name="star" size={15} /> With food</span>}
           </div>
