@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  authorizeDevice, authorizeCode, visibleTables, looksLikeToken, normaliseCode,
+  authorizeDevice, authorizeAccountLink, authorizeCode, visibleTables, looksLikeToken, normaliseCode,
   GUARDIAN_WRITE_CAPABILITIES, CODE_TTL_MINUTES,
 } from '../supabase/functions/_shared/guardianAccess.js';
 
@@ -19,6 +19,17 @@ const guardian = (over = {}) => ({
 });
 const device = (over = {}) => ({
   id: 'd-1', guardian_id: 'g-1', revoked_at: null, label: 'Sarah’s iPad', ...over,
+});
+
+test('an account reads only its own live guardian connection', () => {
+  const link = { device_id: 'd-1', guardian_user_id: 'helper-1' };
+  const allowed = authorizeAccountLink({ link, accountUserId: 'helper-1', device: device(), guardian: guardian(), now: NOW });
+  assert.equal(allowed.ok, true);
+  assert.equal(allowed.userId, SENIOR);
+  assert.deepEqual(allowed.writes, []);
+  assert.equal(authorizeAccountLink({ link, accountUserId: 'helper-2', device: device(), guardian: guardian(), now: NOW }).ok, false);
+  assert.equal(authorizeAccountLink({ link: { ...link, device_id: 'd-2' }, accountUserId: 'helper-1', device: device(), guardian: guardian(), now: NOW }).ok, false);
+  assert.equal(authorizeAccountLink({ link, accountUserId: 'helper-1', device: device({ revoked_at: at(-1) }), guardian: guardian(), now: NOW }).ok, false);
 });
 
 // ---------------------------------------------------------------- device token

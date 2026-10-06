@@ -2,11 +2,11 @@ import { useEffect, useMemo, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useUI } from '../context/UIContext.jsx';
 import { useAsync } from '../hooks/useAsync.js';
-import { Card, Button, EmptyState, HeroEmpty, TipCard, SegmentedControl, SkeletonCard, Modal } from '../components/ui.jsx';
+import { Card, Button, EmptyState, HeroEmpty, TipCard, SegmentedControl, SkeletonCard, Input } from '../components/ui.jsx';
 import { Icon } from '../components/Icon.jsx';
 import { MedCalendar } from '../components/MedCalendar.jsx';
 import { MedicineWizard } from '../components/MedicineWizard.jsx';
-import { MedicinePhotoScan, MedicinePhotoTray, PhotoPrivacyNote } from '../components/MedicinePhotoScan.jsx';
+import { MedicineBatch } from '../components/MedicineBatch.jsx';
 import { MedicineInsights } from '../components/MedicineInsights.jsx';
 import { useApp } from '../context/AppContext.jsx';
 import {
@@ -16,28 +16,25 @@ import {
 import { prettyTime, prettyClock, prettyDate, localDateStr } from '../lib/format.js';
 import { doseState, sortForDisplay, summarise, adherence, STATE_UI } from '../lib/doseState.js';
 import { describeSchedule } from '../lib/schedule.js';
+import { selectMedicines } from '../lib/medicineList.js';
 
 export default function Medication() {
   const ui = useUI();
-  const { profile } = useApp();
+  const { profile, user } = useApp();
   // The person's own missed-dose window decides when pending becomes missed.
   const windowMinutes = profile?.alert_window_minutes ?? 60;
   const location = useLocation();
   // Home's calendar links here with { view: 'calendar', day } to open a day's history.
   const [view, setView] = useState(() => location.state?.view || 'today');
   const [editing, setEditing] = useState(null);
-  // A label read from a photo, waiting in the wizard for the person to check.
-  const [scanned, setScanned] = useState(null);
-  // "Add a medicine" from Home or the + menu first asks: photo or by hand?
-  const [choosing, setChoosing] = useState(false);
-  const [photoTray, setPhotoTray] = useState(false);
+  const [batchOpen, setBatchOpen] = useState(false);
   const [selectedDay, setSelectedDay] = useState(() => location.state?.day || localDateStr());
 
   const meds = useAsync(() => listMedications(), []);
   const today = useAsync(() => todaysDoses(), []);
 
   useEffect(() => {
-    if (location.state?.add === 'med') { setView('medicines'); setChoosing(true); window.history.replaceState({}, ''); }
+    if (location.state?.add === 'med') { setView('medicines'); setBatchOpen(true); window.history.replaceState({}, ''); }
     else if (location.state?.view) {
       setView(location.state.view);
       if (location.state.day) setSelectedDay(location.state.day);
@@ -106,7 +103,7 @@ export default function Medication() {
       ]} />
 
       {view === 'today' && <TodayView state={today} onDone={done} onSkip={skip} windowMinutes={windowMinutes}
-        onAdd={() => { setView('medicines'); setChoosing(true); }} />}
+        onAdd={() => { setView('medicines'); setBatchOpen(true); }} />}
 
       {view === 'calendar' && (
         <>
@@ -119,46 +116,15 @@ export default function Medication() {
       )}
 
       {view === 'medicines' && (
-        <MedicinesView state={meds} onAdd={() => setEditing({})} onEdit={setEditing}
-          onScanned={setScanned} onRemove={remove} onDuplicate={duplicate} />
+        <MedicinesView state={meds} onAdd={() => setBatchOpen(true)} onEdit={setEditing}
+          onRemove={remove} onDuplicate={duplicate} />
       )}
 
       {editing && <MedicineWizard med={editing.id ? editing : null} onClose={() => setEditing(null)}
         onSaved={() => { setEditing(null); reloadAll(); }} />}
-      {choosing && <AddChoice onClose={() => setChoosing(false)}
-        onPhoto={() => { setChoosing(false); setPhotoTray(true); }}
-        onHand={() => { setChoosing(false); setEditing({}); }} />}
-      {photoTray && <MedicinePhotoTray onClose={() => setPhotoTray(false)}
-        onResult={(scan) => { setPhotoTray(false); setScanned(scan); }} />}
-      {scanned && <MedicineWizard prefill={scanned} onClose={() => setScanned(null)}
-        onSaved={() => { setScanned(null); reloadAll(); }} />}
+      {batchOpen && <MedicineBatch userId={user?.id} onClose={() => setBatchOpen(false)}
+        onSaved={() => { setBatchOpen(false); reloadAll(); }} />}
     </div>
-  );
-}
-
-// The first question when adding a medicine: photos are the easy way (no
-// spelling, no reading small print), so they come first and stand out.
-function AddChoice({ onPhoto, onHand, onClose }) {
-  return (
-    <Modal title="Add a medicine" onClose={onClose}>
-      <div className="addchoice">
-        <button type="button" className="addchoice__opt addchoice__opt--main" onClick={onPhoto}>
-          <span className="addchoice__ic"><Icon name="camera" size={28} /></span>
-          <span>
-            <span className="addchoice__t">Take photos of the box</span>
-            <span className="addchoice__d">Up to 3 photos. MyDay reads the name, dose and directions for you.</span>
-          </span>
-        </button>
-        <button type="button" className="addchoice__opt" onClick={onHand}>
-          <span className="addchoice__ic"><Icon name="edit" size={26} /></span>
-          <span>
-            <span className="addchoice__t">Type it in myself</span>
-            <span className="addchoice__d">Answer a few simple questions, one at a time.</span>
-          </span>
-        </button>
-        <PhotoPrivacyNote />
-      </div>
-    </Modal>
   );
 }
 
@@ -317,38 +283,55 @@ function DoseCard({ dose, onDone, onSkip, readOnly, windowMinutes }) {
 // recorded as "dafs", and none of these need spelling or typing.
 const SKIP_REASONS = ['Doctor said to stop', 'I felt unwell', 'I ran out', 'I took it already'];
 
-function MedicinesView({ state, onAdd, onEdit, onScanned, onRemove, onDuplicate }) {
+function MedicinesView({ state, onAdd, onEdit, onRemove, onDuplicate }) {
+  const [search, setSearch] = useState('');
+  const [sort, setSort] = useState('name');
   const { data: meds, loading, error, reload } = state;
   if (loading) return <div className="stack"><SkeletonCard lines={2} /><SkeletonCard lines={2} /></div>;
   if (error) return <Card className="center"><p className="lead">Could not load.</p><Button onClick={reload}>Try again</Button></Card>;
+  const query = search.trim();
+  const visible = selectMedicines(meds, query, sort);
   return (
     <div className="stack">
       {!meds.length && (
         <HeroEmpty icon="pill" title="No medicines yet"
-          action={<MedicinePhotoScan onResult={onScanned} label="Take a photo of the label" />}>
-          Snap a photo of the box or bottle and MyDay fills in the details for you — or add it by hand below.
+          action={<Button icon="plus" onClick={onAdd}>Add medicines</Button>}>
+          Type a medicine or scan its label. Review one or several before saving.
         </HeroEmpty>
       )}
-      {meds.map((m) => (
-        <MedicineCard key={m.id} med={m} onEdit={onEdit} onRemove={onRemove} onDuplicate={onDuplicate} />
-      ))}
-      {!!meds.length && <MedicinePhotoScan onResult={onScanned} />}
-      <Button icon="plus" variant={meds.length ? 'ghost' : 'primary'} onClick={onAdd}>
-        {meds.length ? 'Add a medicine by hand' : 'Add your first medicine by hand'}
-      </Button>
-      <PhotoPrivacyNote />
+      {!!meds.length && (
+        <>
+          <div className="medlist__toolbar">
+            <div className="medlist__count">{query ? `${visible.length} of ${meds.length}` : meds.length} {meds.length === 1 ? 'medicine' : 'medicines'}</div>
+            <Button icon="plus" full={false} onClick={onAdd}>Add medicines</Button>
+          </div>
+          <div className="medlist__controls">
+            <Input type="search" value={search} onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search medicines" aria-label="Search medicines by name" />
+            <select className="input medlist__sort" value={sort} onChange={(e) => setSort(e.target.value)} aria-label="Sort medicines">
+              <option value="name">Name A–Z</option>
+              <option value="time">Time of day</option>
+              <option value="newest">Recently added</option>
+            </select>
+          </div>
+          {visible.length ? (
+            <div className="medlist" role="list" aria-label="Your medicines">
+              {visible.map((m) => <MedicineRow key={m.id} med={m} onEdit={onEdit}
+                onRemove={onRemove} onDuplicate={onDuplicate} />)}
+            </div>
+          ) : <EmptyState icon="search" title="No matching medicines">Try a different name or clear the search.</EmptyState>}
+        </>
+      )}
       <MedicineInsights meds={meds} />
     </div>
   );
 }
 
-// The list card now shows everything the wizard asked for — dose, the times,
-// how often, and the photo — instead of just "name - dose" and a time list.
-// A photo is the fastest way to tell two similar white tablets apart.
 const capitalise = (t) => t.charAt(0).toUpperCase() + t.slice(1);
 
-function MedicineCard({ med: m, onEdit, onRemove, onDuplicate }) {
+function MedicineRow({ med: m, onEdit, onRemove, onDuplicate }) {
   const [photo, setPhoto] = useState(null);
+  const [expanded, setExpanded] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -359,16 +342,21 @@ function MedicineCard({ med: m, onEdit, onRemove, onDuplicate }) {
   }, [m.photo_path]);
 
   const asNeeded = m.frequency === 'as_needed';
+  const schedule = capitalise(describeSchedule(m, { prettyTime }));
 
   return (
-    <Card>
-      <div className="medrow">
-        {photo
-          ? <img className="medrow__photo" src={photo} alt={`${m.name}, as photographed`} />
-          : <span className="dose__chip" style={{ background: m.color || '#2563a8' }}><Icon name="pill" size={20} /></span>}
-        <div className="medrow__main">
-          <div className="card__title" translate="no">{m.name}</div>
-          {m.dose && <div className="medrow__dose">{m.dose}</div>}
+    <div className="medlist__item" role="listitem">
+      <button type="button" className="medlist__summary" aria-expanded={expanded}
+        aria-controls={`medicine-details-${m.id}`} onClick={() => setExpanded((v) => !v)}>
+        {photo ? <img className="medlist__photo" src={photo} alt="" />
+          : <span className="medlist__icon" style={{ background: m.color || '#2563a8' }}><Icon name="pill" size={20} /></span>}
+        <span className="medlist__main">
+          <span className="medlist__name" translate="no">{m.name}</span>
+          <span className="medlist__sub">{m.dose || 'No dose'} · {schedule}</span>
+        </span>
+        <Icon name="chevron" size={20} className={expanded ? 'medlist__chevron is-open' : 'medlist__chevron'} />
+      </button>
+      {expanded && <div className="medlist__details" id={`medicine-details-${m.id}`}>
           <div className="medrow__meta">
             <span className="medrow__tag">
               <Icon name="clock" size={15} />
@@ -384,13 +372,12 @@ function MedicineCard({ med: m, onEdit, onRemove, onDuplicate }) {
           {!m.reminders_enabled && (
             <div className="medrow__off"><Icon name="bell" size={15} /> Reminders off for this one</div>
           )}
-        </div>
-      </div>
-      <div className="btn-row">
-        <Button variant="ghost" size="sm" icon="edit" onClick={() => onEdit(m)}>Edit</Button>
-        <Button variant="ghost" size="sm" icon="plus" onClick={() => onDuplicate(m)}>Copy</Button>
-        <Button variant="danger" size="sm" icon="trash" onClick={() => onRemove(m)}>Remove</Button>
-      </div>
-    </Card>
+          <div className="btn-row">
+            <Button variant="ghost" size="sm" icon="edit" onClick={() => onEdit(m)}>Edit</Button>
+            <Button variant="ghost" size="sm" icon="plus" onClick={() => onDuplicate(m)}>Copy</Button>
+            <Button variant="danger" size="sm" icon="trash" onClick={() => onRemove(m)}>Remove</Button>
+          </div>
+      </div>}
+    </div>
   );
 }

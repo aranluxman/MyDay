@@ -20,6 +20,7 @@ const Profile = lazy(() => import('./screens/Profile.jsx'));
 const Games = lazy(() => import('./screens/Games.jsx'));
 const GuardianJoin = lazy(() => import('./screens/GuardianJoin.jsx'));
 const Guardian = lazy(() => import('./screens/Guardian.jsx'));
+const AccountGuardian = lazy(() => import('./screens/AccountGuardian.jsx'));
 const NotificationSettings = lazy(() => import('./screens/NotificationSettings.jsx'));
 const Cards = lazy(() => import('./screens/Cards.jsx'));
 const HowTo = lazy(() => import('./screens/HowTo.jsx'));
@@ -31,19 +32,10 @@ function Root() {
   const { pathname } = useLocation();
   const publicFallback = <div className="content"><PageSkeleton /></div>;
 
-  // Public guardian page: a guardian is a different person with no MyDay
-  // account, on their own device, so this renders regardless of auth. It is
-  // also the PWA start_url when the dashboard is installed on its own, so it
-  // must never depend on a session.
-  if (pathname === '/guardian') {
-    // An old shared invite LINK still pairs through the original join screen;
-    // everything else — and every return visit — is the dashboard.
-    const fromInviteLink = new URLSearchParams(window.location.search).has('invite');
-    return (
-      <Suspense fallback={publicFallback}>
-        {fromInviteLink ? <GuardianJoin /> : <Guardian />}
-      </Suspense>
-    );
+  // Legacy invitation links are public. A signed-in person can otherwise be
+  // both a MyDay user and a guardian; guests keep their device-only dashboard.
+  if (pathname === '/guardian' && new URLSearchParams(window.location.search).has('invite')) {
+    return <Suspense fallback={publicFallback}><GuardianJoin /></Suspense>;
   }
 
   // Opening a recovery link signs the person in, so /reset-password has to win
@@ -54,6 +46,9 @@ function Root() {
 
   if (loading) {
     return publicFallback;
+  }
+  if (pathname === '/guardian') {
+    return <Suspense fallback={publicFallback}>{user ? <AccountGuardian /> : <Guardian />}</Suspense>;
   }
   if (!user) {
     // A guardian's phone opening MyDay again — from a bookmark, history, or

@@ -14,6 +14,7 @@ import { summarise, sortForDisplay, doseState, STATE_UI } from '../lib/doseState
 import { deliveryStatus } from '../lib/notifications.js';
 import { pushSupported } from '../lib/push.js';
 import { platformTag } from '../lib/guardian.js';
+import { listAccountGuardians } from '../lib/guardianAccount.js';
 import { useInstallPrompt } from '../hooks/useInstallPrompt.js';
 
 export default function Home() {
@@ -24,16 +25,17 @@ export default function Home() {
   const navigate = useNavigate();
   const { data, loading, error, reload } = useAsync(async () => {
     // Guardians are a nudge, not the day: if they fail to load, show nothing.
-    const [doses, appts, games, guardians] = await Promise.all([
+    const [doses, appts, games, guardians, watching] = await Promise.all([
       todaysDoses(), upcomingAppointments(), playedTodayCount(), listGuardians().catch(() => null),
+      listAccountGuardians().catch(() => []),
     ]);
-    return { doses, appts, games, guardians };
+    return { doses, appts, games, guardians, watching };
   });
 
   if (loading) return <HomeSkeleton />;
   if (error) return <Card className="center"><p className="lead">We could not load your information.</p><Button onClick={reload}>Try again</Button></Card>;
 
-  const { doses, appts, games, guardians } = data;
+  const { doses, appts, games, guardians, watching } = data;
   // Every number on this screen now comes from one place, so the header, the
   // counters, the glance chip and the calendar cannot drift apart. They used
   // to be computed separately here, which is how "0 of 3 taken" ended up
@@ -70,6 +72,21 @@ export default function Home() {
       <ReminderWarning installed={installed} />
 
       <GuardianNudge guardians={guardians} />
+
+      <section className="home-watching" aria-label="People I watch">
+          <h3 className="subsection">People I watch</h3>
+          {!watching.length && <p className="muted">Helping someone with their medicines? Enter their guardian code to check on them here.</p>}
+          {watching.map((person) => (
+            <button key={person.id} type="button" className="home-watching__person"
+              onClick={() => navigate('/guardian', { state: { linkId: person.id } })}>
+              <span><b>Check on {person.name}</b><small>See their medicine updates</small></span>
+              <Icon name="chevron" size={22} />
+            </button>
+          ))}
+          <button type="button" className="home-watching__all" onClick={() => navigate('/guardian')}>
+            {watching.length ? 'Manage guardian connections' : 'Enter a guardian code'}
+          </button>
+      </section>
 
       {completeness.pct < 100 && (
         <Card onClick={() => navigate('/profile')} role="button" tabIndex={0} aria-label={`Profile progress ${completeness.pct} percent — open profile`}

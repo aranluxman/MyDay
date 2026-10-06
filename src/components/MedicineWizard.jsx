@@ -11,6 +11,7 @@ import {
   describeSchedule, validateMedicine, courseLength,
 } from '../lib/schedule.js';
 import { searchMedicineNames } from '../lib/medicineNames.js';
+import { toMedicationPayload } from '../lib/medicationPayload.js';
 import { saveMedication, uploadMedPhoto, medPhotoUrl, recentMedicineNames } from '../lib/db.js';
 import { prettyTime } from '../lib/format.js';
 
@@ -40,25 +41,27 @@ const STEP_TITLES = {
 // `prefill` comes from reading a photo of the label (see MedicinePhotoScan):
 // the fields are filled in and the sheet opens on the review step, so the
 // person checks the AI's reading against the box before anything is saved.
-export function MedicineWizard({ med, prefill, onClose, onSaved }) {
+export function MedicineWizard({ med, prefill, stageDraft, onDraftChange, onStage, onClose, onSaved }) {
   const ui = useUI();
   const editing = !!med?.id;
-  const [step, setStep] = useState(() => (prefill && !editing ? STEPS.length - 1 : 0));
+  const staging = !!onStage;
+  const [step, setStep] = useState(() => stageDraft?.step ?? (prefill && !editing ? STEPS.length - 1 : 0));
   // +1 forward, -1 back: the step transition slides in the direction of travel.
   const [dir, setDir] = useState(1);
   const [busy, setBusy] = useState(false);
   const [touched, setTouched] = useState({});
-  const [form, setForm] = useState(() => initialForm(med, prefill?.form));
+  const [form, setForm] = useState(() => initialForm(med, prefill?.form, stageDraft?.form, staging));
   const [recent, setRecent] = useState([]);
 
   useEffect(() => { recentMedicineNames().then(setRecent).catch(() => {}); }, []);
+  useEffect(() => { onDraftChange?.({ form, step }); }, [form, step]);
 
   // Draft: only for a NEW medicine. Resuming a half-finished edit of an
   // existing one would silently reapply changes they walked away from.
   useEffect(() => {
-    if (editing) return;
+    if (editing || staging) return;
     try { localStorage.setItem(DRAFT_KEY, JSON.stringify({ at: Date.now(), form })); } catch {}
-  }, [form, editing]);
+  }, [form, editing, staging]);
 
   const set = (patch) => setForm((f) => ({ ...f, ...patch }));
   const problems = validateMedicine(form);
@@ -94,24 +97,12 @@ export function MedicineWizard({ med, prefill, onClose, onSaved }) {
     }
     setBusy(true);
     try {
-      const dose = buildDoseString(form.dose_amount, form.dose_unit, form.dose_other);
-      await saveMedication({
-        id: med?.id,
-        name: form.name.trim(),
-        dose,
-        dose_amount: form.dose_amount,
-        dose_unit: form.dose_unit,
-        dose_other: form.dose_unit === 'other' ? form.dose_other.trim() : null,
-        times: normaliseTimes(form.times),
-        frequency: form.frequency,
-        days_of_week: form.days_of_week,
-        start_date: form.start_date || null,
-        end_date: form.end_date || null,
-        with_food: form.with_food,
-        note: form.note.trim(),
-        color: form.color,
-        photo_path: form.photo_path,
-      });
+      const payload = toMedicationPayload(form);
+      if (staging) {
+        onStage(form);
+        return;
+      }
+      await saveMedication({ id: med?.id, ...payload });
       try { localStorage.removeItem(DRAFT_KEY); } catch {}
       ui.toast(editing ? 'Medicine updated.' : 'Medicine added.');
       onSaved();
@@ -127,7 +118,7 @@ export function MedicineWizard({ med, prefill, onClose, onSaved }) {
   return createPortal(
     <div className="sheet-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="sheet sheet--wizard" role="dialog" aria-modal="true"
-        aria-label={editing ? 'Edit medicine' : 'Add a medicine'}>
+        aria-label={editing ? 'Edit medicine' : staging ? 'Prepare a medicine' : 'Add a medicine'}>
         <div className="sheet__grab" />
 
         <div className="wiz__head">
@@ -181,7 +172,7 @@ export function MedicineWizard({ med, prefill, onClose, onSaved }) {
           )}
           {stepId === 'review' ? (
             <Button size="lg" icon={busy ? 'clock' : 'check'} disabled={busy} onClick={save}>
-              {busy ? 'Saving…' : editing ? 'Save changes' : 'Add this medicine'}
+              {busy ? 'Saving…' : editing ? 'Save changes' : staging ? 'Add to review' : 'Add this medicine'}
             </Button>
           ) : (
             <Button size="lg" onClick={() => go(1)}>Continue</Button>
@@ -198,7 +189,7 @@ export function MedicineWizard({ med, prefill, onClose, onSaved }) {
   );
 }
 
-function initialForm(med, fromPhoto) {
+function initialForm(med, fromPhoto, stagedForm, staging) {
   // Editing: prefer the structured columns, then fall back to parsing the old
   // free-text dose, then to showing the raw text as "other" so nothing is lost.
   if (med?.id) {
@@ -224,8 +215,10 @@ function initialForm(med, fromPhoto) {
     times: ['08:00'], frequency: 'daily', days_of_week: [],
     start_date: '', end_date: '', with_food: false, note: '', color: COLORS[0], photo_path: null,
   };
+  if (stagedForm) return { ...blank, ...stagedForm };
   // Read from a photo: that reading wins over any old draft.
   if (fromPhoto) return { ...blank, ...fromPhoto };
+  if (staging) return blank;
   // New: resume a draft if one is recent enough to still be what they meant.
   try {
     const raw = JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null');

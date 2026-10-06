@@ -3,6 +3,7 @@
 import { supabase } from './supabase.js';
 import { deviceTimezone, localDateStr } from './format.js';
 import { PREF_DEFAULTS } from './notifications.js';
+import { toMedicationPayload } from './medicationPayload.js';
 
 // ---------- profile ----------
 export async function getProfile() {
@@ -72,8 +73,8 @@ export async function listMedications() {
 // `dose` stays the display string built from the structured fields, so every
 // existing screen and the push notification bodies keep working while the
 // amount/unit pair becomes the thing people actually edit.
-export async function saveMedication(med) {
-  const row = {
+function medicationRow(med) {
+  return {
     name: med.name,
     dose: med.dose,
     times: med.times,
@@ -94,6 +95,10 @@ export async function saveMedication(med) {
     reminders_enabled: med.reminders_enabled !== false,
     alert_window_override: med.alert_window_override ?? null,
   };
+}
+
+export async function saveMedication(med) {
+  const row = medicationRow(med);
   if (med.id) {
     const { error } = await supabase.from('myday_medications').update(row).eq('id', med.id);
     if (error) throw error;
@@ -102,6 +107,18 @@ export async function saveMedication(med) {
   const { data, error } = await supabase.from('myday_medications').insert(row).select('id').single();
   if (error) throw error;
   return data.id;
+}
+
+// One Postgres INSERT statement: either every reviewed medicine is saved or
+// none is. There is no partial batch to recover after a network/server error.
+export async function saveMedicationsBulk(items, client = supabase) {
+  if (!Array.isArray(items) || !items.length) throw new Error('Add a medicine before saving.');
+  const rows = items.map((item) => ({ id: item.id, ...medicationRow(toMedicationPayload(item.form)) }));
+  // Stable draft IDs make a retry safe if the server committed but the reply
+  // was lost. A conflict means that exact reviewed medicine was already saved.
+  const { error } = await client.from('myday_medications').upsert(rows, { onConflict: 'id', ignoreDuplicates: true });
+  if (error) throw error;
+  return rows.length;
 }
 
 // Soft delete, so the dose history that points at this medicine survives.

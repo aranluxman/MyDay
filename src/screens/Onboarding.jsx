@@ -4,9 +4,8 @@ import { useApp } from '../context/AppContext.jsx';
 import { Icon } from '../components/Icon.jsx';
 import { GoogleButton } from '../components/GoogleButton.jsx';
 
-// Someone helping a loved one usually wants the guardian page, not a second
-// account, so their path adds a "How to help them" step that explains the
-// code and points there — with setting up the account here still possible.
+// Helpers can join with a code and also create their own account. One account
+// can track its own medicines and watch the people who invited it.
 const STEPS_SELF = ['who', 'age', 'account'];
 const STEPS_HELPER = ['who', 'help', 'age', 'account'];
 const AGE_CHIPS = [55, 60, 65, 70, 75, 80, 85, 90, 95];
@@ -85,7 +84,7 @@ export default function Onboarding() {
                 <li><b>On their phone,</b> open <b>myday-1rn.pages.dev</b> and create their account (or sign in).</li>
                 <li>In their MyDay, tap <b>Profile</b>, then <b>Invite a guardian</b>, and type your name.</li>
                 <li>Their phone shows a <b>6-digit code</b>. It works for 15 minutes.</li>
-                <li><b>On your phone,</b> tap the button below and type that code. Your phone will remember them — no account needed.</li>
+                <li><b>On your phone,</b> type that code. You can join as a guest or create your own MyDay account and keep the connection there.</li>
               </ol>
               <div className="ob__actions">
                 <button className="mkt-btn mkt-btn--primary mkt-btn--block" style={{ whiteSpace: 'normal', height: 'auto', minHeight: 54 }} onClick={() => navigate('/guardian')}>
@@ -93,7 +92,7 @@ export default function Onboarding() {
                 </button>
               </div>
               <p className="ob__switch">
-                <button type="button" onClick={next}>Set up their account on this phone instead</button>
+                <button type="button" onClick={() => { setForWhom('self'); setStep(1); }}>Create my own account too</button>
               </p>
             </>
           )}

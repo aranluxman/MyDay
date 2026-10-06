@@ -10,11 +10,11 @@ import {
 import { pushSupported, enablePush, isInstalled } from '../lib/push.js';
 import { doseState, summarise, sortForDisplay, adherence, dayMarkFromCounts, STATE_UI } from '../lib/doseState.js';
 import { prettyTime, prettyClock, prettyDate, shortDate } from '../lib/format.js';
+import { fetchAccountDashboard } from '../lib/guardianAccount.js';
 
 // The guardian side of MyDay: a persistent, READ-ONLY dashboard for the person
-// looking after someone. No account, no sign-in — the device itself is the
-// credential (see src/lib/guardian.js) and every read goes through the
-// `guardian-data` edge function.
+// looking after someone. Guests use a device credential; signed-in guardians
+// use an account connection. Every read goes through `guardian-data`.
 //
 // Before this existed, a guardian typed a 6-digit code, was told alerts were on
 // and then had nowhere to go, which made it feel as though the site had
@@ -56,6 +56,7 @@ function LinkDevice({ onLinked }) {
 
   async function submit(code) {
     setError('');
+    if (!name.trim()) { setError('Enter the name this person will see.'); return; }
     setBusy(true);
     try {
       await linkWithCode(code, name.trim());
@@ -85,15 +86,16 @@ function LinkDevice({ onLinked }) {
           {error && <div className="ob__err" role="alert">{error}</div>}
 
           <div className="ob-field">
-            <label htmlFor="g-name">Your name</label>
+            <label htmlFor="g-name">Choose your name</label>
             <input id="g-name" className="ob-input" value={name} onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Sarah" autoComplete="name" />
+              placeholder="e.g. Sarah" maxLength={60} autoComplete="name" />
           </div>
 
           <CodeEntry error={error} busy={busy} onSubmit={submit} />
           <p className="ob__switch">
             Not a guardian? <a href="/?home=1" onClick={forgetGuardianMode}>Use MyDay for myself</a>
           </p>
+          <p className="ob__switch">Want to track your own medicines too? <a href="/get-started">Create your own account</a></p>
         </div>
       </div>
     </div>
@@ -102,7 +104,7 @@ function LinkDevice({ onLinked }) {
 
 // Six big digit boxes. One digit per box, auto-advance, paste and backspace all
 // work, and the numeric keypad comes up on a tablet.
-function CodeEntry({ error, busy, onSubmit }) {
+export function CodeEntry({ error, busy, onSubmit }) {
   const [digits, setDigits] = useState(['', '', '', '', '', '']);
   const refs = useRef([]);
   const code = digits.join('');
@@ -159,7 +161,7 @@ function CodeEntry({ error, busy, onSubmit }) {
 
 /* =============================== dashboard =============================== */
 
-function Dashboard({ onUnlinked }) {
+export function Dashboard({ onUnlinked, accountLinkId = null, accountToken = null }) {
   const [state, setState] = useState({ loading: true, data: null, cached: false, at: null, error: '' });
   const [view, setView] = useState('today');
   const [refreshing, setRefreshing] = useState(false);
@@ -173,7 +175,7 @@ function Dashboard({ onUnlinked }) {
     if (!quiet) setRefreshing(true);
     setRefreshPhase('spin');
     try {
-      const res = await fetchDashboard();
+      const res = accountLinkId ? await fetchAccountDashboard(accountLinkId) : await fetchDashboard();
       setState({ loading: false, data: res.data, cached: res.cached, at: res.at, error: '' });
       setRefreshPhase('done');
       setTimeout(() => setRefreshPhase('idle'), 900);
@@ -184,7 +186,7 @@ function Dashboard({ onUnlinked }) {
     } finally {
       setRefreshing(false);
     }
-  }, [onUnlinked]);
+  }, [onUnlinked, accountLinkId]);
 
   useEffect(() => { load({ quiet: true }); }, [load]);
 
@@ -209,7 +211,7 @@ function Dashboard({ onUnlinked }) {
 
   if (!state.data) {
     return (
-      <GuardianFrame onRefresh={() => load()} refreshing={refreshing} phase={refreshPhase}>
+      <GuardianFrame onRefresh={() => load()} refreshing={refreshing} phase={refreshPhase} accountMode={!!accountLinkId}>
         <div className="card center">
           <p className="lead">{state.error || 'We could not load the dashboard.'}</p>
           <button className="btn btn--primary btn--md btn--full" onClick={() => load()}>Try again</button>
@@ -224,11 +226,16 @@ function Dashboard({ onUnlinked }) {
   const todaySummary = summarise(d.today?.doses || [], opts);
 
   return (
-    <GuardianFrame onRefresh={() => load()} refreshing={refreshing} phase={refreshPhase} pull={pull}>
-      {intro && <IntroSheet permissions={d.permissions} patient={d.patient?.name}
+    <GuardianFrame onRefresh={() => load()} refreshing={refreshing} phase={refreshPhase} pull={pull} accountMode={!!accountLinkId}>
+      {intro && <IntroSheet permissions={d.permissions} patient={d.patient?.name} accountMode={!!accountLinkId}
         onClose={() => { setIntro(false); try { localStorage.setItem(SEEN_INTRO_KEY, '1'); } catch {} }} />}
 
-      <StatusHeader patient={d.patient} summary={todaySummary} date={d.today?.date} />
+      <StatusHeader patient={d.patient} guardianName={d.guardian?.name} summary={todaySummary} date={d.today?.date} />
+
+      {!accountLinkId && <div className="g-guest-account">
+        <span>Want to track your own medicines too?</span>
+        <a href="/get-started">Create your own account</a>
+      </div>}
 
       {state.cached && <StaleBanner at={state.at} />}
       {state.error && !state.cached && <div className="g-warn" role="status">{state.error}</div>}
@@ -249,24 +256,25 @@ function Dashboard({ onUnlinked }) {
           guardian came for, so they pair up once there is room. */}
       <div className="g-two">
         <CallPanel patient={d.patient?.name} contacts={d.contacts || []} />
-        <AlertsPanel notifications={d.notifications} patient={d.patient?.name} onChanged={() => load({ quiet: true })} />
+        {(!accountLinkId || accountToken) && <AlertsPanel notifications={d.notifications} patient={d.patient?.name} token={accountToken} onChanged={() => load({ quiet: true })} />}
       </div>
 
       <ReadOnlyNote permissions={d.permissions} onShowIntro={() => setIntro(true)} />
 
-      <DisconnectPanel onDone={onUnlinked} />
+      {!accountLinkId && <DisconnectPanel onDone={onUnlinked} />}
     </GuardianFrame>
   );
 }
 
 // Shell: brand bar with a refresh control that spins, then settles into a ✓.
-function GuardianFrame({ children, onRefresh, refreshing, phase, pull }) {
+function GuardianFrame({ children, onRefresh, refreshing, phase, pull, accountMode }) {
   return (
     <div className="g-shell" {...(pull?.handlers || {})}>
       <header className="g-top">
         <div className="mkt-brand" style={{ fontSize: 19 }}>
           <span className="mkt-brand__mark" style={{ width: 28, height: 28 }}><Icon name="pulse" size={15} /></span>MyDay
         </div>
+        {accountMode && <a className="g-account-home" href="/">My day</a>}
         <button className="g-refresh" onClick={onRefresh} disabled={refreshing}
           aria-label="Refresh" data-phase={phase}>
           <Icon name={phase === 'done' ? 'check' : 'refresh'} size={21} />
@@ -278,7 +286,7 @@ function GuardianFrame({ children, onRefresh, refreshing, phase, pull }) {
   );
 }
 
-function StatusHeader({ patient, summary, date }) {
+function StatusHeader({ patient, guardianName, summary, date }) {
   // One word for the whole day, so a guardian glancing at a phone on the bus
   // gets the answer before reading anything else.
   const tone = summary.missed ? 'bad' : summary.overdue ? 'warn' : summary.allTaken ? 'good' : 'neutral';
@@ -288,6 +296,7 @@ function StatusHeader({ patient, summary, date }) {
         <span className="g-status__eyebrow">Caring for</span>
         <h1 className="g-status__name">{patient?.name}</h1>
         <p className="g-status__date">{prettyDate(date)}</p>
+        {guardianName && <p className="g-status__date">Connected as {guardianName}</p>}
       </div>
       <p className="g-status__headline" aria-live="polite">
         <span className="g-status__ic"><Icon name={summary.missed || summary.overdue ? 'bell' : 'check'} size={22} /></span>
@@ -604,7 +613,7 @@ const contactWord = (t) => CONTACT_WORD[t] || 'Contact';
 
 /* ------------------------------- alerts -------------------------------- */
 
-function AlertsPanel({ notifications, patient, onChanged }) {
+function AlertsPanel({ notifications, patient, token, onChanged }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const on = !!notifications?.push_enabled;
@@ -615,20 +624,20 @@ function AlertsPanel({ notifications, patient, onChanged }) {
     setError(''); setBusy(true);
     try {
       const sub = await enablePush();
-      await enableGuardianPush(sub);
+      await enableGuardianPush(sub, token);
       onChanged();
     } catch (e) { setError(e.message || 'Could not turn on alerts.'); }
     finally { setBusy(false); }
   }
   async function turnOff() {
     setBusy(true);
-    try { await disableGuardianPush(); onChanged(); }
+    try { await disableGuardianPush(token); onChanged(); }
     catch (e) { setError(e.message || 'Could not turn off alerts.'); }
     finally { setBusy(false); }
   }
   async function pickSummary(value) {
     setBusy(true);
-    try { await setDailySummary(value || null); onChanged(); }
+    try { await setDailySummary(value || null, token); onChanged(); }
     catch (e) { setError(e.message || 'Could not save.'); }
     finally { setBusy(false); }
   }
@@ -680,13 +689,14 @@ function AlertsPanel({ notifications, patient, onChanged }) {
 
 /* ---------------------------- what I can see ---------------------------- */
 
-function IntroSheet({ permissions, patient, onClose }) {
+function IntroSheet({ permissions, patient, accountMode, onClose }) {
   return (
     <Modal title="What you can see" onClose={onClose}>
       <p className="dialog-msg">
-        This page shows you how {patient} is doing with their medicines. It stays on this device,
-        so you can come back any time without a code — just open <b>myday-1rn.pages.dev</b> again
-        (or add it to your home screen) and you'll land right here.
+        This page shows you how {patient} is doing with their medicines.{' '}
+        {accountMode
+          ? 'This connection is saved to your account, so you can check again after signing in on another device.'
+          : <>It stays on this device, so you can come back without a code by opening <b>myday-1rn.pages.dev</b> again.</>}
       </p>
       <ul className="g-can">
         <li className="g-can__yes"><Icon name="check" size={20} /> Today's medicines and whether each was taken</li>

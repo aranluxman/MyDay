@@ -239,6 +239,31 @@ h3.subsection { font-size: 21px; margin: 8px 0 0; }
 .hello__name { margin: 2px 0; font-size: 28px; letter-spacing: -0.01em; }
 .hello__date { margin: 0; color: var(--ink-soft); font-size: 16px; }
 .hello__avatar { border: 0; background: transparent; padding: 0; cursor: pointer; }
+.home-watching { display: flex; flex-direction: column; gap: 8px; padding: 16px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
+.home-watching .subsection, .home-watching p { margin: 0; }
+.home-watching__person { width: 100%; min-height: 66px; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface-2); color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
+.home-watching__person span { display: flex; flex-direction: column; gap: 2px; }
+.home-watching__person small { color: var(--ink-soft); font-size: 14px; }
+.home-watching__all { align-self: flex-start; min-height: 44px; border: 0; background: none; color: var(--primary); font: inherit; font-weight: 800; cursor: pointer; }
+.g-account-page { max-width: 760px; margin: 0 auto; padding: 20px 16px 80px; display: flex; flex-direction: column; gap: 18px; }
+.g-account-head h1 { margin: 10px 0 4px; }
+.g-account-head p { margin: 0; color: var(--ink-soft); }
+.g-account-back, .g-account-switch button { min-height: 44px; display: inline-flex; align-items: center; gap: 6px; border: 0; background: none; color: var(--primary); font: inherit; font-weight: 800; cursor: pointer; }
+.g-account-list { display: flex; flex-direction: column; gap: 10px; }
+.g-account-person { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+.g-account-person div { display: flex; flex-direction: column; gap: 3px; }
+.g-account-person span { color: var(--ink-soft); }
+.g-account-person .btn { font-size: 16px; }
+.g-account-remove { min-height: 44px; margin-top: 8px; border: 0; background: none; color: var(--bad-ink); font: inherit; font-weight: 700; cursor: pointer; }
+.g-account-join h2 { margin: 0 0 6px; }
+.g-account-join p { color: var(--ink-soft); }
+.g-account-label { display: block; margin: 12px 0 6px; font-weight: 800; }
+.g-account-join .code-boxes { margin-top: 16px; }
+.g-account-switch { padding: 8px 16px; background: var(--surface); }
+.g-account-home { color: var(--primary); font-weight: 800; margin-right: 10px; }
+.g-guest-account { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 16px; border-radius: 14px; background: var(--surface); }
+.g-guest-account a { color: var(--primary); font-weight: 800; }
+@media (max-width: 600px) { .g-account-person { align-items: stretch; flex-direction: column; } .g-account-person .btn { width: 100%; } .g-guest-account { align-items: flex-start; flex-direction: column; } }
 .avatar { display: inline-grid; place-items: center; border-radius: 50%; color: #fff; font-weight: 800; }
 .reminder { text-align: center; background: linear-gradient(160deg, var(--warn-bg), var(--surface)); border: 1px solid color-mix(in srgb, var(--warn) 40%, var(--line)); }
 .reminder__kicker { font-size: 15px; font-weight: 800; color: var(--warn-ink); text-transform: uppercase; letter-spacing: 0.05em; }
@@ -1490,6 +1515,44 @@ html[data-motion='calm'] .wiz__disclose svg { transition: none !important; }
 
 /* ---- Medicines list card + Today headline ---- */
 .today__headline { margin: 0; font-size: 20px; font-weight: 800; letter-spacing: -0.01em; }
+.medlist__toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.medlist__toolbar .btn { font-size: 16px; }
+.medlist__count { font-size: 19px; font-weight: 800; }
+.medlist__controls { display: grid; grid-template-columns: minmax(0, 1fr) minmax(160px, 190px); gap: 10px; }
+.medlist__sort { cursor: pointer; }
+.medlist { display: flex; flex-direction: column; gap: 8px; }
+.medlist__item { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow); overflow: hidden; }
+.medlist__summary { width: 100%; min-height: 76px; display: flex; align-items: center; gap: 12px; padding: 10px 14px; border: 0; background: none; color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
+.medlist__summary:focus-visible { outline: 3px solid var(--primary); outline-offset: -3px; }
+.medlist__photo, .medlist__icon { flex: 0 0 46px; width: 46px; height: 46px; border-radius: 12px; }
+.medlist__photo { object-fit: cover; }
+.medlist__icon { display: grid; place-items: center; color: #fff; }
+.medlist__main { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.medlist__name { font-size: 18px; font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.medlist__sub { color: var(--ink-soft); font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.medlist__chevron { flex: 0 0 auto; color: var(--ink-soft); transition: transform .18s ease; }
+.medlist__chevron.is-open { transform: rotate(90deg); }
+.medlist__details { padding: 4px 14px 14px 72px; border-top: 1px solid var(--line); }
+.medlist__details .btn-row { margin-top: 14px; }
+.medbatch { display: flex; flex-direction: column; gap: 14px; }
+.medbatch__intro, .medbatch__saved { margin: 0; color: var(--ink-soft); }
+.medbatch__review { display: flex; flex-direction: column; gap: 8px; max-height: 44vh; overflow-y: auto; }
+.medbatch__item { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px; border-radius: 14px; border: 1px solid var(--line); background: var(--surface); }
+.medbatch__itemmain { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.medbatch__itemmain b { font-size: 17px; }
+.medbatch__itemmain span { color: var(--ink-soft); font-size: 14px; overflow-wrap: anywhere; }
+.medbatch__itemactions { flex: 0 0 auto; display: flex; gap: 6px; }
+.medbatch__add { display: flex; gap: 10px; }
+.medbatch__add .btn { flex: 1; font-size: 16px; }
+.medbatch__empty { text-align: center; padding: 22px 12px; margin: 0; border: 1px dashed var(--line); border-radius: 14px; color: var(--ink-soft); }
+.medbatch__unfinished { padding: 14px; background: var(--surface-2); border-radius: 14px; }
+.medbatch__unfinished p { margin: 0; }
+@media (max-width: 600px) {
+  .medlist__controls { grid-template-columns: 1fr; }
+  .medlist__details { padding-left: 14px; }
+  .medbatch__item { align-items: stretch; flex-direction: column; }
+  .medbatch__add { flex-direction: column; }
+}
 .medrow { display: flex; align-items: flex-start; gap: 12px; }
 .medrow__photo {
   flex: 0 0 auto; width: 60px; height: 60px; object-fit: cover;

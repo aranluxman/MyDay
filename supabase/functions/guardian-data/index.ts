@@ -1,11 +1,11 @@
-// MyDay — guardian dashboard data (unauthenticated caller, service role).
+// MyDay — read-only guardian dashboard for device-only and signed-in helpers.
 //
-// A guardian is a different person, on their own device, with no MyDay account.
-// This function is the ONLY way their device reads a senior's data, and it is
+// A guardian can use a device token or their own MyDay account. This function
+// is the ONLY way either route reads another person's data, and it is
 // the whole security boundary for Part A. The rules it enforces:
 //
-//   1. Every request resolves to exactly ONE senior (`user_id`), from either a
-//      single-use 6-digit code (linking) or a 256-bit device token (returning).
+//   1. Every dashboard request resolves to exactly ONE senior (`user_id`), from
+//      a single-use code, a 256-bit device token, or a verified account link.
 //      Every query below is filtered on that one id. A device token can never
 //      widen to another senior, because user_id is never taken from the request.
 //   2. READ-ONLY. There is no code path here that writes to myday_medications,
@@ -27,11 +27,17 @@
 //   { action:'unsubscribe',token }                          -> { ok }
 //   { action:'disconnect', token }                          -> { ok }   ("not my device")
 //   { action:'summary',    token, at:'HH:MM'|null }         -> { ok }
+//   { action:'account_link', code, name }                  -> { link_id, ...dashboard }
+//   { action:'account_claim', token }                      -> { ok }
+//   { action:'account_list' }                              -> { links }
+//   { action:'account_dashboard', link_id }                -> dashboard
+//   { action:'account_device', link_id, label?, platform? } -> { link_id, token }
+//   { action:'account_unlink', link_id }                   -> { ok }
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
 // The authorization rules live in a shared plain-JS module so node's test
 // runner covers exactly the code that runs here. See test/guardianAccess.test.js.
 import {
-  authorizeCode, authorizeDevice, looksLikeToken, normaliseCode, visibleTables,
+  authorizeCode, authorizeDevice, authorizeAccountLink, looksLikeToken, normaliseCode, visibleTables,
 } from '../_shared/guardianAccess.js';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
@@ -89,12 +95,63 @@ Deno.serve(async (req) => {
   const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
   const clientKey = (req.headers.get('x-forwarded-for') || 'unknown').split(',')[0].trim();
 
+  // Account actions require a real session JWT. The publishable key can reach
+  // this function but cannot pass getUser(jwt), and IDs in the body are never
+  // used as the account identity.
+  let accountUserId: string | null = null;
+  if (action.startsWith('account_')) {
+    const bearer = req.headers.get('Authorization')?.match(/^Bearer\s+(.+)$/i)?.[1] || '';
+    const { data: auth, error: authError } = bearer
+      ? await admin.auth.getUser(bearer)
+      : { data: { user: null }, error: new Error('No session') };
+    if (authError || !auth?.user?.id) return json({ error: 'Please sign in to view people you care for.' }, 401);
+    accountUserId = auth.user.id;
+  }
+
+  if (action === 'account_list') {
+    const { data: links, error: listError } = await admin.from('myday_guardian_accounts')
+      .select('device_id').eq('guardian_user_id', accountUserId!);
+    if (listError) return json({ error: 'Could not load your guardian connections.' }, 500);
+    if (!links?.length) return json({ links: [] });
+    const { data: devices, error: devicesError } = await admin.from('myday_guardian_devices')
+      .select('id, guardian_id, revoked_at, created_at').in('id', links.map((l) => l.device_id))
+      .order('created_at', { ascending: false });
+    if (devicesError) return json({ error: 'Could not load your guardian connections.' }, 500);
+    const live = (devices || []).filter((d) => !d.revoked_at);
+    if (!live.length) return json({ links: [] });
+    const guardianIds = [...new Set(live.map((d) => d.guardian_id))];
+    const { data: guardians, error: guardiansError } = await admin.from('myday_guardians')
+      .select('id, user_id, status').in('id', guardianIds);
+    if (guardiansError) return json({ error: 'Could not load your guardian connections.' }, 500);
+    const active = (guardians || []).filter((g) => g.status === 'active');
+    if (!active.length) return json({ links: [] });
+    const { data: profiles, error: profilesError } = await admin.from('myday_profiles')
+      .select('user_id, full_name').in('user_id', [...new Set(active.map((g) => g.user_id))]);
+    if (profilesError) return json({ error: 'Could not load your guardian connections.' }, 500);
+    const names = new Map((profiles || []).map((p) => [p.user_id, p.full_name]));
+    const byGuardian = new Map(active.map((g) => [g.id, g]));
+    const seen = new Set<string>();
+    return json({ links: live.filter((d) => {
+      if (!byGuardian.has(d.guardian_id) || seen.has(d.guardian_id)) return false;
+      seen.add(d.guardian_id);
+      return true;
+    }).map((d) => {
+      const g = byGuardian.get(d.guardian_id)!;
+      return {
+        id: d.id,
+        device_ids: live.filter((other) => other.guardian_id === d.guardian_id).map((other) => other.id),
+        name: names.get(g.user_id) || 'the person you care for',
+      };
+    }) });
+  }
+
   // ---------------- resolve the caller to one guardian device ----------------
   let guardian: any = null;
   let device: any = null;
   let freshToken: string | null = null;
+  let accountLink: any = null;
 
-  if (action === 'link') {
+  if (action === 'link' || action === 'account_link') {
     if (!normaliseCode(code)) {
       return json({ error: 'Please enter the 6-digit code from the other person’s MyDay app.' }, 400);
     }
@@ -116,6 +173,13 @@ Deno.serve(async (req) => {
       logSafe('link', verdict.code);
       return json({ error: verdict.message }, verdict.status);
     }
+
+    if (accountUserId && g.user_id === accountUserId) {
+      return json({ error: 'You cannot use your own guardian code.' }, 400);
+    }
+
+    const name = String(body.name || '').trim().slice(0, 60);
+    if (!name) return json({ error: 'Please enter the name you want this person to see.' }, 400);
 
     // A correct code: this caller is not guessing.
     await admin.rpc('myday_join_rate_clear', { p_key: clientKey });
@@ -140,28 +204,46 @@ Deno.serve(async (req) => {
       return json({ error: 'Could not connect this device. Please try again.' }, 500);
     }
 
+    if (accountUserId) {
+      const { error: linkError } = await admin.from('myday_guardian_accounts')
+        .insert({ device_id: dev.id, guardian_user_id: accountUserId });
+      if (linkError) {
+        await admin.from('myday_guardian_devices').update({ revoked_at: new Date().toISOString() }).eq('id', dev.id);
+        logSafe('account_link', 'account-insert-failed');
+        return json({ error: 'Could not save this connection to your account. Please try again.' }, 500);
+      }
+    }
+
     // Burn the code and record the name the guardian gave for themselves.
     const patch: Record<string, unknown> = {
       status: 'active',
       activated_at: new Date().toISOString(),
       code_used_at: new Date().toISOString(),
     };
-    const name = String(body.name || '').trim().slice(0, 60);
-    if (name) patch.name = name;
+    patch.name = name;
     await admin.from('myday_guardians').update(patch).eq('id', g.id);
 
     guardian = { ...g, name: name || g.name };
     device = dev;
-    logSafe('link', 'ok');
+    logSafe(action, 'ok');
   } else {
-    // Every other action needs a device token.
-    if (!looksLikeToken(token)) {
+    // Returning helpers use either their verified account link or device token.
+    const accountLinkId = String(body.link_id || '').trim();
+    const usesAccountLink = ['account_dashboard', 'account_unlink', 'account_device'].includes(action);
+    if (usesAccountLink && !/^[0-9a-f-]{36}$/i.test(accountLinkId)) {
+      return json({ error: 'Choose a person you care for.' }, 400);
+    }
+    if (!usesAccountLink && !looksLikeToken(token)) {
       return json({ error: 'This device is not connected. Please enter a 6-digit code.', code: 'unlinked' }, 401);
     }
-    const { data: dev } = await admin
-      .from('myday_guardian_devices')
+    if (usesAccountLink) {
+      const { data: link } = await admin.from('myday_guardian_accounts')
+        .select('device_id, guardian_user_id').eq('device_id', accountLinkId).eq('guardian_user_id', accountUserId!).maybeSingle();
+      accountLink = link;
+    }
+    const { data: dev } = await admin.from('myday_guardian_devices')
       .select('id, guardian_id, push_enabled, daily_summary_at, label, revoked_at')
-      .eq('token_hash', await sha256(token))
+      .eq(usesAccountLink ? 'id' : 'token_hash', usesAccountLink ? accountLinkId : await sha256(token))
       .maybeSingle();
 
     const { data: g } = dev?.guardian_id
@@ -172,7 +254,9 @@ Deno.serve(async (req) => {
           .maybeSingle()
       : { data: null };
 
-    const verdict = authorizeDevice({ device: dev, guardian: g });
+    const verdict = usesAccountLink
+      ? authorizeAccountLink({ link: accountLink, accountUserId, device: dev, guardian: g })
+      : authorizeDevice({ device: dev, guardian: g });
     if (!verdict.ok) {
       logSafe(action, verdict.code);
       return json({ error: verdict.message, code: verdict.code }, verdict.status);
@@ -183,6 +267,58 @@ Deno.serve(async (req) => {
 
   // From here on, `userId` is the ONLY senior this request can ever see.
   const userId: string = guardian.user_id;
+
+  if (action === 'account_claim') {
+    const { data: existing } = await admin.from('myday_guardian_accounts')
+      .select('guardian_user_id').eq('device_id', device.id).maybeSingle();
+    if (existing?.guardian_user_id && existing.guardian_user_id !== accountUserId) {
+      return json({ error: 'This connection belongs to another account.' }, 403);
+    }
+    if (!existing) {
+      const { error } = await admin.from('myday_guardian_accounts')
+        .insert({ device_id: device.id, guardian_user_id: accountUserId });
+      if (error) return json({ error: 'Could not add this connection to your account.' }, 500);
+    }
+    return json({ ok: true, link_id: device.id });
+  }
+
+  if (action === 'account_device') {
+    const { count, error: countError } = await admin.from('myday_guardian_devices')
+      .select('id', { count: 'exact', head: true }).eq('guardian_id', guardian.id).is('revoked_at', null);
+    if (countError) return json({ error: 'Could not check connected devices.' }, 500);
+    if ((count || 0) >= 10) return json({ error: 'Too many connected devices. Disconnect one before adding another.' }, 400);
+    const nextToken = newToken();
+    const { data: next, error: deviceError } = await admin.from('myday_guardian_devices')
+      .insert({
+        guardian_id: guardian.id,
+        token_hash: await sha256(nextToken),
+        label: String(body.label || '').trim().slice(0, 60) || 'This device',
+        platform: String(body.platform || '').trim().slice(0, 40) || null,
+        last_seen_at: new Date().toISOString(),
+      }).select('id').single();
+    if (deviceError) return json({ error: 'Could not connect this device.' }, 500);
+    const { error: linkError } = await admin.from('myday_guardian_accounts')
+      .insert({ device_id: next.id, guardian_user_id: accountUserId });
+    if (linkError) {
+      await admin.from('myday_guardian_devices').update({ revoked_at: new Date().toISOString() }).eq('id', next.id);
+      return json({ error: 'Could not connect this device.' }, 500);
+    }
+    return json({ link_id: next.id, token: nextToken });
+  }
+
+  if (action === 'account_unlink') {
+    const { data: accountRows, error: rowsError } = await admin.from('myday_guardian_accounts')
+      .select('device_id').eq('guardian_user_id', accountUserId!);
+    if (rowsError) return json({ error: 'Could not disconnect this person.' }, 500);
+    const ids = (accountRows || []).map((row) => row.device_id);
+    if (ids.length) {
+      const { error } = await admin.from('myday_guardian_devices')
+        .update({ revoked_at: new Date().toISOString(), push_enabled: false })
+        .eq('guardian_id', guardian.id).in('id', ids);
+      if (error) return json({ error: 'Could not disconnect this person.' }, 500);
+    }
+    return json({ ok: true });
+  }
 
   // ---------------- write-only-to-own-rows actions ----------------
   if (action === 'disconnect') {
@@ -232,7 +368,7 @@ Deno.serve(async (req) => {
     return json({ ok: true });
   }
 
-  if (action !== 'link' && action !== 'dashboard') {
+  if (action !== 'link' && action !== 'dashboard' && action !== 'account_link' && action !== 'account_dashboard') {
     return json({ error: 'Unknown action.' }, 400);
   }
 
@@ -290,6 +426,7 @@ Deno.serve(async (req) => {
   return json({
     ok: true,
     ...(freshToken ? { token: freshToken } : {}),
+    ...(accountUserId && freshToken ? { link_id: device.id } : {}),
     guardian: { name: guardian.name, device_label: device.label },
     patient: {
       name: prof?.full_name || 'the person you care for',

@@ -152,21 +152,21 @@ function stripToken(data) {
   return rest;
 }
 
-export async function enableGuardianPush(subscription) {
-  const token = getGuardianToken();
+export async function enableGuardianPush(subscription, tokenOverride = null) {
+  const token = tokenOverride || getGuardianToken();
   if (!token) throw new GuardianUnlinked();
   const sub = subscription?.toJSON ? subscription.toJSON() : subscription;
   return call({ action: 'subscribe', token, subscription: sub });
 }
 
-export async function disableGuardianPush() {
-  const token = getGuardianToken();
+export async function disableGuardianPush(tokenOverride = null) {
+  const token = tokenOverride || getGuardianToken();
   if (!token) throw new GuardianUnlinked();
   return call({ action: 'unsubscribe', token });
 }
 
-export async function setDailySummary(at) {
-  const token = getGuardianToken();
+export async function setDailySummary(at, tokenOverride = null) {
+  const token = tokenOverride || getGuardianToken();
   if (!token) throw new GuardianUnlinked();
   return call({ action: 'summary', token, at: at || null });
 }

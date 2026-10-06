@@ -60,6 +60,14 @@ export function authorizeDevice({ device, guardian, now = Date.now() }) {
   };
 }
 
+/** An account link must belong to this signed-in user and a live device. */
+export function authorizeAccountLink({ link, accountUserId, device, guardian, now = Date.now() }) {
+  if (!accountUserId || link?.guardian_user_id !== accountUserId || link?.device_id !== device?.id) {
+    return { ok: false, code: 'not_linked', status: 403, message: 'This guardian connection is not available.' };
+  }
+  return authorizeDevice({ device, guardian, now });
+}
+
 /**
  * May this 6-digit code be used to link a new device?
  *
