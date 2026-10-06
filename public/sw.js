@@ -1,6 +1,6 @@
 // MyDay service worker: offline app-shell + web-push handling.
 // Vite emits hashed asset filenames, so we cache at runtime rather than precache.
-const CACHE = 'myday-v13';
+const CACHE = 'myday-v14';
 const CARD_CACHE = 'myday-cards-v1';
 // '/guardian' and its manifest are precached too: a guardian's installed app
 // starts there, and it has to open with no signal (they may be in a clinic
@@ -159,8 +159,11 @@ self.addEventListener('notificationclick', (e) => {
     return;
   }
 
-  // Tapping the body opens the right screen.
-  const target = d.url || '/';
+  // Tapping the body opens the right screen. A guardian alert is marked so
+  // the app knows this was a tap on the alert, not someone simply reopening
+  // MyDay — which, for a person with their own account, starts at Home.
+  let target = d.url || '/';
+  if (/^\/guardian\/?$/.test(target)) target = '/guardian?from=alert';
   e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
     for (const c of list) {
       if ('focus' in c) {
