@@ -4,6 +4,7 @@ import { supabase } from './supabase.js';
 import { deviceTimezone, localDateStr } from './format.js';
 import { PREF_DEFAULTS } from './notifications.js';
 import { toMedicationPayload } from './medicationPayload.js';
+import { DUE_SOON_MINUTES } from './doseState.js';
 
 // ---------- profile ----------
 export async function getProfile() {
@@ -207,7 +208,7 @@ export async function refreshDoses(tz = deviceTimezone()) {
 }
 export async function dosesForDate(isoDate) {
   const { data, error } = await supabase.from('myday_doses')
-    .select('*, medication:myday_medications(name,dose,note,color)')
+    .select('*, medication:myday_medications(name,dose,dose_unit,note,color)')
     .eq('dose_date', isoDate).order('due_at', { ascending: true });
   if (error) throw error;
   return data || [];
@@ -224,10 +225,26 @@ export async function dosesInRange(fromIso, toIso) {
   if (error) throw error;
   return data || [];
 }
-export async function markDoseTaken(id) {
-  const { error } = await supabase.from('myday_doses')
-    .update({ status: 'taken', taken_at: new Date().toISOString() }).eq('id', id);
+// Every dose for the history list, newest day first, with enough of the
+// medicine to name it and pick its icon.
+export async function doseHistory(fromIso, toIso) {
+  const { data, error } = await supabase.from('myday_doses')
+    .select('id,dose_date,scheduled_time,due_at,status,taken_at,skip_reason,medication_id,medication:myday_medications(name,dose,dose_unit,color)')
+    .gte('dose_date', fromIso).lte('dose_date', toIso)
+    .order('dose_date', { ascending: false }).order('due_at', { ascending: true });
   if (error) throw error;
+  return data || [];
+}
+// Only a dose whose time has come (from DUE_SOON_MINUTES before) can be
+// marked. The UI hides the button for later doses; this filter makes sure no
+// other path can record tonight's dose as taken at lunchtime.
+export async function markDoseTaken(id) {
+  const latest = new Date(Date.now() + DUE_SOON_MINUTES * 60_000).toISOString();
+  const { data, error } = await supabase.from('myday_doses')
+    .update({ status: 'taken', taken_at: new Date().toISOString() })
+    .eq('id', id).lte('due_at', latest).select('id');
+  if (error) throw error;
+  if (!data?.length) throw new Error('This dose is not due yet.');
 }
 // "Not today": a deliberate decision, not a failure. It is its own status so
 // the sweep never turns it into a missed-dose alert and the adherence history

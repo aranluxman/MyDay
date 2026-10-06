@@ -167,9 +167,29 @@ export const STATE_UI = {
   upcoming: { label: 'To take',  icon: 'clock',  tone: 'upcoming', kind: 'pending' },
 };
 
+/**
+ * Can this dose be marked taken right now? Only from DUE_SOON_MINUTES before
+ * its time onward: a 22:00 dose cannot be ticked off at 13:00, because a tick
+ * then means the evening dose is recorded as taken before anyone took it.
+ * A missed dose stays markable — "I took it late" is still the truth.
+ */
+export function canMarkTaken(dose, opts = {}) {
+  const st = doseState(dose, opts);
+  return st === 'due' || st === 'overdue' || st === 'missed';
+}
+
+/** When a not-yet-due dose becomes markable, or null if due_at is unusable. */
+export function unlocksAt(dose) {
+  const dueAt = new Date(dose?.due_at).getTime();
+  return Number.isFinite(dueAt) ? new Date(dueAt - DUE_SOON_MINUTES * MINUTE) : null;
+}
+
 /** Sorts doses for display: what needs doing first, then the rest by time. */
 export function sortForDisplay(doses, opts = {}) {
-  const rank = { overdue: 0, due: 1, upcoming: 2, missed: 3, taken: 4, skipped: 5 };
+  // 'missed' sits above 'upcoming' on purpose. A morning dose marked late
+  // (missed at 10:30, taken at 13:35) used to sort below the same medicine's
+  // 21:00 dose, so tapping the top card marked the evening dose instead.
+  const rank = { overdue: 0, due: 1, missed: 2, upcoming: 3, taken: 4, skipped: 5 };
   return [...(doses || [])].sort((a, b) => {
     const ra = rank[doseState(a, opts)] ?? 9;
     const rb = rank[doseState(b, opts)] ?? 9;

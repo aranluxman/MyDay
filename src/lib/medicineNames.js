@@ -10,96 +10,124 @@
 // that is what people actually call it. Weighted toward what is commonly
 // dispensed to older adults in Canada.
 
-export const MEDICINE_NAMES = [
+// Grouped so the medicine icon (lib/medIcon.js) can tell a vitamin from a
+// heart tablet using the same list autocomplete offers.
+export const MEDICINE_GROUPS = {
   // --- vitamins and supplements ---
-  'Vitamin D', 'Vitamin B12', 'Vitamin C', 'Vitamin B complex', 'Vitamin E', 'Vitamin K',
-  'Multivitamin', 'Calcium', 'Calcium with Vitamin D', 'Magnesium', 'Iron', 'Ferrous gluconate',
-  'Folic acid', 'Zinc', 'Omega-3', 'Fish oil', 'Cod liver oil', 'Glucosamine',
-  'Probiotic', 'Melatonin', 'Coenzyme Q10', 'Potassium', 'Biotin', 'Collagen',
-  'Turmeric', 'Psyllium (Metamucil)', 'Senna', 'Docusate (Colace)',
+  vitamins: [
+    'Vitamin D', 'Vitamin B12', 'Vitamin C', 'Vitamin B complex', 'Vitamin E', 'Vitamin K',
+    'Multivitamin', 'Calcium', 'Calcium with Vitamin D', 'Magnesium', 'Iron', 'Ferrous gluconate',
+    'Folic acid', 'Zinc', 'Omega-3', 'Fish oil', 'Cod liver oil', 'Glucosamine',
+    'Probiotic', 'Melatonin', 'Coenzyme Q10', 'Potassium', 'Biotin', 'Collagen',
+    'Turmeric', 'Psyllium (Metamucil)', 'Senna', 'Docusate (Colace)',
+  ],
 
   // --- heart, blood pressure, cholesterol ---
-  'Amlodipine', 'Ramipril', 'Perindopril', 'Lisinopril', 'Enalapril', 'Losartan',
-  'Valsartan', 'Candesartan', 'Telmisartan', 'Irbesartan',
-  'Metoprolol', 'Bisoprolol', 'Atenolol', 'Carvedilol', 'Propranolol', 'Labetalol',
-  'Hydrochlorothiazide', 'Furosemide (Lasix)', 'Indapamide', 'Spironolactone',
-  'Chlorthalidone', 'Diltiazem', 'Nifedipine', 'Verapamil',
-  'Atorvastatin (Lipitor)', 'Rosuvastatin (Crestor)', 'Simvastatin', 'Pravastatin',
-  'Ezetimibe', 'Fenofibrate', 'Digoxin', 'Isosorbide mononitrate', 'Nitroglycerin',
-  'Amiodarone', 'Sotalol', 'Hydralazine',
+  heart: [
+    'Amlodipine', 'Ramipril', 'Perindopril', 'Lisinopril', 'Enalapril', 'Losartan',
+    'Valsartan', 'Candesartan', 'Telmisartan', 'Irbesartan',
+    'Metoprolol', 'Bisoprolol', 'Atenolol', 'Carvedilol', 'Propranolol', 'Labetalol',
+    'Hydrochlorothiazide', 'Furosemide (Lasix)', 'Indapamide', 'Spironolactone',
+    'Chlorthalidone', 'Diltiazem', 'Nifedipine', 'Verapamil',
+    'Atorvastatin (Lipitor)', 'Rosuvastatin (Crestor)', 'Simvastatin', 'Pravastatin',
+    'Ezetimibe', 'Fenofibrate', 'Digoxin', 'Isosorbide mononitrate', 'Nitroglycerin',
+    'Amiodarone', 'Sotalol', 'Hydralazine',
+  ],
 
   // --- blood thinners ---
-  'Aspirin (ASA)', 'Low-dose aspirin 81 mg', 'Clopidogrel (Plavix)', 'Ticagrelor',
-  'Apixaban (Eliquis)', 'Rivaroxaban (Xarelto)', 'Dabigatran (Pradaxa)',
-  'Warfarin (Coumadin)', 'Edoxaban',
+  bloodThinners: [
+    'Aspirin (ASA)', 'Low-dose aspirin 81 mg', 'Clopidogrel (Plavix)', 'Ticagrelor',
+    'Apixaban (Eliquis)', 'Rivaroxaban (Xarelto)', 'Dabigatran (Pradaxa)',
+    'Warfarin (Coumadin)', 'Edoxaban',
+  ],
 
   // --- diabetes ---
-  'Metformin', 'Gliclazide', 'Glyburide', 'Glimepiride', 'Sitagliptin (Januvia)',
-  'Linagliptin', 'Empagliflozin (Jardiance)', 'Dapagliflozin (Forxiga)',
-  'Canagliflozin', 'Semaglutide (Ozempic)', 'Liraglutide', 'Dulaglutide (Trulicity)',
-  'Pioglitazone', 'Insulin glargine (Lantus)', 'Insulin aspart (NovoRapid)',
-  'Insulin lispro (Humalog)', 'Insulin detemir (Levemir)', 'Insulin NPH (Humulin N)',
-  'Insulin degludec (Tresiba)',
+  diabetes: [
+    'Metformin', 'Gliclazide', 'Glyburide', 'Glimepiride', 'Sitagliptin (Januvia)',
+    'Linagliptin', 'Empagliflozin (Jardiance)', 'Dapagliflozin (Forxiga)',
+    'Canagliflozin', 'Semaglutide (Ozempic)', 'Liraglutide', 'Dulaglutide (Trulicity)',
+    'Pioglitazone', 'Insulin glargine (Lantus)', 'Insulin aspart (NovoRapid)',
+    'Insulin lispro (Humalog)', 'Insulin detemir (Levemir)', 'Insulin NPH (Humulin N)',
+    'Insulin degludec (Tresiba)',
+  ],
 
   // --- stomach and digestion ---
-  'Pantoprazole', 'Omeprazole', 'Esomeprazole (Nexium)', 'Lansoprazole', 'Rabeprazole',
-  'Ranitidine', 'Famotidine', 'Domperidone', 'Metoclopramide', 'Dimenhydrinate (Gravol)',
-  'Ondansetron', 'Loperamide (Imodium)', 'Lactulose', 'Polyethylene glycol (Restoralax)',
-  'Bisacodyl (Dulcolax)', 'Calcium carbonate (Tums)', 'Sucralfate', 'Dicyclomine',
+  stomach: [
+    'Pantoprazole', 'Omeprazole', 'Esomeprazole (Nexium)', 'Lansoprazole', 'Rabeprazole',
+    'Ranitidine', 'Famotidine', 'Domperidone', 'Metoclopramide', 'Dimenhydrinate (Gravol)',
+    'Ondansetron', 'Loperamide (Imodium)', 'Lactulose', 'Polyethylene glycol (Restoralax)',
+    'Bisacodyl (Dulcolax)', 'Calcium carbonate (Tums)', 'Sucralfate', 'Dicyclomine',
+  ],
 
   // --- pain, inflammation, arthritis ---
-  'Acetaminophen (Tylenol)', 'Extra Strength Acetaminophen', 'Ibuprofen (Advil)',
-  'Naproxen (Aleve)', 'Celecoxib (Celebrex)', 'Diclofenac', 'Diclofenac gel (Voltaren)',
-  'Meloxicam', 'Indomethacin', 'Ketorolac',
-  'Tramadol', 'Codeine', 'Acetaminophen with codeine (Tylenol 3)', 'Morphine',
-  'Hydromorphone', 'Oxycodone', 'Fentanyl patch', 'Gabapentin', 'Pregabalin (Lyrica)',
-  'Amitriptyline', 'Nortriptyline', 'Duloxetine (Cymbalta)', 'Cyclobenzaprine',
-  'Baclofen', 'Colchicine', 'Allopurinol', 'Methotrexate', 'Hydroxychloroquine',
-  'Prednisone', 'Capsaicin cream', 'Lidocaine patch',
+  pain: [
+    'Acetaminophen (Tylenol)', 'Extra Strength Acetaminophen', 'Ibuprofen (Advil)',
+    'Naproxen (Aleve)', 'Celecoxib (Celebrex)', 'Diclofenac', 'Diclofenac gel (Voltaren)',
+    'Meloxicam', 'Indomethacin', 'Ketorolac',
+    'Tramadol', 'Codeine', 'Acetaminophen with codeine (Tylenol 3)', 'Morphine',
+    'Hydromorphone', 'Oxycodone', 'Fentanyl patch', 'Gabapentin', 'Pregabalin (Lyrica)',
+    'Amitriptyline', 'Nortriptyline', 'Duloxetine (Cymbalta)', 'Cyclobenzaprine',
+    'Baclofen', 'Colchicine', 'Allopurinol', 'Methotrexate', 'Hydroxychloroquine',
+    'Prednisone', 'Capsaicin cream', 'Lidocaine patch',
+  ],
 
   // --- bones ---
-  'Alendronate (Fosamax)', 'Risedronate (Actonel)', 'Denosumab (Prolia)',
-  'Zoledronic acid', 'Calcitriol', 'Teriparatide',
+  bones: [
+    'Alendronate (Fosamax)', 'Risedronate (Actonel)', 'Denosumab (Prolia)',
+    'Zoledronic acid', 'Calcitriol', 'Teriparatide',
+  ],
 
   // --- lungs and allergies ---
-  'Salbutamol (Ventolin)', 'Fluticasone (Flovent)', 'Fluticasone nasal (Flonase)',
-  'Budesonide/formoterol (Symbicort)', 'Fluticasone/salmeterol (Advair)',
-  'Tiotropium (Spiriva)', 'Ipratropium (Atrovent)', 'Montelukast (Singulair)',
-  'Prednisolone', 'Cetirizine (Reactine)', 'Loratadine (Claritin)',
-  'Desloratadine (Aerius)', 'Diphenhydramine (Benadryl)', 'Hydroxyzine',
-  'Mometasone nasal (Nasonex)',
+  lungs: [
+    'Salbutamol (Ventolin)', 'Fluticasone (Flovent)', 'Fluticasone nasal (Flonase)',
+    'Budesonide/formoterol (Symbicort)', 'Fluticasone/salmeterol (Advair)',
+    'Tiotropium (Spiriva)', 'Ipratropium (Atrovent)', 'Montelukast (Singulair)',
+    'Prednisolone', 'Cetirizine (Reactine)', 'Loratadine (Claritin)',
+    'Desloratadine (Aerius)', 'Diphenhydramine (Benadryl)', 'Hydroxyzine',
+    'Mometasone nasal (Nasonex)',
+  ],
 
   // --- brain, mood, sleep, memory ---
-  'Donepezil (Aricept)', 'Memantine', 'Rivastigmine (Exelon)', 'Galantamine',
-  'Levodopa/carbidopa (Sinemet)', 'Pramipexole', 'Ropinirole', 'Entacapone',
-  'Sertraline (Zoloft)', 'Escitalopram (Cipralex)', 'Citalopram', 'Fluoxetine (Prozac)',
-  'Paroxetine', 'Venlafaxine (Effexor)', 'Bupropion (Wellbutrin)', 'Mirtazapine',
-  'Trazodone', 'Quetiapine (Seroquel)', 'Risperidone', 'Olanzapine', 'Aripiprazole',
-  'Lorazepam (Ativan)', 'Clonazepam', 'Diazepam', 'Zopiclone', 'Temazepam',
-  'Lithium', 'Divalproex', 'Lamotrigine', 'Levetiracetam (Keppra)', 'Phenytoin',
-  'Carbamazepine', 'Betahistine (Serc)',
+  brain: [
+    'Donepezil (Aricept)', 'Memantine', 'Rivastigmine (Exelon)', 'Galantamine',
+    'Levodopa/carbidopa (Sinemet)', 'Pramipexole', 'Ropinirole', 'Entacapone',
+    'Sertraline (Zoloft)', 'Escitalopram (Cipralex)', 'Citalopram', 'Fluoxetine (Prozac)',
+    'Paroxetine', 'Venlafaxine (Effexor)', 'Bupropion (Wellbutrin)', 'Mirtazapine',
+    'Trazodone', 'Quetiapine (Seroquel)', 'Risperidone', 'Olanzapine', 'Aripiprazole',
+    'Lorazepam (Ativan)', 'Clonazepam', 'Diazepam', 'Zopiclone', 'Temazepam',
+    'Lithium', 'Divalproex', 'Lamotrigine', 'Levetiracetam (Keppra)', 'Phenytoin',
+    'Carbamazepine', 'Betahistine (Serc)',
+  ],
 
   // --- thyroid and hormones ---
-  'Levothyroxine (Synthroid)', 'Liothyronine', 'Methimazole', 'Propylthiouracil',
-  'Estradiol', 'Conjugated estrogens (Premarin)', 'Progesterone', 'Testosterone',
-  'Tamoxifen', 'Anastrozole', 'Letrozole', 'Finasteride', 'Dutasteride',
-  'Tamsulosin (Flomax)', 'Alfuzosin', 'Silodosin', 'Oxybutynin', 'Tolterodine',
-  'Solifenacin (Vesicare)', 'Mirabegron (Myrbetriq)', 'Desmopressin',
+  hormones: [
+    'Levothyroxine (Synthroid)', 'Liothyronine', 'Methimazole', 'Propylthiouracil',
+    'Estradiol', 'Conjugated estrogens (Premarin)', 'Progesterone', 'Testosterone',
+    'Tamoxifen', 'Anastrozole', 'Letrozole', 'Finasteride', 'Dutasteride',
+    'Tamsulosin (Flomax)', 'Alfuzosin', 'Silodosin', 'Oxybutynin', 'Tolterodine',
+    'Solifenacin (Vesicare)', 'Mirabegron (Myrbetriq)', 'Desmopressin',
+  ],
 
   // --- infections ---
-  'Amoxicillin', 'Amoxicillin/clavulanate (Clavulin)', 'Azithromycin', 'Clarithromycin',
-  'Cephalexin (Keflex)', 'Cefuroxime', 'Ciprofloxacin', 'Levofloxacin',
-  'Doxycycline', 'Nitrofurantoin (Macrobid)', 'Trimethoprim/sulfamethoxazole (Septra)',
-  'Metronidazole (Flagyl)', 'Clindamycin', 'Penicillin V', 'Fluconazole (Diflucan)',
-  'Valacyclovir', 'Acyclovir', 'Terbinafine', 'Nystatin', 'Clotrimazole cream',
+  infections: [
+    'Amoxicillin', 'Amoxicillin/clavulanate (Clavulin)', 'Azithromycin', 'Clarithromycin',
+    'Cephalexin (Keflex)', 'Cefuroxime', 'Ciprofloxacin', 'Levofloxacin',
+    'Doxycycline', 'Nitrofurantoin (Macrobid)', 'Trimethoprim/sulfamethoxazole (Septra)',
+    'Metronidazole (Flagyl)', 'Clindamycin', 'Penicillin V', 'Fluconazole (Diflucan)',
+    'Valacyclovir', 'Acyclovir', 'Terbinafine', 'Nystatin', 'Clotrimazole cream',
+  ],
 
   // --- eyes, ears, skin ---
-  'Latanoprost (Xalatan)', 'Timolol eye drops', 'Dorzolamide', 'Brimonidine',
-  'Artificial tears', 'Polyethylene glycol eye drops', 'Prednisolone eye drops',
-  'Tobramycin eye drops', 'Ciprofloxacin ear drops', 'Betamethasone cream',
-  'Hydrocortisone cream', 'Mupirocin (Bactroban)', 'Tacrolimus ointment',
-  'Calcipotriol', 'Urea cream', 'Ketoconazole shampoo',
-];
+  eyesEarsSkin: [
+    'Latanoprost (Xalatan)', 'Timolol eye drops', 'Dorzolamide', 'Brimonidine',
+    'Artificial tears', 'Polyethylene glycol eye drops', 'Prednisolone eye drops',
+    'Tobramycin eye drops', 'Ciprofloxacin ear drops', 'Betamethasone cream',
+    'Hydrocortisone cream', 'Mupirocin (Bactroban)', 'Tacrolimus ointment',
+    'Calcipotriol', 'Urea cream', 'Ketoconazole shampoo',
+  ],
+};
+
+export const MEDICINE_NAMES = Object.values(MEDICINE_GROUPS).flat();
 
 /**
  * Search the list for an autocomplete menu.

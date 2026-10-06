@@ -14,7 +14,9 @@ import {
   todaysDoses, dosesForDate, dosesInRange, markDoseTaken, markDoseSkipped, markDosePending, medPhotoUrl,
 } from '../lib/db.js';
 import { prettyTime, prettyClock, prettyDate, localDateStr } from '../lib/format.js';
-import { doseState, sortForDisplay, summarise, adherence, STATE_UI } from '../lib/doseState.js';
+import { doseState, sortForDisplay, summarise, adherence, canMarkTaken, unlocksAt, STATE_UI } from '../lib/doseState.js';
+import { medIcon } from '../lib/medIcon.js';
+import { DoseHistory } from '../components/DoseHistory.jsx';
 import { describeSchedule } from '../lib/schedule.js';
 import { selectMedicines } from '../lib/medicineList.js';
 
@@ -29,6 +31,9 @@ export default function Medication() {
   const [editing, setEditing] = useState(null);
   const [batchOpen, setBatchOpen] = useState(false);
   const [selectedDay, setSelectedDay] = useState(() => location.state?.day || localDateStr());
+  // History opens as a list; Home's calendar links straight to a day, so that
+  // arrives in calendar mode.
+  const [historyMode, setHistoryMode] = useState(() => (location.state?.day ? 'calendar' : 'list'));
 
   const meds = useAsync(() => listMedications(), []);
   const today = useAsync(() => todaysDoses(), []);
@@ -37,13 +42,16 @@ export default function Medication() {
     if (location.state?.add === 'med') { setView('medicines'); setBatchOpen(true); window.history.replaceState({}, ''); }
     else if (location.state?.view) {
       setView(location.state.view);
-      if (location.state.day) setSelectedDay(location.state.day);
+      if (location.state.day) { setSelectedDay(location.state.day); setHistoryMode('calendar'); }
       window.history.replaceState({}, '');
     }
   }, [location.key]);
 
   function reloadAll() { meds.reload(); today.reload(); }
-  async function done(id) { try { await markDoseTaken(id); ui.toast('Marked as taken.'); today.reload(); } catch { ui.toast('Could not save.', 'bad'); } }
+  async function done(id) {
+    try { await markDoseTaken(id); ui.toast('Marked as taken.'); today.reload(); }
+    catch (e) { ui.toast(e?.message === 'This dose is not due yet.' ? e.message : 'Could not save.', 'bad'); today.reload(); }
+  }
   // "Not today" is a settled decision, so it offers Undo rather than a
   // confirmation: tapping it by mistake must not need a dialog to escape.
   async function skip(id, reason) {
@@ -108,10 +116,18 @@ export default function Medication() {
       {view === 'calendar' && (
         <>
           <AdherenceSummary windowMinutes={windowMinutes} />
-          <p className="muted" style={{ margin: 0 }}>Tap any day to see which doses were taken.</p>
-          <MedCalendar selected={selectedDay} onPick={setSelectedDay} />
-          <h3 className="subsection">{prettyDate(selectedDay)}</h3>
-          <DayDoses dateStr={selectedDay} windowMinutes={windowMinutes} />
+          <SegmentedControl value={historyMode} onChange={setHistoryMode} options={[
+            { value: 'list', label: 'List' },
+            { value: 'calendar', label: 'Calendar' },
+          ]} />
+          {historyMode === 'list' ? <DoseHistory windowMinutes={windowMinutes} /> : (
+            <>
+              <p className="muted" style={{ margin: 0 }}>Tap any day to see which doses were taken.</p>
+              <MedCalendar selected={selectedDay} onPick={setSelectedDay} />
+              <h3 className="subsection">{prettyDate(selectedDay)}</h3>
+              <DayDoses dateStr={selectedDay} windowMinutes={windowMinutes} />
+            </>
+          )}
         </>
       )}
 
@@ -225,11 +241,13 @@ function DoseCard({ dose, onDone, onSkip, readOnly, windowMinutes }) {
   const st = doseState(dose, { windowMinutes });
   const ui = STATE_UI[st];
   const color = m.color || '#2563a8';
+  const markable = canMarkTaken(dose, { windowMinutes });
+  const unlock = unlocksAt(dose);
 
   return (
     <Card accent={ui.tone}>
       <div className="dose">
-        <span className="dose__chip" style={{ background: color }} aria-hidden="true"><Icon name="pill" size={20} /></span>
+        <span className="dose__chip" style={{ background: color }} aria-hidden="true"><Icon name={medIcon(m)} size={20} /></span>
         <div className="dose__main">
           <div className="dose__head">
             <div className="card__title">{m.name || 'Medicine'}</div>
@@ -239,7 +257,9 @@ function DoseCard({ dose, onDone, onSkip, readOnly, windowMinutes }) {
             </span>
           </div>
           {m.dose && <div className="medrow__dose">{m.dose}</div>}
-          <div className="card__meta">Scheduled for {prettyTime(dose.scheduled_time)}</div>
+          {/* The time is what tells this medicine's morning and evening
+              cards apart, so it reads first rather than as small print. */}
+          <div className="card__meta">Scheduled for <b className="dose__time">{prettyTime(dose.scheduled_time)}</b></div>
           {st === 'taken' && dose.taken_at && (
             <div className="dose__when">Marked taken at {prettyClock(new Date(dose.taken_at))}</div>
           )}
@@ -254,7 +274,16 @@ function DoseCard({ dose, onDone, onSkip, readOnly, windowMinutes }) {
           obvious action, and "Not today" is deliberately quieter beneath it. */}
       {!readOnly && st !== 'taken' && st !== 'skipped' && !asking && (
         <>
-          <Button variant="good" size="lg" icon="check" onClick={() => onDone(dose.id)}>Done - I took it</Button>
+          {/* A later dose cannot be ticked off early: marking tonight's dose
+              at lunchtime would record it as taken when it was not. */}
+          {markable
+            ? <Button variant="good" size="lg" icon="check" onClick={() => onDone(dose.id)}>Done - I took it</Button>
+            : (
+              <div className="dose__locked">
+                <Icon name="clock" size={18} />
+                {unlock ? `You can mark this from ${prettyClock(unlock)}` : 'Not due yet'}
+              </div>
+            )}
           <button type="button" className="dose__skip" onClick={() => setAsking(true)}>
             <Icon name="minus" size={18} /> Not today
           </button>
@@ -349,7 +378,7 @@ function MedicineRow({ med: m, onEdit, onRemove, onDuplicate }) {
       <button type="button" className="medlist__summary" aria-expanded={expanded}
         aria-controls={`medicine-details-${m.id}`} onClick={() => setExpanded((v) => !v)}>
         {photo ? <img className="medlist__photo" src={photo} alt="" />
-          : <span className="medlist__icon" style={{ background: m.color || '#2563a8' }}><Icon name="pill" size={20} /></span>}
+          : <span className="medlist__icon" style={{ background: m.color || '#2563a8' }}><Icon name={medIcon(m)} size={20} /></span>}
         <span className="medlist__main">
           <span className="medlist__name" translate="no">{m.name}</span>
           <span className="medlist__sub">{m.dose || 'No dose'} · {schedule}</span>

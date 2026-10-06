@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   doseState, summarise, dayMark, dayMarkFromCounts, headlineFor, adherence, sortForDisplay,
+  canMarkTaken, unlocksAt,
 } from '../src/lib/doseState.js';
 
 const NOW = Date.parse('2026-09-17T12:00:00Z');
@@ -123,7 +124,32 @@ test('display order puts what needs doing first', () => {
   const missed = dose(-90);
   const out = sortForDisplay([taken, upcoming, missed, due, overdue], { now: NOW });
   assert.deepEqual(out.map((d) => doseState(d, { now: NOW })),
-    ['overdue', 'due', 'upcoming', 'missed', 'taken']);
+    ['overdue', 'due', 'missed', 'upcoming', 'taken']);
+});
+
+test('a late morning dose sorts above the same medicine tonight', () => {
+  // The reported bug: at 13:35 the 10:30 dose is missed and the 21:00 dose is
+  // upcoming. The top card has to be the morning one, or "Done" marks tonight.
+  const morning = { id: 'am', status: 'pending', due_at: at(-185) };
+  const evening = { id: 'pm', status: 'pending', due_at: at(445) };
+  const out = sortForDisplay([evening, morning], { now: NOW });
+  assert.deepEqual(out.map((d) => d.id), ['am', 'pm']);
+});
+
+test('only doses whose time has come can be marked taken', () => {
+  const opts = { now: NOW };
+  assert.equal(canMarkTaken(dose(120), opts), false, 'two hours away');
+  assert.equal(canMarkTaken(dose(31), opts), false, 'just outside the early window');
+  assert.equal(canMarkTaken(dose(20), opts), true, 'inside the 30-minute early window');
+  assert.equal(canMarkTaken(dose(-20), opts), true, 'overdue');
+  assert.equal(canMarkTaken(dose(-600), opts), true, 'missed can still be taken late');
+  assert.equal(canMarkTaken(dose(-20, 'taken'), opts), false, 'already taken');
+  assert.equal(canMarkTaken(dose(-20, 'skipped'), opts), false, 'skipped');
+});
+
+test('unlocksAt is 30 minutes before the dose', () => {
+  assert.equal(unlocksAt(dose(120)).getTime(), NOW + 90 * 60_000);
+  assert.equal(unlocksAt({ due_at: 'nonsense' }), null);
 });
 
 // ---------- "Not today": a skipped dose is a third outcome (H3) ----------
