@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Icon } from '../components/Icon.jsx';
+import { medIcon } from '../lib/medIcon.js';
 import { InstallCard, detectDevice } from '../components/InstallCard.jsx';
 import { Card, Button, Toggle, SegmentedControl, SkeletonCard } from '../components/ui.jsx';
 import { useUI } from '../context/UIContext.jsx';
@@ -315,7 +316,7 @@ export default function NotificationSettings() {
             {meds.data.map((m) => (
               <div key={m.id} className="ns-med">
                 <span className="dose__chip" style={{ background: m.color || 'var(--primary)' }} aria-hidden="true">
-                  <Icon name="pill" size={18} />
+                  <Icon name={medIcon(m)} size={18} />
                 </span>
                 <div className="ns-med__main">
                   <div className="ns-med__name">{m.name}</div>

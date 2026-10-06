@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Icon } from '../components/Icon.jsx';
+import { medIcon } from '../lib/medIcon.js';
 import { InstallCard } from '../components/InstallCard.jsx';
 import { MedCalendar } from '../components/MedCalendar.jsx';
 import { SegmentedControl, Skeleton, SkeletonCard, Pill, Modal } from '../components/ui.jsx';
@@ -376,7 +377,7 @@ function DoseRow({ dose, opts }) {
   return (
     <div className={`g-dose g-dose--${ui.tone}`}>
       <span className="g-dose__chip" style={{ background: m.color || 'var(--primary)' }} aria-hidden="true">
-        <Icon name="pill" size={18} />
+        <Icon name={medIcon(m)} size={18} />
       </span>
       <div className="g-dose__main">
         <div className="g-dose__name">{m.name || 'Medicine'}</div>

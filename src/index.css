@@ -2237,6 +2237,23 @@ html[data-motion='calm'] *::after {
 .dose__skip:hover { background: var(--surface-2); color: var(--ink); }
 .dose__skip:focus-visible { outline: 3px solid var(--primary); outline-offset: 2px; }
 
+/* Stands where "Done - I took it" will be, at the same height, so the card
+   does not jump when the dose unlocks — but it is plainly not a button. */
+.dose__locked {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  min-height: 56px; margin-top: 12px; padding: 12px 14px;
+  border: 2px dashed var(--line); border-radius: var(--radius-sm);
+  color: var(--ink-soft); font-size: 16px; font-weight: 700; text-align: center;
+}
+.dose__time { color: var(--ink); }
+
+/* History list filters: chips on one line, the medicine picker under them. */
+.hist__filters { display: flex; flex-direction: column; gap: 10px; }
+.hist__filters .chips { margin-top: 0; gap: 6px; }
+/* Four chips on one line at phone width, still a 44px target. */
+.hist__filters .chip { min-height: 44px; padding: 8px 13px; font-size: 15px; }
+.hist__med { cursor: pointer; }
+
 .dose__why { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
 .dose__whyq { margin: 0 0 10px; font-size: 18px; font-weight: 800; color: var(--ink); }
 .dose__reasons { display: flex; flex-wrap: wrap; gap: 10px; }
