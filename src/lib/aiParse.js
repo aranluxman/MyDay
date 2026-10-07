@@ -6,7 +6,7 @@
 // an unknown setting, a made-up unit or a birthday in the future.
 //
 // Pure functions, no browser APIs, so they are unit-tested in test/aiParse.test.js.
-import { UNIT_IDS, clampAmount } from './doseUnits.js';
+import { UNIT_IDS, amountValue, cleanStrength } from './doseUnits.js';
 import { FREQUENCY_IDS, normaliseTimes } from './schedule.js';
 import { THEME_IDS, TEXT_SIZES } from './appearance.js';
 
@@ -21,16 +21,34 @@ export const TEXT_SIZE_IDS = TEXT_SIZES.map((s) => s.id);
  */
 export function normaliseScan(raw) {
   const r = raw && typeof raw === 'object' ? raw : {};
-  const unit = UNIT_IDS.includes(r.dose_unit) ? r.dose_unit : 'tablet';
+  // An unknown unit word ("softgel") is kept as the person's own word, never
+  // swapped for a different unit.
+  const rawUnit = String(r.dose_unit || '').trim().slice(0, 30);
+  const unit = UNIT_IDS.includes(rawUnit) ? rawUnit : rawUnit ? 'other' : 'tablet';
   const frequency = FREQUENCY_IDS.includes(r.frequency) ? r.frequency : 'daily';
   const days = [...new Set((Array.isArray(r.days_of_week) ? r.days_of_week : [])
     .map(Number).filter((d) => Number.isInteger(d) && d >= 0 && d <= 6))].sort();
   const times = normaliseTimes(r.times);
   const warnings = (Array.isArray(r.warnings) ? r.warnings : [])
     .map((w) => String(w || '').trim()).filter(Boolean).slice(0, 4);
+  // An amount read off a label is used only if it is exactly storable. It is
+  // never rounded or floored into something else: a misread "0.125" must not
+  // quietly become "1/2". Left empty, the review asks the person to type it.
+  const amount = amountValue(typeof r.dose_amount === 'string' ? r.dose_amount : Number(r.dose_amount));
+  if (r.dose_amount != null && amount == null) {
+    warnings.push('The amount on the label could not be read clearly. Please type it in.');
+  }
 
-  // "Certain days" with no days is not saveable; fall back rather than strand them.
-  const safeFrequency = frequency === 'days_of_week' && !days.length ? 'daily' : frequency;
+  // "Certain days" with no readable days is NOT turned into "every day" —
+  // that would invent doses. It stays incomplete, and the review step will
+  // not save it until the person picks the days.
+  const safeFrequency = frequency;
+  if (!times.length && frequency !== 'as_needed') {
+    warnings.push('No times could be read from the label. Please choose the times you were told.');
+  }
+  if (frequency === 'days_of_week' && !days.length) {
+    warnings.push('Which days could not be read from the label. Please choose them.');
+  }
 
   return {
     isMedicine: r.is_medicine !== false,
@@ -38,10 +56,12 @@ export function normaliseScan(raw) {
     warnings,
     form: {
       name: String(r.name || '').trim().slice(0, 80),
-      dose_amount: clampAmount(r.dose_amount ?? 1),
+      dose_amount: amount ?? (r.dose_amount == null ? 1 : ''),
+      strength: cleanStrength(r.strength),
       dose_unit: unit,
-      dose_other: unit === 'other' ? String(r.dose_other || '').trim().slice(0, 30) : '',
-      times: times.length ? times : ['08:00'],
+      dose_other: unit === 'other' ? String(r.dose_other || (UNIT_IDS.includes(rawUnit) ? '' : rawUnit)).trim().slice(0, 30) : '',
+      // No directions on the label means no times, not an invented 8 AM.
+      times,
       frequency: safeFrequency,
       days_of_week: safeFrequency === 'days_of_week' ? days : [],
       with_food: r.with_food === true,

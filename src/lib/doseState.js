@@ -44,7 +44,9 @@ export function doseState(dose, opts = {}) {
   if (dose.status === 'skipped') return 'skipped';
 
   const now = opts.now ?? Date.now();
-  const windowMinutes = normaliseWindow(opts.windowMinutes);
+  // A medicine given its own grace period (alert_window_override) uses it,
+  // exactly as the server's sweep does; otherwise the person's window.
+  const windowMinutes = normaliseWindow(dose.medication?.alert_window_override ?? opts.windowMinutes);
   const dueAt = new Date(dose.due_at).getTime();
 
   // An unparseable due_at must not silently become "missed" and fire an alert.
@@ -77,7 +79,9 @@ export function mostUrgent(states) {
  * guardian status card show comes from here, so they cannot drift apart.
  */
 export function summarise(doses, opts = {}) {
-  const list = Array.isArray(doses) ? doses : [];
+  // As-needed doses are a log of what was taken, never a schedule that was
+  // owed, so they are listed separately and never counted here.
+  const list = (Array.isArray(doses) ? doses : []).filter((d) => !d?.as_needed);
   const states = list.map((d) => doseState(d, opts));
 
   const count = (s) => states.filter((x) => x === s).length;
@@ -143,6 +147,31 @@ export function dayMark(doses, opts = {}) {
   return 'pending';
 }
 
+/**
+ * Per-day counts for a list of dose rows, keyed by dose_date, derived with
+ * doseState() — never from the raw server status. The calendar used to count
+ * the stored status, so a dose whose time had passed but which the server had
+ * not yet swept (or never would, with reminders off) read "1 to take" on the
+ * calendar while Today and History said "Missed". Same rows, same rule now.
+ *
+ * Buckets: taken, missed (includes nothing else), toTake (overdue + due +
+ * upcoming), skipped. `pending` mirrors toTake for dayMarkFromCounts.
+ */
+export function countsByDay(doses, opts = {}) {
+  const map = {};
+  for (const d of Array.isArray(doses) ? doses : []) {
+    if (!d?.dose_date || d.as_needed) continue;
+    const e = (map[d.dose_date] ||= { taken: 0, missed: 0, toTake: 0, pending: 0, skipped: 0, total: 0 });
+    const st = doseState(d, opts);
+    if (st === 'taken') e.taken++;
+    else if (st === 'missed') e.missed++;
+    else if (st === 'skipped') e.skipped++;
+    else { e.toTake++; e.pending++; }
+    e.total++;
+  }
+  return map;
+}
+
 /** Same rule, from the aggregate the calendar query returns per day. */
 export function dayMarkFromCounts({ taken = 0, missed = 0, pending = 0, skipped = 0 } = {}) {
   const total = taken + missed + pending + skipped;
@@ -165,6 +194,8 @@ export const STATE_UI = {
   overdue:  { label: 'Overdue',  icon: 'clock',  tone: 'overdue', kind: 'missed' },
   due:      { label: 'Due now',  icon: 'clock',  tone: 'due',     kind: 'pending' },
   upcoming: { label: 'To take',  icon: 'clock',  tone: 'upcoming', kind: 'pending' },
+  // Not a dose state: an as-needed medicine, which is never due or missed.
+  prn:      { label: 'When needed', icon: 'info', tone: 'prn',    kind: 'pending' },
 };
 
 /**
@@ -198,7 +229,14 @@ export function sortForDisplay(doses, opts = {}) {
   });
 }
 
-/** Adherence over a set of dose rows, for "taken 19 of 21 doses". */
+/**
+ * Adherence over a set of dose rows, for "taken 19 of 21 doses".
+ *
+ * Denominator (documented on screen too): doses that were due and are now
+ * settled as taken or missed. Excluded: doses still to come or still inside
+ * their window, "not today" skips (a deliberate decision, not a failure) and
+ * as-needed doses (never scheduled, so never owed).
+ */
 export function adherence(doses, opts = {}) {
   const list = Array.isArray(doses) ? doses : [];
   // Doses still in the future aren't a miss yet, so they don't belong in the
@@ -206,6 +244,7 @@ export function adherence(doses, opts = {}) {
   // dose: it was deliberately not due, so counting it as a failure to adhere
   // would be simply untrue.
   const settled = list.filter((d) => {
+    if (d.as_needed) return false;
     const s = doseState(d, opts);
     return s === 'taken' || s === 'missed';
   });

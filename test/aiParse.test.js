@@ -27,20 +27,33 @@ test('scan values outside what the app allows fall back to safe defaults', () =>
     frequency: 'hourly', with_food: 'yes', confidence: 'certain',
   });
   assert.equal(s.form.name, 'Vitamin D3');
-  assert.equal(s.form.dose_amount, 0.5, 'never zero');
-  assert.equal(s.form.dose_unit, 'tablet', 'unknown unit');
-  assert.deepEqual(s.form.times, ['08:00'], 'unreadable times');
+  assert.equal(s.form.dose_amount, '', 'a zero amount is not invented into another amount');
+  assert.ok(s.warnings.some((w) => /amount/i.test(w)), 'and the person is told to type it');
+  assert.equal(s.form.dose_unit, 'other', 'an unknown unit is kept as their own word');
+  assert.equal(s.form.dose_other, 'softgel');
+  assert.deepEqual(s.form.times, [], 'unreadable times are not replaced by an invented 8 AM');
+  assert.ok(s.warnings.some((w) => /times/i.test(w)));
   assert.equal(s.form.frequency, 'daily');
   assert.equal(s.form.with_food, false, 'only a real true counts');
   assert.equal(s.confidence, 'low');
 });
 
-test('"certain days" with no valid days becomes every day, so it can be saved', () => {
+test('"certain days" with no valid days stays incomplete instead of inventing daily doses', () => {
   const s = normaliseScan({ name: 'X', frequency: 'days_of_week', days_of_week: [9, -1] });
-  assert.equal(s.form.frequency, 'daily');
+  assert.equal(s.form.frequency, 'days_of_week', 'never silently converted to every day');
+  assert.deepEqual(s.form.days_of_week, []);
+  assert.ok(s.warnings.some((w) => /days/i.test(w)));
   const t = normaliseScan({ name: 'X', frequency: 'days_of_week', days_of_week: [4, 1, 1] });
   assert.equal(t.form.frequency, 'days_of_week');
   assert.deepEqual(t.form.days_of_week, [1, 4]);
+});
+
+test('a label amount is kept exactly, never rounded to a half', () => {
+  assert.equal(normaliseScan({ name: 'X', dose_amount: 0.125, dose_unit: 'mg' }).form.dose_amount, 0.125);
+  assert.equal(normaliseScan({ name: 'X', dose_amount: 2.75, dose_unit: 'mg' }).form.dose_amount, 2.75);
+  assert.equal(normaliseScan({ name: 'X', dose_amount: -1, dose_unit: 'ml' }).form.dose_amount, '');
+  assert.equal(normaliseScan({ name: 'X', dose_unit: 'mcg', dose_amount: 50 }).form.dose_unit, 'mcg');
+  assert.equal(normaliseScan({ name: 'X', strength: ' 500  mg ' }).form.strength, '500 mg');
 });
 
 test('a non-medicine photo is flagged, and garbage input does not throw', () => {

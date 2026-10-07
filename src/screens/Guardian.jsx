@@ -9,7 +9,7 @@ import {
   enableGuardianPush, disableGuardianPush, setDailySummary, GuardianUnlinked, forgetGuardianMode,
 } from '../lib/guardian.js';
 import { pushSupported, enablePush, isInstalled } from '../lib/push.js';
-import { doseState, summarise, sortForDisplay, adherence, dayMarkFromCounts, STATE_UI } from '../lib/doseState.js';
+import { doseState, summarise, sortForDisplay, adherence, dayMarkFromCounts, STATE_UI, countsByDay } from '../lib/doseState.js';
 import { prettyTime, prettyClock, prettyDate, shortDate } from '../lib/format.js';
 import { fetchAccountDashboard } from '../lib/guardianAccount.js';
 
@@ -464,19 +464,7 @@ function HistoryPanel({ history, opts }) {
 
   // Per-day aggregates for the calendar, in exactly the shape MedCalendar
   // wants, so the guardian's marks match the senior's own calendar.
-  const counts = useMemo(() => {
-    const map = {};
-    for (const dose of history) {
-      const e = (map[dose.dose_date] ||= { taken: 0, missed: 0, pending: 0, skipped: 0, total: 0 });
-      const st = doseState(dose, opts);
-      if (st === 'taken') e.taken++;
-      else if (st === 'missed') e.missed++;
-      else if (st === 'skipped') e.skipped++;
-      else e.pending++;
-      e.total++;
-    }
-    return map;
-  }, [history, opts]);
+  const counts = useMemo(() => countsByDay(history, opts), [history, opts]);
 
   const byDay = useMemo(() => {
     const map = new Map();

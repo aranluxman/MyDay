@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useDoseActions } from '../hooks/useDoseActions.js';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext.jsx';
 import { useUI } from '../context/UIContext.jsx';
@@ -7,7 +8,7 @@ import { Card, Button, Avatar, Skeleton, SkeletonCard } from '../components/ui.j
 import { Icon } from '../components/Icon.jsx';
 import { MedCalendar } from '../components/MedCalendar.jsx';
 import { useSettings } from '../context/SettingsContext.jsx';
-import { todaysDoses, upcomingAppointments, playedTodayCount, markDoseTaken, listGuardians } from '../lib/db.js';
+import { todaysDoses, upcomingAppointments, playedTodayCount, listGuardians, listMedications } from '../lib/db.js';
 import { prettyTime, prettyDate, localDateStr } from '../lib/format.js';
 import { profileCompleteness } from '../lib/appearance.js';
 import { summarise, sortForDisplay, doseState, STATE_UI } from '../lib/doseState.js';
@@ -25,17 +26,18 @@ export default function Home() {
   const navigate = useNavigate();
   const { data, loading, error, reload } = useAsync(async () => {
     // Guardians are a nudge, not the day: if they fail to load, show nothing.
-    const [doses, appts, games, guardians, watching] = await Promise.all([
+    const [doses, appts, games, guardians, watching, meds] = await Promise.all([
       todaysDoses(), upcomingAppointments(), playedTodayCount(), listGuardians().catch(() => null),
-      listAccountGuardians().catch(() => []),
+      listAccountGuardians().catch(() => []), listMedications().catch(() => []),
     ]);
-    return { doses, appts, games, guardians, watching };
+    return { doses, appts, games, guardians, watching, meds };
   });
+  const actions = useDoseActions(reload);
 
   if (loading) return <HomeSkeleton />;
   if (error) return <Card className="center"><p className="lead">We could not load your information.</p><Button onClick={reload}>Try again</Button></Card>;
 
-  const { doses, appts, games, guardians, watching } = data;
+  const { doses, appts, games, guardians, watching, meds } = data;
   // Every number on this screen now comes from one place, so the header, the
   // counters, the glance chip and the calendar cannot drift apart. They used
   // to be computed separately here, which is how "0 of 3 taken" ended up
@@ -50,10 +52,6 @@ export default function Home() {
   const greeting = greetingFor();
   const completeness = profileCompleteness(profile);
 
-  async function done(id) {
-    try { await markDoseTaken(id); ui.toast('Great - marked as taken.'); reload(); }
-    catch { ui.toast('Could not save. Please try again.', 'bad'); }
-  }
 
   return (
     <div className="stack">
@@ -111,7 +109,10 @@ export default function Home() {
           </div>
           <div className="reminder__name" translate="no">{dueNow.medication?.name}{dueNow.medication?.dose ? ` - ${dueNow.medication.dose}` : ''}</div>
           {dueNow.medication?.note && <div className="reminder__note">{dueNow.medication.note}</div>}
-          <Button variant="good" size="lg" icon="check" onClick={() => done(dueNow.id)}>Done - I took it</Button>
+          <Button variant="good" size="lg" icon={actions.pending.has(dueNow.id) ? 'clock' : 'check'}
+            disabled={actions.pending.has(dueNow.id)}
+            aria-label={`Done - I took it: ${dueNow.medication?.name || 'this medicine'}, ${prettyTime(dueNow.scheduled_time)} dose`}
+            onClick={() => actions.take(dueNow)}>{actions.pending.has(dueNow.id) ? 'Saving…' : 'Done - I took it'}</Button>
         </Card>
       )}
 
@@ -175,7 +176,7 @@ export default function Home() {
       {settings.homeCalendar && (
         <section aria-label="Medicine calendar for this month">
           <h3 className="subsection" style={{ margin: '0 0 8px' }}>Calendar</h3>
-          <MedCalendar selected={null}
+          <MedCalendar selected={null} windowMinutes={windowMinutes} meds={meds}
             onPick={(day) => navigate('/medication', { state: { view: 'calendar', day } })} />
         </section>
       )}

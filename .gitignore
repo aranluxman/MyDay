@@ -8,3 +8,5 @@ node_modules/
 .claude/
 dist/
 .supabase/
+test-results/
+playwright-report/

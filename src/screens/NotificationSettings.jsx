@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Icon } from '../components/Icon.jsx';
 import { medIcon } from '../lib/medIcon.js';
 import { InstallCard, detectDevice } from '../components/InstallCard.jsx';
-import { Card, Button, Toggle, SegmentedControl, SkeletonCard } from '../components/ui.jsx';
+import { Card, Button, Toggle, SegmentedControl, SkeletonCard, Collapsible } from '../components/ui.jsx';
 import { useUI } from '../context/UIContext.jsx';
 import { useApp } from '../context/AppContext.jsx';
 import { useAsync } from '../hooks/useAsync.js';
@@ -19,7 +19,8 @@ import {
   REPEAT_TIMES_CHOICES, deliveryStatus,
 } from '../lib/notifications.js';
 import { deviceLabel, platformTag } from '../lib/guardian.js';
-import { prettyClock, prettyTime } from '../lib/format.js';
+import { prettyClock, prettyTime, shortDate } from '../lib/format.js';
+import { readinessChecklist, describeDevice } from '../lib/readiness.js';
 
 // Everything about notifications, in one place the person can actually reach.
 //
@@ -50,6 +51,17 @@ export default function NotificationSettings() {
 
   const devices = useAsync(() => listNotificationDevices(), []);
   const meds = useAsync(() => listMedications(), []);
+  // Which saved device is THIS one: matched by its push endpoint, which is
+  // unique per browser install. Two rows that both said "This phone" were
+  // impossible to tell apart.
+  const [myEndpoint, setMyEndpoint] = useState(null);
+  useEffect(() => {
+    if (!pushSupported()) return;
+    navigator.serviceWorker.ready
+      .then((reg) => reg.pushManager.getSubscription())
+      .then((sub) => setMyEndpoint(sub?.endpoint || null))
+      .catch(() => {});
+  }, [devices.data]);
 
   useEffect(() => {
     getNotificationPrefs().then(setPrefs).catch(() => ui.toast('Could not load your settings.', 'bad'));
@@ -123,7 +135,7 @@ export default function NotificationSettings() {
 
   return (
     <div className="stack">
-      <button className="ns-back" onClick={() => navigate('/profile')}>
+      <button type="button" className="ns-back" onClick={() => navigate('/profile')}>
         <Icon name="back" size={22} /> Profile
       </button>
 
@@ -174,10 +186,33 @@ export default function NotificationSettings() {
         )}
       </Card>
 
+      {/* ---- readiness: every link in the chain, separately ---- */}
+      <Card>
+        <h2 className="ns-h">Will reminders reach me?</h2>
+        <ul className="ready-list">
+          {readinessChecklist({
+            prefs, permission, supported: pushSupported(), installed,
+            meds: meds.data || [], devices: devices.data || [], myEndpoint,
+          }).map((r) => (
+            <li key={r.id} className={`ready ready--${r.state}`}>
+              <span className="ready__ic" aria-hidden="true"><Icon name={r.state === 'ok' ? 'check' : r.state === 'warn' ? 'alert' : 'info'} size={18} /></span>
+              <span className="ready__main">
+                <span className="ready__t">{r.title}<span className="sr-only">: {r.state === 'ok' ? 'yes' : r.state === 'warn' ? 'needs attention' : 'not yet known'}</span></span>
+                <span className="ready__d">{r.detail}</span>
+              </span>
+            </li>
+          ))}
+        </ul>
+        <p className="muted" style={{ margin: '10px 0 0', fontSize: 15 }}>
+          “Sent” means MyDay handed the alert to your device's notification service. Only a test you
+          actually see on your screen proves it arrived.
+        </p>
+      </Card>
+
       {/* ---- master switch ---- */}
       <Card>
-        <Row title="All notifications" desc="One switch for everything below.">
-          <Toggle checked={!!prefs.master} onChange={(v) => update({ master: v })} label="All notifications" />
+        <Row id="ns-master" title="All notifications" desc="One switch for everything below.">
+          <Toggle checked={!!prefs.master} onChange={(v) => update({ master: v })} labelledBy="ns-master-t" describedBy="ns-master-d" />
         </Row>
         {off && (
           <p className="ns-warn" role="status">
@@ -189,22 +224,22 @@ export default function NotificationSettings() {
       </Card>
 
       {/* ---- per type ---- */}
-      <Card>
-        <h3 className="ns-h">What to tell me about</h3>
+      <Collapsible id="ns-types" icon="bell" title="What to tell me about"
+        summary={`${NOTIFICATION_TYPES.filter((t) => prefs[t.id]).length} of ${NOTIFICATION_TYPES.length} on`}>
         {NOTIFICATION_TYPES.map((t) => (
-          <Row key={t.id} title={t.label} desc={t.desc} dim={off}>
-            <Toggle checked={!!prefs[t.id]} onChange={(v) => update({ [t.id]: v })} label={t.label} />
+          <Row key={t.id} id={`ns-${t.id}`} title={t.label} desc={t.desc} dim={off}>
+            <Toggle checked={!!prefs[t.id]} onChange={(v) => update({ [t.id]: v })} labelledBy={`ns-${t.id}-t`} describedBy={`ns-${t.id}-d`} />
           </Row>
         ))}
-      </Card>
+      </Collapsible>
 
       {/* ---- missed dose ---- */}
-      <Card>
-        <h3 className="ns-h">Missed doses</h3>
-        <p className="muted" style={{ margin: '0 0 10px' }}>
+      <Collapsible id="ns-missed" icon="clock" title="Missed doses"
+        summary={`Missed after ${ALERT_WINDOWS.find((w) => w.value === (profile?.alert_window_minutes ?? 60))?.label || ''} · ${prefs.repeat_every_minutes ? `repeat every ${prefs.repeat_every_minutes} min` : 'no repeats'}`}>
+        <p className="muted" id="ns-window-label" style={{ margin: '0 0 10px' }}>
           How long after a dose is due before it counts as missed.
         </p>
-        <SegmentedControl
+        <SegmentedControl label="How long after a dose is due before it counts as missed"
           value={profile?.alert_window_minutes ?? 60}
           onChange={async (v) => {
             try { await updateProfile({ alert_window_minutes: Number(v) }); }
@@ -214,8 +249,8 @@ export default function NotificationSettings() {
 
         <div className="divider" style={{ margin: '16px 0' }} />
 
-        <Row title="Remind me again" desc="Keep reminding me until I mark it as taken.">
-          <select className="input input--select" value={prefs.repeat_every_minutes}
+        <Row id="ns-repeat" title="Remind me again" desc="Keep reminding me until I mark it as taken." control="select">
+          <select id="ns-repeat-c" className="input input--select" value={prefs.repeat_every_minutes} aria-describedby="ns-repeat-d"
             onChange={(e) => update({ repeat_every_minutes: Number(e.target.value) })}>
             {REPEAT_EVERY_CHOICES.map((n) => (
               <option key={n} value={n}>{n === 0 ? 'Just once' : `Every ${n} min`}</option>
@@ -223,8 +258,8 @@ export default function NotificationSettings() {
           </select>
         </Row>
         {prefs.repeat_every_minutes > 0 && (
-          <Row title="How many times" desc="Then it stops, so it can never nag all day.">
-            <select className="input input--select" value={prefs.repeat_max_times}
+          <Row id="ns-times" title="How many times" desc="Then it stops, so it can never nag all day." control="select">
+            <select id="ns-times-c" className="input input--select" value={prefs.repeat_max_times} aria-describedby="ns-times-d"
               onChange={(e) => update({ repeat_max_times: Number(e.target.value) })}>
               {REPEAT_TIMES_CHOICES.map((n) => (
                 <option key={n} value={n}>{n} time{n === 1 ? '' : 's'}</option>
@@ -232,55 +267,55 @@ export default function NotificationSettings() {
             </select>
           </Row>
         )}
-        <Row title="Snooze length" desc='What "Snooze" on a notification does.'>
-          <select className="input input--select" value={prefs.snooze_minutes}
+        <Row id="ns-snooze" title="Snooze length" desc='What "Snooze" on a notification does.' control="select">
+          <select id="ns-snooze-c" className="input input--select" value={prefs.snooze_minutes} aria-describedby="ns-snooze-d"
             onChange={(e) => update({ snooze_minutes: Number(e.target.value) })}>
             {SNOOZE_CHOICES.map((n) => <option key={n} value={n}>{n} minutes</option>)}
           </select>
         </Row>
-      </Card>
+      </Collapsible>
 
       {/* ---- appointments + summary ---- */}
-      <Card>
-        <h3 className="ns-h">Appointments and summaries</h3>
-        <Row title="Remind me before a visit" desc="How far ahead.">
-          <select className="input input--select" value={prefs.appointment_lead_minutes}
+      <Collapsible id="ns-appts" icon="calendar" title="Appointments and summaries"
+        summary={`${APPOINTMENT_LEADS.find((l) => l.minutes === prefs.appointment_lead_minutes)?.label || ''} · summary at ${prettyTime(prefs.daily_summary_at)}`}>
+        <Row id="ns-lead" title="Remind me before a visit" desc="How far ahead." control="select">
+          <select id="ns-lead-c" className="input input--select" value={prefs.appointment_lead_minutes} aria-describedby="ns-lead-d"
             onChange={(e) => update({ appointment_lead_minutes: Number(e.target.value) })}>
             {APPOINTMENT_LEADS.map((l) => <option key={l.id} value={l.minutes}>{l.label}</option>)}
           </select>
         </Row>
-        <Row title="Daily summary time" desc="One message about your whole day.">
-          <select className="input input--select" value={prefs.daily_summary_at}
+        <Row id="ns-summary" title="Daily summary time" desc="One message about your whole day." control="select">
+          <select id="ns-summary-c" className="input input--select" value={prefs.daily_summary_at} aria-describedby="ns-summary-d"
             onChange={(e) => update({ daily_summary_at: e.target.value })}>
             {TIME_CHOICES.map((t) => <option key={t} value={t}>{prettyTime(t)}</option>)}
           </select>
         </Row>
-      </Card>
+      </Collapsible>
 
       {/* ---- quiet hours ---- */}
-      <Card>
-        <h3 className="ns-h">Quiet hours</h3>
-        <Row title="Stay quiet at night" desc="No reminders between these times.">
-          <Toggle checked={!!prefs.quiet_hours_enabled}
-            onChange={(v) => update({ quiet_hours_enabled: v })} label="Quiet hours" />
+      <Collapsible id="ns-quiet" icon="moon" title="Quiet hours"
+        summary={prefs.quiet_hours_enabled ? `${prettyTime(prefs.quiet_from)} to ${prettyTime(prefs.quiet_to)}` : 'Off'}>
+        <Row id="ns-quiet-on" title="Stay quiet at night" desc="No reminders between these times.">
+          <Toggle checked={!!prefs.quiet_hours_enabled} labelledBy="ns-quiet-on-t" describedBy="ns-quiet-on-d"
+            onChange={(v) => update({ quiet_hours_enabled: v })} />
         </Row>
         {prefs.quiet_hours_enabled && (
           <>
             <div className="ns-two">
-              <label className="ns-field">
-                <span>From</span>
-                <select className="input input--select" value={prefs.quiet_from}
+              <div className="ns-field">
+                <label htmlFor="ns-quiet-from">From</label>
+                <select id="ns-quiet-from" className="input input--select" value={prefs.quiet_from}
                   onChange={(e) => update({ quiet_from: e.target.value })}>
                   {TIME_CHOICES.map((t) => <option key={t} value={t}>{prettyTime(t)}</option>)}
                 </select>
-              </label>
-              <label className="ns-field">
-                <span>Until</span>
-                <select className="input input--select" value={prefs.quiet_to}
+              </div>
+              <div className="ns-field">
+                <label htmlFor="ns-quiet-to">Until</label>
+                <select id="ns-quiet-to" className="input input--select" value={prefs.quiet_to}
                   onChange={(e) => update({ quiet_to: e.target.value })}>
                   {TIME_CHOICES.map((t) => <option key={t} value={t}>{prettyTime(t)}</option>)}
                 </select>
-              </label>
+              </div>
             </div>
             {/* The one exception, stated plainly rather than buried. */}
             <p className="ns-note">
@@ -290,108 +325,122 @@ export default function NotificationSettings() {
             </p>
           </>
         )}
-      </Card>
+      </Collapsible>
 
       {/* ---- sound and feel ---- */}
-      <Card>
-        <h3 className="ns-h">Sound and vibration</h3>
-        <Row title="Sound" desc="Where your device allows it.">
-          <Toggle checked={!!prefs.sound} onChange={(v) => update({ sound: v })} label="Sound" />
+      <Collapsible id="ns-sound" icon="bell" title="Sound and vibration"
+        summary={[prefs.sound ? 'Sound on' : 'Sound off', prefs.vibrate ? 'vibration on' : 'vibration off'].join(' · ')}>
+        <Row id="ns-sound-on" title="Sound" desc="Where your device allows it.">
+          <Toggle checked={!!prefs.sound} onChange={(v) => update({ sound: v })} labelledBy="ns-sound-on-t" describedBy="ns-sound-on-d" />
         </Row>
-        <Row title="Vibration" desc="A long-short-long buzz for a missed dose.">
-          <Toggle checked={!!prefs.vibrate} onChange={(v) => update({ vibrate: v })} label="Vibration" />
+        <Row id="ns-vibrate" title="Vibration" desc="A long-short-long buzz for a missed dose.">
+          <Toggle checked={!!prefs.vibrate} onChange={(v) => update({ vibrate: v })} labelledBy="ns-vibrate-t" describedBy="ns-vibrate-d" />
         </Row>
-      </Card>
+      </Collapsible>
 
       {/* ---- per medicine ---- */}
-      <Card>
-        <h3 className="ns-h">Individual medicines</h3>
+      <Collapsible id="ns-meds" icon="pill" title="Individual medicines"
+        summary={meds.data ? `${meds.data.filter((m) => m.reminders_enabled !== false && m.frequency !== 'as_needed').length} of ${meds.data.filter((m) => m.frequency !== 'as_needed').length} with reminders` : ''}>
         <p className="muted" style={{ margin: '0 0 10px' }}>
           Turn reminders off for one medicine without changing the rest.
         </p>
         {meds.loading ? <SkeletonCard lines={2} /> : !meds.data?.length ? (
           <p className="muted" style={{ margin: 0 }}>You have not added any medicines yet.</p>
         ) : (
-          <div className="ns-meds">
+          <ul className="ns-meds">
             {meds.data.map((m) => (
-              <div key={m.id} className="ns-med">
+              <li key={m.id} className="ns-med">
                 <span className="dose__chip" style={{ background: m.color || 'var(--primary)' }} aria-hidden="true">
                   <Icon name={medIcon(m)} size={18} />
                 </span>
                 <div className="ns-med__main">
-                  <div className="ns-med__name">{m.name}</div>
+                  <div className="ns-med__name" translate="no">{m.name}</div>
                   <div className="ns-med__meta">
                     {m.frequency === 'as_needed'
                       ? 'Only when needed — never reminded'
                       : (m.times || []).map(prettyTime).join(', ')}
                   </div>
                 </div>
-                <Toggle checked={m.reminders_enabled !== false}
-                  label={`Reminders for ${m.name}`}
-                  onChange={async (v) => {
-                    try { await setMedicationReminders(m.id, { enabled: v }); meds.reload(); }
-                    catch { ui.toast('Could not save.', 'bad'); }
-                  }} />
-              </div>
+                {m.frequency !== 'as_needed' && (
+                  <Toggle checked={m.reminders_enabled !== false}
+                    label={`Reminders for ${m.name}`}
+                    onChange={async (v) => {
+                      try { await setMedicationReminders(m.id, { enabled: v }); meds.reload(); }
+                      catch { ui.toast('Could not save.', 'bad'); }
+                    }} />
+                )}
+              </li>
             ))}
-          </div>
+          </ul>
         )}
-      </Card>
+      </Collapsible>
 
       {/* ---- devices ---- */}
-      <Card>
-        <h3 className="ns-h">Devices getting your alerts</h3>
+      <Collapsible id="ns-devices" icon="phone" title="Devices getting your alerts"
+        summary={devices.data ? `${devices.data.length} device${devices.data.length === 1 ? '' : 's'}${devices.data.some((d) => d.endpoint === myEndpoint) ? ', including this one' : ''}` : ''}>
         {devices.loading ? <SkeletonCard lines={2} /> : !devices.data?.length ? (
           <p className="muted" style={{ margin: 0 }}>
             No device is set up yet. Turn on alerts above to add this one.
           </p>
         ) : (
-          <div className="ns-meds">
-            {devices.data.map((d) => (
-              <div key={d.id} className="ns-med">
-                <span className="gdev__ic"><Icon name={d.push_enabled ? 'bell' : 'close'} size={18} /></span>
-                <div className="ns-med__main">
-                  <div className="ns-med__name">{d.label || 'A device'}</div>
-                  {/* Last-delivered and last-error are shown so a silent
-                      failure is visible instead of being a mystery. */}
-                  <div className="ns-med__meta">
-                    {d.last_error
-                      ? <span style={{ color: 'var(--bad-ink)', fontWeight: 700 }}>{d.last_error}</span>
-                      : d.last_delivered_at || d.last_notified_at
-                        ? `Last alert ${prettyClock(new Date(d.last_delivered_at || d.last_notified_at))}`
-                        : 'No alert sent yet'}
+          <ul className="ns-meds">
+            {devices.data.map((d, i) => {
+              const info = describeDevice(d, { myEndpoint, index: i, all: devices.data, shortDate, prettyClock });
+              return (
+                <li key={d.id} className={`ns-med${info.current ? ' is-current' : ''}`}>
+                  <span className="gdev__ic" aria-hidden="true"><Icon name={d.push_enabled ? 'bell' : 'close'} size={18} /></span>
+                  <div className="ns-med__main">
+                    <div className="ns-med__name">
+                      {info.name}
+                      {info.current && <span className="contact__type">This device</span>}
+                    </div>
+                    <div className="ns-med__meta">{info.meta}</div>
+                    {/* Last-sent and last-error are shown so a silent failure
+                        is visible instead of being a mystery. */}
+                    <div className="ns-med__meta">
+                      {d.last_error
+                        ? <span className="ns-err">{d.last_error}</span>
+                        : info.lastSent}
+                    </div>
                   </div>
-                </div>
-                <button className="gdev__revoke" onClick={async () => {
-                  const ok = await ui.confirm({
-                    title: 'Stop alerts on this device?',
-                    message: `${d.label || 'This device'} will stop receiving alerts.`,
-                    confirmLabel: 'Stop alerts', danger: true,
-                  });
-                  if (!ok) return;
-                  try { await forgetNotificationDevice(d.id); devices.reload(); ui.toast('Removed.', 'info'); }
-                  catch { ui.toast('Could not remove it.', 'bad'); }
-                }}>Remove</button>
-              </div>
-            ))}
-          </div>
+                  <button type="button" className="gdev__revoke" aria-label={`Remove ${info.name}${info.current ? ' (this device)' : ''}, ${info.meta}`}
+                    onClick={async () => {
+                      const last = devices.data.length === 1;
+                      const ok = await ui.confirm({
+                        title: `Stop alerts on ${info.current ? 'this device' : info.name}?`,
+                        message: `${info.name} (${info.meta}) will stop receiving alerts.${last ? ' It is the only device set up, so no device will get your reminders or missed-dose alerts.' : ''}`,
+                        confirmLabel: 'Stop alerts', danger: true,
+                      });
+                      if (!ok) return;
+                      try { await forgetNotificationDevice(d.id); devices.reload(); ui.toast(`${info.name} removed.`, 'info'); }
+                      catch { ui.toast('Could not remove it.', 'bad'); }
+                    }}>Remove</button>
+                </li>
+              );
+            })}
+          </ul>
         )}
         <p className="muted" style={{ margin: '12px 0 0', fontSize: 15 }}>
           Guardian devices are listed separately under <b>Guardians</b> in Profile.
         </p>
-      </Card>
+      </Collapsible>
 
       {saving && <span className="sr-only" role="status">Saving…</span>}
     </div>
   );
 }
 
-function Row({ title, desc, children, dim }) {
+// One setting. The title and description carry ids so the control can be
+// labelled by them (a <label for> for a select; aria-labelledby for a switch).
+// Several dropdowns here had visible text but no programmatic name at all.
+function Row({ id, title, desc, children, dim, control }) {
   return (
-    <div className={`ns-row${dim ? ' is-dim' : ''}`}>
+    <div className={`ns-row${dim ? ' is-dim' : ''}${control === 'select' ? ' ns-row--select' : ''}`}>
       <div className="ns-row__main">
-        <div className="ns-row__t">{title}</div>
-        {desc && <div className="ns-row__d">{desc}</div>}
+        {control === 'select'
+          ? <label className="ns-row__t" id={`${id}-t`} htmlFor={`${id}-c`}>{title}</label>
+          : <div className="ns-row__t" id={`${id}-t`}>{title}</div>}
+        {desc && <div className="ns-row__d" id={`${id}-d`}>{desc}</div>}
       </div>
       <div className="ns-row__ctl">{children}</div>
     </div>

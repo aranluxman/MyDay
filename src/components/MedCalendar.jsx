@@ -3,7 +3,8 @@ import { Icon } from './Icon.jsx';
 import { Spinner } from './ui.jsx';
 import { useAsync } from '../hooks/useAsync.js';
 import { dosesInRange } from '../lib/db.js';
-import { dayMarkFromCounts } from '../lib/doseState.js';
+import { dayMarkFromCounts, countsByDay } from '../lib/doseState.js';
+import { isDueOn, normaliseTimes } from '../lib/schedule.js';
 import { localDateStr, deviceTimezone, prettyDate } from '../lib/format.js';
 
 // Calendars are always Sunday-first; the old "Week starts on" preference was
@@ -13,21 +14,40 @@ const WEEKDAYS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 // Word marks inside each day so status never relies on colour alone. 'partial'
 // is a day that was neither fully taken nor fully missed — it used to be drawn
 // as wholly missed, which is what made the calendar contradict Home's counters.
-const MARK = { taken: '✓', partial: '◐', pending: '•', missed: '!' };
-const MARK_WORD = { taken: 'all taken', partial: 'partly taken', pending: 'to take', missed: 'missed' };
+// 'planned' is a future day: what is scheduled, never a record of anything.
+const MARK = { taken: '✓', partial: '◐', pending: '•', missed: '!', planned: '○' };
+const MARK_WORD = { taken: 'all taken', partial: 'partly taken', pending: 'to take', missed: 'missed', none: 'nothing recorded' };
 
 const pad = (n) => String(n).padStart(2, '0');
 const iso = (y, m, d) => `${y}-${pad(m + 1)}-${pad(d)}`;
 
+/** Accessible description of one day, built from the same counts as the mark. */
+export function dayLabel(dateIso, agg, planned = 0) {
+  const date = prettyDate(dateIso);
+  if (planned) return `${date}: planned — ${planned} dose${planned === 1 ? '' : 's'} scheduled, not yet recorded`;
+  if (!agg || !agg.total) return `${date}: no doses recorded`;
+  const status = dayMarkFromCounts(agg);
+  const parts = [`${agg.taken || 0} taken`, `${agg.toTake ?? agg.pending ?? 0} to take`, `${agg.missed || 0} missed`];
+  if (agg.skipped) parts.push(`${agg.skipped} not today`);
+  return `${date}: ${MARK_WORD[status]} — ${parts.join(', ')}`;
+}
+
 /**
  * Month grid of medication adherence.
  *
- * @param counts  Optional pre-aggregated { 'YYYY-MM-DD': {taken,missed,pending} }.
- *                The guardian dashboard passes this in (it has no Supabase
- *                session and reads through an edge function), so both sides
- *                render from the same component and the marks always match.
+ * Past days and today are HISTORY: what was recorded, with each dose's state
+ * worked out by doseState() — the same rule as Today, History and Home — so a
+ * dose that is missed reads as missed everywhere at once.
+ *
+ * Future days are the PLAN, drawn from the active medicines' schedules when
+ * `meds` is given, and clearly marked "planned" so they are never mistaken
+ * for doses that were taken or skipped.
+ *
+ * @param counts  Optional pre-aggregated { 'YYYY-MM-DD': counts } from
+ *                countsByDay(). The guardian dashboard passes this in (it has
+ *                no Supabase session), so both render the same marks.
  */
-export function MedCalendar({ selected, onPick, counts }) {
+export function MedCalendar({ selected, onPick, counts, windowMinutes = 60, meds = null }) {
   const today = localDateStr(deviceTimezone());
   const [cursor, setCursor] = useState(() => {
     // Open on the selected day's month when one is given, so a guardian
@@ -54,18 +74,16 @@ export function MedCalendar({ selected, onPick, counts }) {
     [fromIso, toIso, external]
   );
 
-  const byDate = useMemo(() => {
-    if (external) return counts;
-    const map = {};
-    for (const d of data || []) {
-      const e = (map[d.dose_date] ||= { taken: 0, missed: 0, pending: 0, skipped: 0, total: 0 });
-      // 'skipped' needs its own bucket: counted as pending it would leave a
-      // deliberate "not today" showing as still to take, for ever.
-      if (e[d.status] != null) e[d.status]++;
-      e.total++;
-    }
-    return map;
-  }, [data, counts, external]);
+  const byDate = useMemo(
+    () => (external ? counts : countsByDay(data || [], { windowMinutes })),
+    [data, counts, external, windowMinutes]
+  );
+
+  // How many doses each future day is scheduled to have.
+  const plannedFor = (dStr) => {
+    if (!meds?.length || dStr <= today) return 0;
+    return meds.reduce((n, m) => n + (m.active !== false && isDueOn(m, dStr) ? normaliseTimes(m.times).length : 0), 0);
+  };
 
   function shift(delta) {
     setCursor((c) => {
@@ -89,40 +107,42 @@ export function MedCalendar({ selected, onPick, counts }) {
   return (
     <div className="cal">
       <div className="cal__head">
-        <button className="cal__nav" aria-label="Previous month" onClick={() => shift(-1)}><Icon name="back" size={24} /></button>
+        <button type="button" className="cal__nav" aria-label="Previous month" onClick={() => shift(-1)}><Icon name="back" size={24} /></button>
         <span className="cal__title" aria-live="polite">{monthLabel}</span>
-        <button className="cal__nav" aria-label="Next month" onClick={() => shift(1)}><Icon name="chevron" size={24} /></button>
+        <button type="button" className="cal__nav" aria-label="Next month" onClick={() => shift(1)}><Icon name="chevron" size={24} /></button>
       </div>
-      <div className="cal__weekdays">{WEEKDAYS.map((w) => <span key={w}>{w}</span>)}</div>
+      <div className="cal__weekdays" aria-hidden="true">{WEEKDAYS.map((w) => <span key={w}>{w}</span>)}</div>
       {loading && !external ? <Spinner label="" /> : (
         <div className="cal__grid">
           {cells.map((day, i) => {
             if (!day) return <span key={i} className="cal__cell cal__cell--empty" />;
             const dStr = iso(cursor.y, cursor.m, day);
             const agg = byDate?.[dStr];
-            const status = dayMarkFromCounts(agg);
+            const planned = agg?.total ? 0 : plannedFor(dStr);
+            const status = planned ? 'planned' : dayMarkFromCounts(agg);
             const cls = `cal__cell${status !== 'none' ? ` cal__cell--${status}` : ''}`
               + `${dStr === today ? ' is-today' : ''}${dStr === selected ? ' is-selected' : ''}`;
-            const label = `${prettyDate(dStr)}${agg
-              ? `: ${MARK_WORD[status]} — ${agg.taken || 0} taken, ${agg.pending || 0} to take, ${agg.missed || 0} missed`
-              : ': no doses'}`;
             const Cell = onPick ? 'button' : 'span';
             return (
-              <Cell key={i} className={cls} onClick={onPick ? () => onPick(dStr) : undefined} aria-label={label}
+              <Cell key={i} type={onPick ? 'button' : undefined} className={cls}
+                onClick={onPick ? () => onPick(dStr) : undefined}
+                aria-label={dayLabel(dStr, agg, planned)}
+                aria-pressed={onPick ? dStr === selected : undefined}
                 aria-current={dStr === today ? 'date' : undefined}>
-                <span className="cal__day">{day}</span>
+                <span className="cal__day" aria-hidden="true">{day}</span>
                 <span className={`cal__mark cal__mark--${status}`} aria-hidden="true">{MARK[status] || ''}</span>
               </Cell>
             );
           })}
         </div>
       )}
-      {!onThisMonth && <button className="cal__today-btn" onClick={goToday}>Back to today</button>}
+      {!onThisMonth && <button type="button" className="cal__today-btn" onClick={goToday}>Back to today</button>}
       <div className="cal__legend">
         <span className="lg--taken">✓ All taken</span>
         <span className="lg--partial">◐ Some taken</span>
         <span className="lg--pending">• To take</span>
         <span className="lg--missed">! Missed</span>
+        {meds && <span className="lg--planned">○ Planned</span>}
       </div>
     </div>
   );

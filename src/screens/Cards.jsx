@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useDialog } from '../hooks/useDialog.js';
 import { createPortal } from 'react-dom';
 import { Icon } from '../components/Icon.jsx';
 import { Card, Button, Input, Modal, HeroEmpty, SkeletonCard } from '../components/ui.jsx';
@@ -203,21 +204,17 @@ function CardViewer({ card, onClose }) {
   const url = useCardImage(path);
   const hasBack = !!card.back_path;
 
-  useEffect(() => {
-    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
-    window.addEventListener('keydown', onKey);
-    document.body.classList.add('no-scroll');
-    return () => { window.removeEventListener('keydown', onKey); document.body.classList.remove('no-scroll'); };
-  }, [onClose]);
+  const viewerRef = useRef(null);
+  useDialog(viewerRef, { onEscape: onClose });
 
   // Reset the view when flipping sides, so the back does not inherit a zoom
   // that made sense for the front.
   useEffect(() => { setZoom(1); setRotation(0); }, [side]);
 
   return createPortal(
-    <div className={`cv${bright ? ' cv--bright' : ''}`} role="dialog" aria-modal="true" aria-label={card.label}>
+    <div ref={viewerRef} className={`cv${bright ? ' cv--bright' : ''}`} role="dialog" aria-modal="true" aria-label={card.label}>
       <header className="cv__bar">
-        <button className="cv__btn" onClick={onClose} aria-label="Close">
+        <button type="button" className="cv__btn" onClick={onClose} aria-label={`Close ${card.label}`}>
           <Icon name="close" size={24} />
         </button>
         <span className="cv__title">{card.label}</span>
