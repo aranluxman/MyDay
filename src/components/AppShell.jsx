@@ -17,6 +17,8 @@ const TITLES = {
   '/help': 'Guide',
 };
 
+const ADD_PAGES = new Set(['/', '/medication', '/appointments', '/updates']);
+
 const ADD_ACTIONS = [
   { icon: 'pill', label: 'Add a medicine', desc: 'Pills, vitamins, drops', to: '/medication', add: 'med' },
   { icon: 'calendar', label: 'Add a visit', desc: 'Doctor, clinic, dentist', to: '/appointments', add: 'appt' },
@@ -33,9 +35,16 @@ export function AppShell() {
   const title = TITLES[pathname] || 'MyDay';
   const isDark = theme === 'dark' || theme === 'midnight';
   const isHome = pathname === '/';
-  // Nothing in the quick-add menu applies while playing a game, and the button
-  // sits right on top of the last card in the grid.
-  const showAdd = pathname !== '/games';
+  // The floating + belongs where adding things is the job. On settings,
+  // games, cards and the guide it only covers controls — at 320px it sat
+  // squarely on the "All notifications" switch.
+  const showAdd = ADD_PAGES.has(pathname);
+  const mainRef = useRef(null);
+  const firstRoute = useRef(true);
+  const online = useOnline();
+
+  // A meaningful page title for every route (tabs, history, screen readers).
+  useEffect(() => { document.title = pathname === '/' ? 'Home · MyDay' : `${title} · MyDay`; }, [pathname, title]);
 
   // The large title shrinks into a compact bar once the page moves, the way
   // iOS navigation bars do.
@@ -45,7 +54,14 @@ export function AppShell() {
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
-  useEffect(() => { window.scrollTo(0, 0); setAddOpen(false); }, [pathname]);
+  useEffect(() => {
+    window.scrollTo(0, 0);
+    setAddOpen(false);
+    // After navigating, start a keyboard / screen reader user at the new
+    // page's content rather than leaving focus on the tab they pressed.
+    if (firstRoute.current) { firstRoute.current = false; return; }
+    mainRef.current?.focus({ preventScroll: true });
+  }, [pathname]);
 
   function doAdd(a) {
     setAddOpen(false);
@@ -53,10 +69,18 @@ export function AppShell() {
   }
 
   return (
-    <div className="app-shell" data-page={pathname}>
+    <div className={`app-shell${showAdd ? ' has-fab' : ''}`} data-page={pathname}>
+      <a className="skip-link" href="#main" onClick={(e) => { e.preventDefault(); mainRef.current?.focus(); }}>Skip to main content</a>
       <Ambient />
+      {/* Honest about the network: an action taken offline is NOT saved, and
+          the screens say so rather than pretending. */}
+      {!online && (
+        <div className="offline-bar" role="status">
+          <Icon name="alert" size={20} /> You are offline. Nothing you tap is saved until you reconnect.
+        </div>
+      )}
       <header className={`topbar${scrolled ? ' is-scrolled' : ''}`}>
-        <h1 className="topbar__title">{title}</h1>
+        <h1 className="topbar__title" id="page-title">{title}</h1>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <InstallButton />
           <button className="topbar__btn" aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
@@ -67,7 +91,7 @@ export function AppShell() {
       </header>
 
       {/* Keyed on the route so each screen plays its entrance. */}
-      <main className="content"><div className="page" key={pathname}><Outlet /></div></main>
+      <main className="content" id="main" ref={mainRef} tabIndex={-1} aria-labelledby="page-title"><div className="page" key={pathname}><Outlet /></div></main>
 
       {showAdd && addOpen && <AddMenu onPick={doAdd} onClose={() => setAddOpen(false)} />}
 
@@ -135,6 +159,18 @@ function AddMenu({ onPick, onClose }) {
       </div>
     </>
   );
+}
+
+function useOnline() {
+  const [online, setOnline] = useState(() => (typeof navigator === 'undefined' ? true : navigator.onLine !== false));
+  useEffect(() => {
+    const on = () => setOnline(true);
+    const off = () => setOnline(false);
+    window.addEventListener('online', on);
+    window.addEventListener('offline', off);
+    return () => { window.removeEventListener('online', on); window.removeEventListener('offline', off); };
+  }, []);
+  return online;
 }
 
 // Soft colour fields drifting slowly behind the glass. Purely decorative, so

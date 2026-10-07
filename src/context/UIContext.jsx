@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useRef, useCallback, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Icon } from '../components/Icon.jsx';
+import { useDialog } from '../hooks/useDialog.js';
 
 const UICtx = createContext(null);
 export const useUI = () => useContext(UICtx);
@@ -43,11 +44,16 @@ export function UIProvider({ children }) {
   return (
     <UICtx.Provider value={value}>
       {children}
-      <div className="toast-stack" aria-live="polite">
-        {toasts.map((t) => (
-          <Toast key={t.id} t={t} onDismiss={() => dismissToast(t.id)} />
-        ))}
-      </div>
+      {/* Its own portal, exempt from dialog inertness: a save error raised
+          while the wizard is open must still be seen and announced. */}
+      {createPortal(
+        <div className="toast-stack" role="status" aria-live="polite" data-dialog-exempt="">
+          {toasts.map((t) => (
+            <Toast key={t.id} t={t} onDismiss={() => dismissToast(t.id)} />
+          ))}
+        </div>,
+        document.body
+      )}
       {dialog && <AlertHost key={dialog.id} dialog={dialog} onClose={(r) => { dialog.resolve(r); setDialog(null); }} />}
     </UICtx.Provider>
   );
@@ -96,6 +102,7 @@ function AlertHost({ dialog, onClose }) {
   const [leaving, setLeaving] = useState(false);
   const safeRef = useRef(null);
   const okRef = useRef(null);
+  const boxRef = useRef(null);
   // The provider hands a fresh onClose on every render (a toast appearing is
   // enough), so read it through a ref rather than re-running the focus effect.
   const onCloseRef = useRef(onClose);
@@ -109,18 +116,12 @@ function AlertHost({ dialog, onClose }) {
     setTimeout(() => onCloseRef.current(result), LEAVE_MS - 60);
   }, []);
 
-  useEffect(() => {
-    (dialog.danger ? safeRef : okRef).current?.focus();
-    const onKey = (e) => { if (e.key === 'Escape') close(false); };
-    window.addEventListener('keydown', onKey);
-    document.body.classList.add('no-scroll');
-    return () => { window.removeEventListener('keydown', onKey); document.body.classList.remove('no-scroll'); };
-  }, [dialog, close]);
+  useDialog(boxRef, { onEscape: () => close(false), initialFocus: dialog.danger ? safeRef : okRef });
 
   return createPortal(
     <div className={`alert-overlay${leaving ? ' is-leaving' : ''}`}
       onClick={(e) => e.target === e.currentTarget && close(false)}>
-      <div className={`alert${leaving ? ' is-leaving' : ''}`} role="alertdialog" aria-modal="true"
+      <div ref={boxRef} className={`alert${leaving ? ' is-leaving' : ''}`} role="alertdialog" aria-modal="true"
         aria-labelledby="alert-title" aria-describedby={dialog.message ? 'alert-msg' : undefined}>
         <div className="alert__body">
           {dialog.danger && <span className="alert__ic"><Icon name="alert" size={24} /></span>}

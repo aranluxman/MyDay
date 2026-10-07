@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Button, Modal } from './ui.jsx';
+import { Icon } from './Icon.jsx';
 import { MedicineWizard } from './MedicineWizard.jsx';
 import { MedicinePhotoTray } from './MedicinePhotoScan.jsx';
 import { useUI } from '../context/UIContext.jsx';
 import { saveMedicationsBulk, refreshDoses, deleteMedPhoto } from '../lib/db.js';
 import { readMedicineBatch, writeMedicineBatch, clearMedicineBatch } from '../lib/medicineBatch.js';
-import { toMedicationPayload } from '../lib/medicationPayload.js';
+import { toMedicationPayload, medicineProblems } from '../lib/medicationPayload.js';
+import { buildDoseString } from '../lib/doseUnits.js';
 import { describeSchedule } from '../lib/schedule.js';
 import { prettyTime } from '../lib/format.js';
 
@@ -84,8 +86,18 @@ export function MedicineBatch({ userId, onClose, onSaved }) {
     onClose();
   }
 
+  // Every staged medicine is validated again here, so a draft recovered from
+  // the device (or staged by an older version) cannot reach the save as-is.
+  const invalid = items.map((item) => medicineProblems(item.form)[0] || null);
+  const invalidCount = invalid.filter(Boolean).length;
+
   async function saveAll() {
     if (!items.length || working || busy) return;
+    if (invalidCount) {
+      const i = invalid.findIndex(Boolean);
+      ui.toast(`${items[i].form.name || 'One medicine'} needs fixing first: ${invalid[i].message}`, 'bad');
+      return;
+    }
     setBusy(true);
     try {
       await saveMedicationsBulk(items);
@@ -110,16 +122,20 @@ export function MedicineBatch({ userId, onClose, onSaved }) {
           {!!items.length && (
             <div className="medbatch__review" role="list" aria-label="Medicines to save">
               {items.map((item, index) => {
-                const m = toMedicationPayload(item.form);
+                const f = item.form;
+                const problem = invalid[index];
                 return (
-                  <div className="medbatch__item" role="listitem" key={item.id}>
+                  <div className={`medbatch__item${problem ? ' is-invalid' : ''}`} role="listitem" key={item.id}>
                     <div className="medbatch__itemmain">
-                      <b translate="no">{m.name}</b>
-                      <span>{m.dose} · {describeSchedule(m, { prettyTime })}</span>
+                      <b translate="no">{f.name || 'Unnamed medicine'}</b>
+                      <span>{buildDoseString(f.dose_amount, f.dose_unit, f.dose_other) || 'No amount'} · {describeSchedule(f, { prettyTime })}</span>
+                      {problem && <span className="medbatch__problem"><Icon name="alert" size={16} /> Needs fixing: {problem.message}</span>}
                     </div>
                     <div className="medbatch__itemactions">
-                      <Button size="sm" variant="ghost" full={false} onClick={() => edit(index)} disabled={!!working || busy}>Edit</Button>
-                      <Button size="sm" variant="danger" full={false} onClick={() => remove(index)} disabled={!!working || busy}>Remove</Button>
+                      <Button size="sm" variant="ghost" full={false} onClick={() => edit(index)} disabled={!!working || busy}
+                        aria-label={`${problem ? 'Fix' : 'Edit'} ${f.name || 'this medicine'}`}>{problem ? 'Fix' : 'Edit'}</Button>
+                      <Button size="sm" variant="danger" full={false} onClick={() => remove(index)} disabled={!!working || busy}
+                        aria-label={`Remove ${f.name || 'this medicine'} from this review`}>Remove</Button>
                     </div>
                   </div>
                 );
@@ -141,6 +157,7 @@ export function MedicineBatch({ userId, onClose, onSaved }) {
               <Button icon="camera" variant="ghost" onClick={startPhoto} disabled={busy}>Scan a label</Button>
             </div>
           )}
+          {!!invalidCount && <p className="medbatch__saved" role="status">{invalidCount === 1 ? 'One medicine needs fixing' : `${invalidCount} medicines need fixing`} before you can save.</p>}
           <Button size="lg" icon="check" onClick={saveAll} disabled={!items.length || !!working || busy}>
             {busy ? 'Saving medicines…' : `Save all ${items.length || ''} ${items.length === 1 ? 'medicine' : 'medicines'}`}
           </Button>

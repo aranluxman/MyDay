@@ -1,0 +1,389 @@
+/* =====================================================================
+   phone.css — loaded last. Phone-first fixes from the accessibility and
+   layout audit, gathered in one place so they can be reviewed together.
+
+   Principles:
+   * Every control is at least 44x44 CSS px; primary phone actions 48px+.
+     Comfortable targets do not depend on the "Bigger buttons" preference.
+   * Body and form text 16–17px; secondary text never below 14px.
+   * At large text sizes things WRAP (grids, rows, segmented controls,
+     badges) instead of overflowing sideways or truncating names.
+   * Nothing fixed (nav, Add button) may permanently cover content: the page
+     reserves room for them and focused controls scroll clear of them.
+   ===================================================================== */
+
+/* ---------- skip link, focus, page titles ---------- */
+.skip-link {
+  position: fixed; left: 12px; top: -200px; z-index: 200;
+  padding: 12px 18px; border-radius: 12px; min-height: 48px; display: inline-flex; align-items: center;
+  background: var(--primary); color: var(--on-primary); font-weight: 800; text-decoration: none;
+  box-shadow: var(--shadow-lg);
+}
+.skip-link:focus { top: max(8px, env(safe-area-inset-top)); outline: 3px solid var(--ink); outline-offset: 2px; }
+main.content:focus, .tabpanel:focus, .wiz__title:focus, [tabindex='-1']:focus { outline: none; }
+:focus-visible { outline: 3px solid var(--primary); outline-offset: 2px; }
+.wiz__err:focus-visible { outline-offset: 0; }
+
+/* Focused controls and anchors scroll clear of the top bar and bottom nav. */
+html { scroll-padding-top: 84px; scroll-padding-bottom: calc(var(--nav-h) + 110px + env(safe-area-inset-bottom)); }
+
+/* ---------- hit areas ---------- */
+.topbar__btn { width: 44px; height: 44px; min-width: 44px; }
+.topbar__btn svg { width: 21px; height: 21px; }
+.topbar .install-btn { height: 44px; min-width: 44px; }
+.icon-btn { min-width: 44px; min-height: 44px; }
+.btn--sm { min-height: 44px; font-size: 15px; padding: 8px 14px; }
+.btn--sm svg { width: 18px; height: 18px; }
+.dose__skip { min-height: 48px; }
+.gdev__revoke { min-height: 44px; min-width: 64px; }
+.cal__nav { min-width: 44px; min-height: 44px; }
+.cal__cell { min-height: 44px; }
+.checklist__item, .menu-row { min-height: 52px; }
+.wiz__lineedit { min-height: 44px; min-width: 64px; }
+.ac__item { min-height: 48px; }
+.swatch { width: 48px; height: 48px; display: grid; place-items: center; color: #fff; }
+.swatch.is-active { box-shadow: 0 0 0 3px var(--surface) inset, 0 0 0 2px var(--ink); }
+
+/* The switch: a 48px-tall button with the visual track inside it. */
+.switch {
+  position: relative; display: inline-grid; place-items: center; flex: none;
+  width: auto; height: auto; min-width: 64px; min-height: 48px; padding: 0 4px;
+  border: 0; border-radius: 999px; background: transparent !important; cursor: pointer;
+}
+.switch::after { content: none; display: none; }
+.switch__track {
+  position: relative; display: block; width: 54px; height: 32px; border-radius: 999px;
+  background: color-mix(in srgb, var(--ink-soft) 45%, transparent);
+  transition: background-color 0.25s ease;
+}
+.switch__track::after {
+  content: ''; position: absolute; top: 2px; left: 2px; width: 28px; height: 28px; border-radius: 50%;
+  background: #fff; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+  transition: transform 0.3s var(--ease-spring, ease);
+}
+.switch[aria-checked='true'] .switch__track { background: var(--good-fill, var(--good)); }
+.switch[aria-checked='true'] .switch__track::after { transform: translateX(22px); }
+.switch .switch__label { display: none; }
+.switch:disabled { opacity: 0.5; cursor: not-allowed; }
+html[data-contrast='1'] .switch__track { outline: 2px solid var(--ink); outline-offset: 0; }
+
+/* Segmented controls and tabs: 48px, and they wrap at large text sizes.
+   The sliding thumb assumed one row, so the selected option now carries its
+   own background (plus bold) instead. */
+.segmented { flex-wrap: wrap; gap: 4px; }
+.segmented__thumb { display: none; }
+.segmented__item {
+  flex: 1 1 auto; min-width: max-content; min-height: 48px; padding: 6px 14px;
+  font-size: 16px; font-weight: 650; color: var(--ink);
+}
+.segmented__item.is-active {
+  background: var(--surface); color: var(--ink); font-weight: 800;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1), 0 0 0 2px color-mix(in srgb, var(--primary) 55%, transparent);
+}
+[data-theme='dark'] .segmented__item.is-active, [data-theme='midnight'] .segmented__item.is-active { background: #3a3b45; }
+
+/* ---------- readable baseline type ---------- */
+.menu-row__d, .setting-row__d, .ns-row__d, .row-card__d, .quick__sub, .game-card__sub,
+.field__hint, .progress-card__d, .tl__time, .account-card__sub { font-size: 15px; }
+.g-badge { font-size: 14px; }
+.medrow__tag, .stat__label, .glance__l, .reminder__kicker, .cal__legend span { font-size: 14px; }
+.cal__weekdays span { font-size: 13px; }
+.cal__mark { font-size: 12px; }
+.contact__line { font-size: 16px; }
+.contact__type { font-size: 14px; margin-left: 0; }
+.medrow__dose { font-size: 16px; }
+.card__title { font-size: 18px; overflow-wrap: anywhere; }
+.wiz__hint, .wiz__label { font-size: 16px; }
+
+/* ---------- bottom navigation ---------- */
+@media (max-width: 1023px) {
+  /* Four tabs and More on a phone; six never fitted readably. */
+  .bottom-nav__item--wide { display: none !important; }
+  .bottom-nav {
+    left: max(8px, env(safe-area-inset-left)); right: max(8px, env(safe-area-inset-right));
+    height: auto; min-height: var(--nav-h);
+  }
+  .bottom-nav__item {
+    flex: 1 1 0; min-width: 0; min-height: 52px; padding: 4px 2px; gap: 2px;
+    font-size: 13px; font-weight: 650; letter-spacing: 0; overflow: visible;
+  }
+  .bottom-nav__label { display: block; max-width: 100%; white-space: nowrap; line-height: 1.15; }
+  .fab { right: max(16px, env(safe-area-inset-right)); }
+}
+@media (max-width: 380px) {
+  .bottom-nav { left: max(6px, env(safe-area-inset-left)); right: max(6px, env(safe-area-inset-right)); padding: 5px 4px; }
+  .bottom-nav__item { font-size: 13px; padding: 4px 0; letter-spacing: 0; }
+}
+@media (min-width: 1024px) {
+  .bottom-nav__more { display: none !important; }
+}
+.bottom-nav__more { border: 0; background: none; font-family: inherit; color: var(--ink-soft); cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.bottom-nav__more.is-active { color: var(--primary); }
+.bottom-nav__item:focus-visible { outline-offset: -3px; }
+
+/* The page text follows the chosen size; the tab bar is chrome that has to
+   fit five destinations across a 320px phone. Its labels are capped at 13px
+   on the narrowest phones and about 15px elsewhere — always larger than the
+   9px they shrank to before — instead of overlapping each other. */
+@media (max-width: 1023px) {
+  html[data-text='xlarge'] .bottom-nav { zoom: 0.8; }
+  html[data-text='huge'] .bottom-nav { zoom: 0.7143; }
+}
+@media (min-width: 381px) and (max-width: 1023px) {
+  html[data-text='xlarge'] .bottom-nav { zoom: 0.9; }
+  html[data-text='huge'] .bottom-nav { zoom: 0.8; }
+}
+
+/* Short screens (a phone on its side, or the keyboard up): a slimmer nav
+   with icon and label side by side, and a smaller Add button, so an action
+   card can sit fully between them. */
+@media (max-height: 500px) and (max-width: 1023px) {
+  :root { --nav-h: 50px; }
+  .bottom-nav { min-height: 50px; padding: 3px 6px; bottom: max(6px, env(safe-area-inset-bottom)); }
+  .bottom-nav__item { flex-direction: row; gap: 6px; min-height: 44px; }
+  .bottom-nav__ic { height: 28px; }
+  .fab { width: 52px; height: 52px; bottom: calc(var(--nav-h) + max(6px, env(safe-area-inset-bottom)) + 10px); }
+  .fab--labeled { width: auto; }
+  .topbar { padding-top: max(6px, env(safe-area-inset-top)); padding-bottom: 6px; }
+  .content { padding-bottom: calc(var(--nav-h) + 90px + env(safe-area-inset-bottom)); }
+}
+
+/* Room for the Add button above the nav on the pages that have one. */
+.app-shell.has-fab .content { padding-bottom: calc(var(--nav-h) + 120px + env(safe-area-inset-bottom)); }
+
+/* ---------- things that must wrap at large text ---------- */
+.theme-grid { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); }
+.theme-swatch__name { font-size: 14px; overflow-wrap: anywhere; text-align: center; }
+.type-grid { grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); }
+.type-chip { min-height: 72px; font-size: 15px; text-align: center; }
+.setting-row { flex-wrap: wrap; }
+.setting-row__main { flex: 1 1 150px; }
+.ns-row { flex-wrap: wrap; gap: 10px; }
+.ns-row__main { flex: 1 1 170px; }
+.ns-row--select .ns-row__ctl { flex: 1 1 170px; }
+.ns-row__ctl select, .ns-row__ctl .input--select { width: 100%; }
+.dose__head { flex-wrap: wrap; row-gap: 6px; }
+.dose__head .card__title { flex: 1 1 150px; }
+.dose__head .g-badge { white-space: normal; }
+.g-badge { max-width: 100%; }
+.medlist__name { white-space: normal; overflow-wrap: anywhere; }
+.medlist__sub { overflow-wrap: anywhere; }
+.btn-row { flex-wrap: wrap; }
+.btn-row .btn { flex: 1 1 140px; }
+.btn-row--wrap .btn { flex: 1 1 120px; }
+.glance { grid-template-columns: repeat(auto-fit, minmax(104px, 1fr)); }
+.status__row { flex-wrap: wrap; }
+.wiz__line { flex-wrap: wrap; }
+.wiz__linevalue { overflow-wrap: anywhere; min-width: 0; }
+.hello { gap: 12px; }
+.hello__name { overflow-wrap: anywhere; }
+.medlist__toolbar { flex-wrap: wrap; gap: 10px; }
+.medlist__controls { flex-wrap: wrap; }
+.medlist__controls > * { flex: 1 1 160px; }
+.cal__legend { gap: 6px; }
+
+/* ---------- folding sections (Profile, Alerts) ---------- */
+.card.fold { padding: 0; overflow: hidden; }
+.fold__h { margin: 0; font-size: inherit; font-weight: inherit; }
+.fold__btn {
+  width: 100%; min-height: 64px; display: flex; align-items: center; gap: 12px;
+  padding: 12px 14px; border: 0; background: none; color: var(--ink); font: inherit; text-align: left; cursor: pointer;
+  border-radius: inherit;
+}
+.fold__btn:focus-visible { outline-offset: -3px; }
+.fold__ic { width: 40px; height: 40px; flex: none; display: grid; place-items: center; border-radius: 12px; background: var(--surface-2); color: var(--primary); }
+.fold__main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.fold__t { font-size: 18px; font-weight: 800; }
+.fold__s { font-size: 15px; color: var(--ink-soft); overflow-wrap: anywhere; }
+.fold__chev { flex: none; color: var(--ink-soft); transition: transform 0.2s ease; }
+.fold.is-open .fold__chev { transform: rotate(90deg); }
+.fold__body { padding: 0 16px 16px; }
+.fold-bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.fold-bar__t { font-size: 15px; font-weight: 700; color: var(--ink-soft); }
+
+/* The "medicines together" card when minimized: one line. */
+.insights-mini {
+  width: 100%; min-height: 64px; display: flex; align-items: center; gap: 12px; padding: 12px 14px; cursor: pointer;
+  border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow);
+  color: var(--ink); font: inherit; text-align: left;
+}
+.insights-mini__ic { width: 40px; height: 40px; flex: none; display: grid; place-items: center; border-radius: 12px; background: var(--primary-soft); color: var(--primary); }
+.insights-mini__main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.insights-mini__t { font-size: 17px; font-weight: 800; }
+.insights-mini__s { font-size: 15px; color: var(--ink-soft); }
+.insights__h { margin: 0; font-size: inherit; }
+.insights .section-title { flex-wrap: wrap; gap: 8px; }
+
+/* ---------- sheets: scrollable body, reachable footer, keyboard aware ---------- */
+.sheet, .sheet--wizard { max-height: min(92dvh, calc(var(--vvh, 100dvh) - 8px)); }
+.sheet__title { margin: 0; font-size: 21px; }
+.sheet--footed { display: flex; flex-direction: column; overflow: hidden; padding-bottom: 0; }
+.sheet--footed .sheet__body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding-bottom: 8px; }
+.sheet__foot {
+  flex: none; padding: 12px 0 calc(12px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--line); background: inherit;
+}
+.sheet__foot .btn-row { margin-top: 0; }
+/* The wizard's step area takes what is left and scrolls, so the Continue /
+   Save footer is always on screen — with the keyboard up too. */
+.sheet--wizard { overflow: hidden; }
+.sheet--wizard .wiz__view { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.sheet--wizard .wiz__head, .sheet--wizard .wiz__progress, .sheet--wizard .wiz__foot { flex: none; }
+@media (max-height: 500px) {
+  .wiz__foot { padding-top: 8px; padding-bottom: calc(8px + env(safe-area-inset-bottom)); }
+  .wiz__skip { margin-top: 2px; padding: 6px; min-height: 44px; }
+  .wiz__head { padding-bottom: 4px; }
+}
+.wiz__title { margin: 0; }
+.wiz__count { text-transform: none; letter-spacing: 0; font-size: 14px; }
+
+/* ---------- wizard pieces ---------- */
+.wiz__err { display: flex; align-items: flex-start; gap: 8px; }
+.wiz__err svg { flex: none; margin-top: 2px; }
+.wiz__problems { padding: 12px 14px; border-radius: 14px; background: var(--bad-bg); color: var(--bad-ink); }
+.wiz__problems-t { display: flex; align-items: center; gap: 8px; margin: 0 0 6px; font-weight: 800; }
+.wiz__problems ul { margin: 0; padding-left: 20px; }
+.wiz__problems .linkbtn { color: var(--bad-ink); }
+.linkbtn {
+  min-height: 44px; padding: 6px 2px; border: 0; background: none; cursor: pointer;
+  color: var(--primary); font: inherit; font-weight: 700; text-align: left;
+  text-decoration: underline; text-underline-offset: 3px;
+}
+.wiz__resume { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; padding: 8px 12px; border-radius: 12px; background: var(--primary-soft); margin-bottom: 10px; }
+.wiz__group { display: flex; flex-direction: column; gap: 6px; margin-top: 16px; }
+.wiz__fieldset { border: 1px solid var(--line); border-radius: 14px; padding: 12px; margin: 14px 0 0; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.wiz__fieldset legend { padding: 0 6px; }
+.wiz__two { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
+.wiz__danger { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 6px; }
+.amountbox { display: flex; align-items: center; gap: 8px; margin-top: 6px; padding: 8px; border-radius: 18px; background: var(--surface-2); border: 2px solid var(--line); }
+.amountbox.is-invalid { border-color: var(--bad); }
+.amountbox__input { flex: 1 1 auto; min-width: 0; width: 100%; }
+.amountbox__unit { flex: 0 1 auto; max-width: 32%; font-size: 17px; font-weight: 800; color: var(--ink-soft); overflow-wrap: anywhere; }
+.amountbox .stepper__btn { width: 52px; height: 56px; flex: none; }
+.input--select { min-height: 48px; }
+
+.tp { max-height: calc(var(--vvh, 100dvh) - 32px); overflow-y: auto; }
+.tp__title { margin: 0 0 6px; font-size: 19px; font-weight: 800; text-align: center; }
+.tp__typed { font-size: 22px; margin: 6px 0 14px; }
+.tp__quick { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; justify-content: center; }
+.tp__arrow { width: 64px; height: 52px; }
+
+/* ---------- states, always with words and an icon ---------- */
+.g-badge--prn { background: var(--primary-soft); color: var(--primary); }
+.cal__cell--planned { background: transparent; outline: 1px dashed color-mix(in srgb, var(--ink-soft) 60%, transparent); outline-offset: -3px; }
+.cal__mark--planned { color: var(--ink-soft); }
+.cal__legend .lg--planned { color: var(--ink-soft); background: var(--surface-2); }
+
+/* ---------- lists that became real lists ---------- */
+.medlist, .ns-meds, .contact-list, .more-list, .ready-list, .g-list { list-style: none; margin: 0; padding: 0; }
+.more-list .menu-row { width: 100%; }
+.menu-row.is-current .menu-row__t { color: var(--primary); }
+.medlist__low { display: inline-flex; align-items: center; gap: 4px; margin-top: 4px; font-size: 14px; font-weight: 800; color: var(--warn-ink); }
+.medrow__supply { display: flex; align-items: center; gap: 6px; margin-top: 8px; font-size: 16px; font-weight: 650; }
+.medrow__supply.is-low { color: var(--warn-ink); }
+.medrow__contacts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.medbatch__item.is-invalid { border-color: var(--bad); }
+.medbatch__problem { display: flex; align-items: center; gap: 6px; color: var(--bad-ink); font-weight: 700; font-size: 15px; }
+.ns-err { color: var(--bad-ink); font-weight: 700; }
+.ns-med.is-current { background: var(--primary-soft); border-radius: 12px; padding-left: 8px; padding-right: 8px; }
+.ns-med__name { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; overflow-wrap: anywhere; }
+
+.ready { display: flex; gap: 10px; padding: 10px 0; border-top: 1px solid var(--line); }
+.ready:first-child { border-top: 0; }
+.ready__ic { width: 30px; height: 30px; flex: none; display: grid; place-items: center; border-radius: 50%; }
+.ready--ok .ready__ic { background: var(--good-bg); color: var(--good-ink); }
+.ready--warn .ready__ic { background: var(--warn-bg); color: var(--warn-ink); }
+.ready--info .ready__ic { background: var(--surface-2); color: var(--ink-soft); }
+.ready__main { display: flex; flex-direction: column; min-width: 0; }
+.ready__t { font-weight: 750; font-size: 16px; }
+.ready__d { font-size: 15px; color: var(--ink-soft); }
+
+/* Contacts */
+.contact__tags { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0; }
+.contact__type--sos { background: var(--bad-bg); color: var(--bad-ink); }
+.contact__call { margin-top: 8px; width: auto; }
+.fieldset { border: 0; padding: 0; margin: 0 0 12px; min-width: 0; }
+.field__err { display: block; margin-top: 6px; color: var(--bad-ink); font-weight: 700; font-size: 15px; }
+.account-card__btn {
+  display: flex; flex-direction: column; align-items: flex-start; min-height: 48px;
+  background: none; border: 0; padding: 0; cursor: pointer; text-align: left; color: inherit; font: inherit;
+}
+
+/* Adherence explanation */
+.adh__how { margin-top: 10px; }
+.adh__how summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; font-weight: 700; color: var(--primary); }
+.adh__how p { margin: 4px 0 0; font-size: 15px; color: var(--ink-soft); }
+
+/* Offline banner */
+.offline-bar {
+  position: sticky; top: 0; z-index: 30; display: flex; align-items: center; gap: 8px;
+  padding: 10px 16px; background: var(--warn-bg); color: var(--warn-ink); font-weight: 750;
+  border-bottom: 1px solid color-mix(in srgb, var(--warn) 40%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .switch__track, .switch__track::after, .fold__chev { transition: none !important; }
+}
+html[data-motion='calm'] .switch__track, html[data-motion='calm'] .switch__track::after { transition: none !important; }
+
+/* Greeting row: the name block must be allowed to shrink and wrap, or a
+   long greeting pushes the avatar past the edge and the page scrolls sideways. */
+.hello > div:first-child { flex: 1 1 auto; min-width: 0; }
+.hello__avatar { flex: none; min-width: 48px; min-height: 48px; }
+
+/* Small visual buttons inside larger targets. */
+.ns-back { min-height: 48px; display: inline-flex; align-items: center; gap: 6px; }
+.avatar-edit__btn {
+  width: 44px; height: 44px; right: -10px; bottom: -10px; border: 0;
+  /* A 30px visible disc inside a 44px target. */
+  background: radial-gradient(circle, var(--primary) 0 15px, var(--surface) 15px 17px, transparent 17.5px);
+}
+
+/* A profile photo that fails to load (offline, expired link) must not spill
+   its alt text out of the circle and widen the page. */
+.avatar { overflow: hidden; flex: none; }
+.avatar img { display: block; max-width: 100%; font-size: 0; }
+.ambient { overflow: hidden; }
+
+/* Seven day columns that can actually shrink to the screen ("1fr" alone
+   cannot go below its content and pushed Saturday off a 320px phone). */
+.cal__grid, .cal__weekdays { grid-template-columns: repeat(7, minmax(0, 1fr)); }
+.cal__cell { min-width: 0; }
+.two-col > *, .cal { min-width: 0; }
+
+/* ---------- contrast (measured with axe-core across all 8 themes) ----------
+   Failures found before this block: grey secondary text on the page
+   background 4.43:1, primary-coloured text on tinted buttons 3.5–4.4:1,
+   white on the green "Done" button 3.27:1 (Light) and 2.29:1 (Midnight),
+   white on blue in Dark 3.31:1, red text on tinted Remove buttons 4.29:1. */
+html {
+  /* Primary-coloured TEXT: the theme's primary pulled toward its ink, so it
+     darkens on light themes and lightens on dark ones. */
+  --primary-text: color-mix(in srgb, var(--primary) 70%, var(--ink));
+}
+html:not([data-theme]), [data-theme='light'] {
+  --ink-soft: #565a65;
+  --good-fill: #157a37;
+  --good-ink: #12692f;
+  --warn-ink: #8c4700;
+  --bad-ink: #a3170f;
+}
+[data-theme='ocean'], [data-theme='rose'] { --good-fill: #17734a; }
+[data-theme='dark'] { --on-primary: #02122e; }
+[data-theme='midnight'] { --on-good: #03210c; }
+.btn--ghost, .medrow__dose, .g-badge--prn, .g-badge--due, .ns-back, .linkbtn,
+.chip.is-on, .menu-row.is-current .menu-row__t, .contact__type, .adh__how summary { color: var(--primary-text); }
+.btn--ghost { background: color-mix(in srgb, var(--primary) 8%, transparent); }
+.btn--danger { background: color-mix(in srgb, var(--bad) 8%, transparent); }
+
+/* Top bar and Add button are chrome too: at the largest sizes on a phone they
+   are capped like the tab bar, so the page title reads in full ("Medication",
+   not "Med…") and the + does not cover a third of a 320px screen. */
+@media (max-width: 1023px) {
+  html[data-text='xlarge'] .topbar, html[data-text='xlarge'] .fab { zoom: 0.8; }
+  html[data-text='huge'] .topbar, html[data-text='huge'] .fab { zoom: 0.7143; }
+}
+@media (min-width: 381px) and (max-width: 1023px) {
+  html[data-text='xlarge'] .topbar, html[data-text='xlarge'] .fab { zoom: 0.9; }
+  html[data-text='huge'] .topbar, html[data-text='huge'] .fab { zoom: 0.8; }
+}

@@ -133,7 +133,9 @@ export function courseLength(med) {
   if (!med?.start_date || !med?.end_date) return null;
   const days = dueDatesBetween(med, med.start_date, med.end_date).length;
   const perDay = normaliseTimes(med.times).length || 1;
-  return { days, doses: days * perDay };
+  // `days` is the number of days a dose is due (5 for a ten-day every-other-day
+  // course); `calendarDays` is how long the course runs (10).
+  return { days, doses: days * perDay, calendarDays: courseDays(med.start_date, med.end_date) };
 }
 
 /**
@@ -164,8 +166,8 @@ export function describeSchedule(med, { prettyTime = (t) => t } = {}) {
   const parts = [`${how} ${when}`];
 
   if (med.start_date && med.end_date) {
-    const c = courseLength(med);
-    parts.push(`for ${c.days} day${c.days === 1 ? '' : 's'}`);
+    const n = courseDays(med.start_date, med.end_date);
+    if (n) parts.push(`for ${n} day${n === 1 ? '' : 's'}`);
   } else if (med.end_date) {
     parts.push(`until ${med.end_date}`);
   } else if (med.start_date) {
@@ -179,14 +181,65 @@ export function describeSchedule(med, { prettyTime = (t) => t } = {}) {
 const isWeekdaysOnly = (d) => d.length === 5 && d.every((x) => x >= 1 && x <= 5);
 const isWeekendOnly = (d) => d.length === 2 && d.includes(0) && d.includes(6);
 
+/** A real calendar date written as YYYY-MM-DD (2026-02-30 is not one). */
+export function isIsoDate(iso) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso || ''));
+  if (!m) return false;
+  const [y, mo, d] = [Number(m[1]), Number(m[2]), Number(m[3])];
+  const dt = new Date(Date.UTC(y, mo - 1, d));
+  return dt.getUTCFullYear() === y && dt.getUTCMonth() === mo - 1 && dt.getUTCDate() === d;
+}
+
 /**
- * Gentle, inline validation. Returns a list of { field, message } — never
- * throws, never blocks on anything recoverable, and never a dead end.
+ * 'YYYY-MM-DD' that is `days` after `iso` (day 1 = iso itself when days = n-1).
+ * Pure UTC arithmetic, so a DST change can never move it by a day.
  */
-export function validateMedicine(med) {
+export function addDays(iso, days) {
+  const t = toUTC(iso);
+  if (!Number.isFinite(t)) return null;
+  return new Date(t + days * DAY).toISOString().slice(0, 10);
+}
+
+/** "for 10 days" starting `start` ends on day 10, i.e. start + 9. */
+export function courseEndDate(start, nDays) {
+  const n = Number(nDays);
+  if (!isIsoDate(start) || !Number.isInteger(n) || n < 1) return null;
+  return addDays(start, n - 1);
+}
+
+/** Inclusive number of calendar days from start to end, or null. */
+export function courseDays(start, end) {
+  if (!isIsoDate(start) || !isIsoDate(end)) return null;
+  const n = daysBetween(start, end);
+  return n == null || n < 0 ? null : n + 1;
+}
+
+// Which wizard step owns each field, so a problem found anywhere (the summary
+// shortcut, the final save, a batch save) can send the person to the one
+// place they can fix it.
+export const FIELD_STEP = {
+  name: 'name', amount: 'amount', unit: 'amount', times: 'times', days: 'often',
+  start_date: 'often', end_date: 'often',
+};
+
+/**
+ * Validation for a whole medicine draft. Returns a list of { field, message }
+ * — never throws. The SAME list gates every way out of the wizard: Continue,
+ * "Skip to the summary", "Add to review", the batch save and the final save,
+ * so no shortcut can carry an incomplete or unsafe schedule past it. As-needed
+ * (PRN) medicines are the one deliberate exception to "needs a time".
+ */
+export function validateMedicine(med, { amountProblem } = {}) {
   const problems = [];
   if (!String(med.name || '').trim()) {
     problems.push({ field: 'name', message: 'What is this medicine called?' });
+  }
+  if (amountProblem) {
+    const p = amountProblem(med.dose_amount);
+    if (p) problems.push({ field: 'amount', message: p });
+  }
+  if (med.dose_unit === 'other' && !String(med.dose_other || '').trim()) {
+    problems.push({ field: 'unit', message: 'What do you call the amount? For example: scoop or spray.' });
   }
   const freq = med.frequency || 'daily';
   const times = normaliseTimes(med.times);
@@ -195,10 +248,16 @@ export function validateMedicine(med) {
     problems.push({ field: 'times', message: 'Pick at least one time of day, or choose "Only when needed".' });
   }
   if (freq === 'days_of_week' && !(med.days_of_week || []).length) {
-    problems.push({ field: 'days', message: 'Which days of the week?' });
+    problems.push({ field: 'days', message: 'Choose at least one day of the week.' });
   }
-  if (med.start_date && med.end_date && daysBetween(med.start_date, med.end_date) < 0) {
-    problems.push({ field: 'end_date', message: 'The end date is before the start date.' });
+  if (med.start_date && !isIsoDate(med.start_date)) {
+    problems.push({ field: 'start_date', message: 'The start date is not a real date.' });
+  }
+  if (med.end_date && !isIsoDate(med.end_date)) {
+    problems.push({ field: 'end_date', message: 'The stop date is not a real date.' });
+  }
+  if (isIsoDate(med.start_date) && isIsoDate(med.end_date) && daysBetween(med.start_date, med.end_date) < 0) {
+    problems.push({ field: 'end_date', message: 'The stop date is before the start date. Please change one of them.' });
   }
   return problems;
 }

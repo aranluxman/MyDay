@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { supabase, CAME_FROM_RECOVERY_LINK } from '../lib/supabase.js';
-import { ensureProfile, getProfile, saveProfile, refreshDoses, flushPendingGameResults } from '../lib/db.js';
+import { ensureProfile, getProfile, saveProfile, ensureDosesFresh, flushPendingGameResults } from '../lib/db.js';
 import { deviceTimezone } from '../lib/format.js';
 
 const AppCtx = createContext(null);
@@ -51,7 +51,8 @@ export function AppProvider({ children }) {
       try {
         const p = await ensureProfile(session.user);
         if (active) applyProfile(p);
-        refreshDoses(deviceTimezone()).catch(() => {});
+        // Started now; every screen that reads today's doses waits for it.
+        ensureDosesFresh(deviceTimezone());
         flushPendingGameResults().catch(() => {});
       } catch (e) { console.error(e); }
       finally { if (active) setLoading(false); }
@@ -65,6 +66,15 @@ export function AppProvider({ children }) {
     window.addEventListener('online', onOnline);
     return () => window.removeEventListener('online', onOnline);
   }, []);
+
+  // An app left open overnight (or reopened from the background) makes sure
+  // the new day's doses exist before anything reads them.
+  useEffect(() => {
+    if (!session?.user) return undefined;
+    const wake = () => { if (document.visibilityState === 'visible') ensureDosesFresh(deviceTimezone(), 5 * 60_000); };
+    document.addEventListener('visibilitychange', wake);
+    return () => document.removeEventListener('visibilitychange', wake);
+  }, [session?.user?.id]);
 
   async function signIn(email, password) {
     const { error } = await supabase.auth.signInWithPassword({ email: email.trim().toLowerCase(), password });

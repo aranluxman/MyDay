@@ -14,7 +14,7 @@ Built with **React + Vite (JSX)**, **Supabase** (Auth + Postgres + Edge Function
 - **Accounts** — email + password sign up / sign in / sign out. Each person's data
   is private (per-user Row Level Security). Sign-up is instant (no email-confirmation
   step), which is friendlier for older users.
-- **Bottom navigation** — Home, Updates, Medicine, Visits, Games, Profile.
+- **Bottom navigation** — on phones: Home, Medicine, Visits, Profile and More (Updates, Brain Games, My cards, Guide, Alerts); the desktop side rail shows everything.
 - **Forgot password** — a plain-language email recovery flow (`/forgot` →
   `/reset-password`), linked from the sign-in screen.
 - **Home** — a warm dashboard: greeting, today's medication status with a progress
@@ -129,6 +129,19 @@ the guardian join screen) therefore ask you to install first, with
 platform-specific steps, and only offer a browser-only fallback as a last resort.
 
 ---
+
+## Tests
+
+```bash
+npm test            # unit tests (node:test)
+npm run test:sql    # applies every migration to a throwaway local Postgres 16 and runs test/sql/
+npm run test:e2e    # Playwright phone/a11y tests against the built app and a mocked backend
+```
+
+The browser tests never contact Supabase: `test/e2e/mock.js` answers every request with
+synthetic data. See `docs/audit/REPORT.md` for the phone/accessibility audit fixes, results,
+screenshots and migration notes (apply migration 0017 before deploying the updated
+`dose-action` and `ai-assist` functions).
 
 ## Run locally
 

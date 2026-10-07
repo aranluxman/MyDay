@@ -42,7 +42,7 @@ const MAX_CHAT_TURNS = 12;
 
 /* ------------------------------- schemas ------------------------------- */
 
-const UNIT_ENUM = ['tablet', 'capsule', 'ml', 'drop', 'puff', 'mg', 'IU', 'unit', 'patch', 'sachet', 'injection', 'other'];
+const UNIT_ENUM = ['tablet', 'capsule', 'ml', 'drop', 'puff', 'mg', 'mcg', 'IU', 'unit', 'patch', 'sachet', 'injection', 'other'];
 const FREQ_ENUM = ['daily', 'days_of_week', 'alternate', 'as_needed'];
 
 const SCAN_SCHEMA = {
@@ -157,8 +157,8 @@ You may get up to three photos. They are different sides of the SAME medicine (e
 Extract what the label actually says. Never invent a dose or schedule the label does not show.
 - name: the medicine's name as a person would say it, with the brand OR generic name (e.g. "Metformin", "Vitamin D3"). Do not include the strength here.
 - strength: the strength printed on the pack, e.g. "500 mg", "1000 IU". Empty string if none.
-- dose_amount + dose_unit: how much is taken AT ONE TIME. A pharmacy label saying "take 1 tablet twice daily" means 1 tablet. If only a strength is visible (e.g. a vitamin bottle "1000 IU", "take one softgel daily") prefer the countable unit: 1 capsule. Use "other" with dose_other (e.g. "softgel", "scoop", "gummy") only when no listed unit fits; otherwise dose_other is "".
-- times: 24-hour "HH:MM" strings. Map directions to typical times: once daily/in the morning -> ["08:00"]; twice daily -> ["08:00","20:00"]; three times -> ["08:00","14:00","20:00"]; four times -> ["08:00","12:00","16:00","20:00"]; at bedtime -> ["21:00"]; with dinner/evening -> ["18:00"]. If the label gives no directions, use ["08:00"].
+- dose_amount + dose_unit: how much is taken AT ONE TIME. Give the number exactly as printed (e.g. 2.5, 0.125); never round it. Never derive an amount from a strength or concentration. A pharmacy label saying "take 1 tablet twice daily" means 1 tablet. If only a strength is visible (e.g. a vitamin bottle "1000 IU", "take one softgel daily") prefer the countable unit: 1 capsule. Use "other" with dose_other (e.g. "softgel", "scoop", "gummy") only when no listed unit fits; otherwise dose_other is "".
+- times: 24-hour "HH:MM" strings. Map directions to typical times: once daily/in the morning -> ["08:00"]; twice daily -> ["08:00","20:00"]; three times -> ["08:00","14:00","20:00"]; four times -> ["08:00","12:00","16:00","20:00"]; at bedtime -> ["21:00"]; with dinner/evening -> ["18:00"]. If the label gives no directions, return [] and add a warning: the person must choose the times their prescriber gave them. Never invent a schedule.
 - frequency: "daily" unless the label says otherwise; "as_needed" for "as needed"/"PRN"; "alternate" for every other day; "days_of_week" with days_of_week (0=Sunday..6=Saturday) for specific weekdays, otherwise days_of_week is [].
 - with_food: true only if the label says with food / with meals / after eating.
 - note: a short (under 100 characters) helpful note from the label such as the strength and any key direction, e.g. "500 mg. Swallow whole." Empty string if nothing useful.
@@ -181,6 +181,7 @@ together.summary: 2-3 sentences on how the list works as a team.
 together.goals: group the medicines by the shared health goal they serve (e.g. "Heart health", "Strong bones", "Blood sugar control"), naming which medicines serve each goal (use the exact names given) and "how" they work together in one or two sentences. Only include goals with a real link.
 ask_pharmacist: 0-4 short, calm points worth checking with a pharmacist or doctor — well-known interactions, duplicates, or timing issues between THESE medicines (e.g. "Calcium can make levothyroxine work less well if taken at the same time — ask about spacing them apart."). Empty if nothing notable.
 overview: one friendly sentence summing up the list.
+Limits, always: you cannot check interactions, so never say or imply that medicines are safe together, compatible, or free of interactions — only suggest what to ask a pharmacist. Never tell the person to change a prescription, take a missed or extra dose, "catch up", or calculate any dose.
 disclaimer: exactly "This is general information, not medical advice. Always check with your doctor or pharmacist before changing how you take any medicine."`;
 
 function noteChatPrompt(context: unknown) {

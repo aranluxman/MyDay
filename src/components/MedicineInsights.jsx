@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { Card, Button, SkeletonCard } from './ui.jsx';
 import { Icon } from './Icon.jsx';
 import { useApp } from '../context/AppContext.jsx';
@@ -12,6 +12,19 @@ import { medsSignature } from '../lib/aiParse.js';
 // Only runs when asked — each run costs money — and the answer is kept on this
 // device until the medicine list changes, so reopening the tab is free.
 const KEY = 'myday_med_insights';
+// Once someone closes this card it stays as one small line until they tap it
+// again. It is long, and on the Medicines tab it used to push the list itself
+// out of reach every single visit.
+const OPEN_KEY = 'myday_med_insights_open';
+
+function loadOpen(hasResult) {
+  try {
+    const v = localStorage.getItem(OPEN_KEY);
+    if (v != null) return v === '1';
+  } catch {}
+  // First visit: the short intro is open; a long explanation starts folded.
+  return !hasResult;
+}
 
 function loadCache(userId) {
   try {
@@ -26,6 +39,12 @@ export function MedicineInsights({ meds }) {
   const [cache, setCache] = useState(() => loadCache(user?.id));
   const [busy, setBusy] = useState(false);
   const [openMed, setOpenMed] = useState(null);
+  const [open, setOpenState] = useState(() => loadOpen(!!loadCache(user?.id)?.result));
+  const bodyId = useId();
+  const setOpen = (v) => {
+    setOpenState(v);
+    try { localStorage.setItem(OPEN_KEY, v ? '1' : '0'); } catch {}
+  };
 
   if (!meds?.length) return null;
   const sig = medsSignature(meds);
@@ -40,16 +59,33 @@ export function MedicineInsights({ meds }) {
       try { localStorage.setItem(KEY, JSON.stringify(next)); } catch {}
       setCache(next);
       setOpenMed(null);
+      setOpen(true);
     } catch (e) {
       ui.toast(e.message || 'Could not explain your medicines right now.', 'bad');
     }
     setBusy(false);
   }
 
+  if (!open) {
+    return (
+      <button type="button" className="insights-mini" aria-expanded="false"
+        onClick={() => setOpen(true)}>
+        <span className="insights-mini__ic" aria-hidden="true"><Icon name="sparkle" size={20} /></span>
+        <span className="insights-mini__main">
+          <span className="insights-mini__t">How your medicines work together</span>
+          <span className="insights-mini__s">{result ? (stale ? 'Your list changed — tap to update' : 'Tap to open') : 'Tap to see what each one is for'}</span>
+        </span>
+        <Icon name="chevron" size={20} />
+      </button>
+    );
+  }
+
   return (
-    <Card className="insights">
+    <Card className="insights" id={bodyId}>
       <div className="section-title">
-        <span className="section-title__l"><Icon name="sparkle" size={22} /> <span>How your medicines work together</span></span>
+        <h2 className="section-title__l insights__h"><Icon name="sparkle" size={22} /> <span>How your medicines work together</span></h2>
+        <Button variant="ghost" size="sm" full={false} icon="minus" onClick={() => setOpen(false)}
+          aria-expanded="true" aria-controls={bodyId} aria-label="Minimize how your medicines work together">Minimize</Button>
       </div>
 
       {busy ? (

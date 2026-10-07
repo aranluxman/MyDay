@@ -62,16 +62,25 @@ Deno.serve(async (req) => {
     return json({ ok: true, action: 'snooze' });
   }
 
-  // Mark taken. Scoped to this token's own dose AND user, so a token can never
-  // reach across accounts even if a dose_id were somehow wrong.
-  const { error } = await admin.from('myday_doses')
-    .update({ status: 'taken', taken_at: new Date().toISOString() })
-    .eq('id', row.dose_id)
-    .eq('user_id', row.user_id);
+  // Mark taken through the same atomic, idempotent function the app uses
+  // (migration 0017): a dose already taken in the app is not re-stamped, a
+  // skipped dose is not overwritten, and stock moves at most once. Scoped to
+  // this token's own dose AND user.
+  const { data: taken, error } = await admin.rpc('myday_take_dose', {
+    p_dose_id: row.dose_id, p_taken_at: null, p_user: row.user_id, p_via: 'notification',
+  });
+  const outcome = (taken as { outcome?: string } | null)?.outcome;
 
-  if (error) {
+  if (error || !outcome || outcome === 'not_found') {
     console.log(JSON.stringify({ fn: 'dose-action', action, outcome: 'write-failed' }));
-    return json({ ok: false, error: 'Could not save.' }, 500);
+    return json({ ok: false, error: 'Could not save. Please open MyDay.' }, 500);
+  }
+  if (outcome === 'skipped' || outcome === 'not_due') {
+    // Not recorded: say so rather than reporting success.
+    console.log(JSON.stringify({ fn: 'dose-action', action, outcome }));
+    return json({ ok: false, error: outcome === 'skipped'
+      ? 'This dose was marked "not today". Open MyDay to change it.'
+      : 'This dose is not due yet.' }, 409);
   }
 
   await admin.from('myday_dose_action_tokens')
@@ -84,5 +93,5 @@ Deno.serve(async (req) => {
     .eq('dose_id', row.dose_id).is('used_at', null);
 
   console.log(JSON.stringify({ fn: 'dose-action', action, outcome: 'ok' }));
-  return json({ ok: true, action: 'taken' });
+  return json({ ok: true, action: 'taken', already: outcome === 'already_taken' });
 });

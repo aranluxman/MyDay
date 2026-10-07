@@ -71,11 +71,18 @@ export async function listMedications() {
   if (error) throw error;
   return data || [];
 }
+// Columns added by migration 0017. Until that migration is applied they do not
+// exist, and PostgREST rejects a write naming an unknown column — so they are
+// only sent when they carry a value, or when the row being edited already has
+// them (proof the column exists). Clearing one is therefore still possible.
+const OPTIONAL_COLUMNS = ['strength', 'route', 'instructions', 'stock_quantity', 'refill_threshold',
+  'pharmacy_contact_id', 'prescriber_contact_id'];
+
 // `dose` stays the display string built from the structured fields, so every
 // existing screen and the push notification bodies keep working while the
 // amount/unit pair becomes the thing people actually edit.
-function medicationRow(med) {
-  return {
+export function medicationRow(med, existing = null) {
+  const row = {
     name: med.name,
     dose: med.dose,
     times: med.times,
@@ -96,18 +103,58 @@ function medicationRow(med) {
     reminders_enabled: med.reminders_enabled !== false,
     alert_window_override: med.alert_window_override ?? null,
   };
+  for (const col of OPTIONAL_COLUMNS) {
+    const v = med[col] ?? null;
+    if (v != null || (existing && col in existing)) row[col] = v;
+  }
+  return row;
 }
 
-export async function saveMedication(med) {
-  const row = medicationRow(med);
-  if (med.id) {
-    const { error } = await supabase.from('myday_medications').update(row).eq('id', med.id);
-    if (error) throw error;
-    return med.id;
+// The amount is the one field where a quiet change is dangerous. Postgres
+// rounds a numeric to its column's scale without complaint, so what came back
+// is compared with what was sent. If they differ (a database still on the old
+// two-decimal column), the structured amount is cleared rather than left
+// wrong: the exact dose text is kept, and reopening the medicine reads that.
+async function verifyAmount(id, sent) {
+  if (sent == null) return;
+  const { data } = await supabase.from('myday_medications').select('dose_amount').eq('id', id).maybeSingle();
+  if (data && data.dose_amount != null && Number(data.dose_amount) !== Number(sent)) {
+    await supabase.from('myday_medications').update({ dose_amount: null }).eq('id', id);
   }
-  const { data, error } = await supabase.from('myday_medications').insert(row).select('id').single();
-  if (error) throw error;
-  return data.id;
+}
+
+export async function saveMedication(med, existing = null) {
+  const row = medicationRow(med, existing);
+  let id = med.id;
+  if (id) {
+    const { error } = await supabase.from('myday_medications').update(row).eq('id', id);
+    if (error) throw new Error(medicationErrorMessage(error));
+  } else {
+    const { data, error } = await supabase.from('myday_medications').insert(row).select('id').single();
+    if (error) throw new Error(medicationErrorMessage(error));
+    id = data.id;
+  }
+  await verifyAmount(id, row.dose_amount);
+  // Today's doses follow the schedule that was just saved: new times appear
+  // now, and doses for times that were removed stop waiting to be "missed".
+  await syncTodaysDoses(id).catch(() => {});
+  return id;
+}
+
+// Plain words for the errors a medicine save can actually hit.
+export function medicationErrorMessage(error) {
+  const code = error?.code;
+  const msg = String(error?.message || '');
+  if (code === '23514' && /course/.test(msg)) return 'The stop date is before the start date. Please change one of them.';
+  if (code === '23514' && /dose_amount/.test(msg)) return 'That amount cannot be saved. Please check it.';
+  if (code === '23514' && /dose_unit/.test(msg)) return 'That unit is not available yet. Please choose another, or "other".';
+  if (code === '23514') return 'One of the answers was not recognised. Please check and try again.';
+  if (code === 'PGRST204') return 'MyDay needs a quick update on the server before this can be saved. Your details are still here.';
+  if (code === '42501' || code === 'PGRST301') return 'You have been signed out. Please sign in again.';
+  if (/Failed to fetch|NetworkError|Load failed/i.test(msg) || (typeof navigator !== 'undefined' && navigator.onLine === false)) {
+    return 'You are offline, so this was not saved. Your details are still here — try again when you are connected.';
+  }
+  return msg || 'Could not save. Your details are still here — please try again.';
 }
 
 // One Postgres INSERT statement: either every reviewed medicine is saved or
@@ -115,30 +162,41 @@ export async function saveMedication(med) {
 export async function saveMedicationsBulk(items, client = supabase) {
   if (!Array.isArray(items) || !items.length) throw new Error('Add a medicine before saving.');
   const rows = items.map((item) => ({ id: item.id, ...medicationRow(toMedicationPayload(item.form)) }));
+  // PostgREST needs every row of a bulk insert to name the same columns.
+  const cols = new Set(rows.flatMap((r) => Object.keys(r)));
+  for (const r of rows) for (const c of cols) if (!(c in r)) r[c] = null;
   // Stable draft IDs make a retry safe if the server committed but the reply
   // was lost. A conflict means that exact reviewed medicine was already saved.
   const { error } = await client.from('myday_medications').upsert(rows, { onConflict: 'id', ignoreDuplicates: true });
-  if (error) throw error;
+  if (error) throw new Error(medicationErrorMessage(error));
   return rows.length;
 }
 
 // Soft delete, so the dose history that points at this medicine survives.
+// Its still-pending doses for today onward are removed with it: before, a
+// removed medicine kept its 8 PM dose on Today, and the sweep then turned it
+// into a "missed" alert for a medicine the person had just stopped.
 export async function deleteMedication(id) {
   const { error } = await supabase.from('myday_medications').update({ active: false }).eq('id', id);
-  if (error) throw error;
+  if (error) throw new Error(medicationErrorMessage(error));
+  await syncTodaysDoses(id).catch(() => {});
 }
 
-// Undo for a removal. The row was only deactivated, so this is a flag flip.
+// Undo for a removal. The row was only deactivated, so this is a flag flip,
+// and today's doses come back with it.
 export async function restoreMedication(id) {
   const { error } = await supabase.from('myday_medications').update({ active: true }).eq('id', id);
-  if (error) throw error;
+  if (error) throw new Error(medicationErrorMessage(error));
+  await syncTodaysDoses(id).catch(() => {});
 }
 
-// "Duplicate" for a medicine taken at several strengths or times. The copy is
-// deliberately marked so two identical rows are never confusable in the list.
-export async function duplicateMedication(med) {
-  const { id, created_at, updated_at, user_id, ...rest } = med;
-  return saveMedication({ ...rest, name: `${med.name} (copy)` });
+// "Copy" for a medicine taken at two strengths or on a different schedule.
+// Nothing is saved here: the copy opens in the wizard's review step and is
+// only created when the person confirms it. Stock is not copied — it belongs
+// to a physical box, not to the prescription.
+export function copyOfMedication(med) {
+  const { id, created_at, updated_at, user_id, active, stock_quantity, ...rest } = med;
+  return { ...rest, name: `${med.name} (copy)`, stock_quantity: null };
 }
 
 // Pill / box photos live in a PRIVATE bucket (a photo of a medicine box is
@@ -202,26 +260,74 @@ export async function recentMedicineNames(limit = 12) {
 }
 
 // ---------- doses ----------
+// PostgREST's "no such function": migration 0017 has not been applied yet.
+// The app keeps working on the older, still-safe path in that case.
+const missingFunction = (error) => error?.code === 'PGRST202' || error?.code === '42883'
+  || /could not find the function/i.test(String(error?.message || ''));
+
 export async function refreshDoses(tz = deviceTimezone()) {
   const { error } = await supabase.rpc('myday_refresh_doses', { p_timezone: tz });
   if (error) throw error;
+  lastRefresh = { at: Date.now(), day: localDateStr(tz) };
 }
+
+// Today's dose rows are generated by the server. Generation used to be fired
+// at sign-in and NOT awaited, so Today and Home often loaded before the rows
+// existed — medicines "not coming through" until the next reload. Every read
+// of today's doses now waits for one shared, recent generation first.
+let lastRefresh = { at: 0, day: null };
+let refreshing = null;
+export function ensureDosesFresh(tz = deviceTimezone(), maxAgeMs = 60_000) {
+  const day = localDateStr(tz);
+  if (lastRefresh.day === day && Date.now() - lastRefresh.at < maxAgeMs) return Promise.resolve();
+  if (!refreshing) {
+    // A failed refresh must not stop the screen from showing what exists.
+    refreshing = refreshDoses(tz).catch(() => {}).finally(() => { refreshing = null; });
+  }
+  return refreshing;
+}
+
+// Brings today's rows in line with one medicine's saved schedule (after an
+// add, edit, removal or restore). Falls back to a plain refresh, plus removing
+// a removed medicine's pending doses, when migration 0017 is not applied.
+export async function syncTodaysDoses(medicationId, tz = deviceTimezone()) {
+  const { error } = await supabase.rpc('myday_sync_medication_doses', { p_medication_id: medicationId, p_timezone: tz });
+  if (error && !missingFunction(error)) throw error;
+  if (error) {
+    const { data: med } = await supabase.from('myday_medications').select('active').eq('id', medicationId).maybeSingle();
+    if (med && !med.active) {
+      await supabase.from('myday_doses').delete().eq('medication_id', medicationId)
+        .eq('status', 'pending').eq('notified', false).gte('dose_date', localDateStr(tz));
+    }
+    await refreshDoses(tz);
+  } else {
+    lastRefresh = { at: Date.now(), day: localDateStr(tz) };
+  }
+}
+
+// The whole medicine comes along (`*`), so a newly added column never breaks
+// this query and doseState() can see a per-medicine missed-dose window.
+const DOSE_SELECT = '*, medication:myday_medications(*)';
+
 export async function dosesForDate(isoDate) {
   const { data, error } = await supabase.from('myday_doses')
-    .select('*, medication:myday_medications(name,dose,dose_unit,note,color)')
+    .select(DOSE_SELECT)
     .eq('dose_date', isoDate).order('due_at', { ascending: true });
   if (error) throw error;
   return data || [];
 }
 export async function todaysDoses(tz = deviceTimezone()) {
+  await ensureDosesFresh(tz);
   return dosesForDate(localDateStr(tz));
 }
 // All doses in a [from,to] date range (for the calendar and the adherence
-// summary). due_at comes along because doseState() needs it to tell a dose
-// that is genuinely missed from one whose time simply has not come.
+// summary). due_at and the medicine's own window come along because
+// doseState() needs them to tell a dose that is genuinely missed from one
+// whose time simply has not come — the same rule every other screen uses.
 export async function dosesInRange(fromIso, toIso) {
   const { data, error } = await supabase.from('myday_doses')
-    .select('dose_date,status,due_at').gte('dose_date', fromIso).lte('dose_date', toIso);
+    .select('id,dose_date,status,due_at,taken_at,medication_id,medication:myday_medications(alert_window_override)')
+    .gte('dose_date', fromIso).lte('dose_date', toIso);
   if (error) throw error;
   return data || [];
 }
@@ -229,39 +335,120 @@ export async function dosesInRange(fromIso, toIso) {
 // medicine to name it and pick its icon.
 export async function doseHistory(fromIso, toIso) {
   const { data, error } = await supabase.from('myday_doses')
-    .select('id,dose_date,scheduled_time,due_at,status,taken_at,skip_reason,medication_id,medication:myday_medications(name,dose,dose_unit,color)')
+    .select(DOSE_SELECT)
     .gte('dose_date', fromIso).lte('dose_date', toIso)
     .order('dose_date', { ascending: false }).order('due_at', { ascending: true });
   if (error) throw error;
   return data || [];
 }
-// Only a dose whose time has come (from DUE_SOON_MINUTES before) can be
-// marked. The UI hides the button for later doses; this filter makes sure no
-// other path can record tonight's dose as taken at lunchtime.
-export async function markDoseTaken(id) {
-  const latest = new Date(Date.now() + DUE_SOON_MINUTES * 60_000).toISOString();
-  const { data, error } = await supabase.from('myday_doses')
-    .update({ status: 'taken', taken_at: new Date().toISOString() })
-    .eq('id', id).lte('due_at', latest).select('id');
-  if (error) throw error;
-  if (!data?.length) throw new Error('This dose is not due yet.');
+
+export class DoseError extends Error {
+  constructor(code, message) { super(message); this.code = code; }
 }
+
+function doseWriteError(error) {
+  const msg = String(error?.message || '');
+  if (/Failed to fetch|NetworkError|Load failed/i.test(msg) || (typeof navigator !== 'undefined' && navigator.onLine === false)) {
+    return new DoseError('offline', 'You are offline, so this was NOT saved. Please try again when you are connected.');
+  }
+  return new DoseError('failed', 'Could not save. Nothing was recorded — please try again.');
+}
+
+/**
+ * Records a scheduled dose as taken. Atomic and idempotent: a double tap, a
+ * retry after a lost reply, or the app and a notification button racing all
+ * end with one 'taken' and one taken_at. `takenAt` records a dose already
+ * taken earlier ("I took it at 8"); it is never in the future.
+ *
+ * Resolves { outcome: 'taken' | 'already_taken', taken_at }.
+ * Rejects with DoseError code 'not_due' | 'skipped' | 'not_found' | 'offline' | 'failed'.
+ */
+export async function markDoseTaken(id, takenAt = null) {
+  const at = takenAt ? new Date(Math.min(new Date(takenAt).getTime(), Date.now())).toISOString() : null;
+  const { data, error } = await supabase.rpc('myday_take_dose', { p_dose_id: id, p_taken_at: at });
+  if (!error) return interpretTake(data);
+  if (!missingFunction(error)) throw doseWriteError(error);
+
+  // Older database: the same guarantees from a conditional update. Only a
+  // pending or missed dose whose time has come can change, so a second tap
+  // matches nothing and is reported as already taken rather than re-stamped.
+  const latest = new Date(Date.now() + DUE_SOON_MINUTES * 60_000).toISOString();
+  const { data: rows, error: e2 } = await supabase.from('myday_doses')
+    .update({ status: 'taken', taken_at: at || new Date().toISOString() })
+    .eq('id', id).in('status', ['pending', 'missed']).lte('due_at', latest).select('id,taken_at');
+  if (e2) throw doseWriteError(e2);
+  if (rows?.length) return { outcome: 'taken', taken_at: rows[0].taken_at };
+  const { data: row } = await supabase.from('myday_doses').select('status,taken_at').eq('id', id).maybeSingle();
+  if (row?.status === 'taken') return { outcome: 'already_taken', taken_at: row.taken_at };
+  return interpretTake({ outcome: row?.status === 'skipped' ? 'skipped' : row ? 'not_due' : 'not_found' });
+}
+
+function interpretTake(r) {
+  const outcome = r?.outcome;
+  if (outcome === 'taken' || outcome === 'already_taken') return r;
+  if (outcome === 'not_due') throw new DoseError('not_due', 'This dose is not due yet.');
+  if (outcome === 'skipped') throw new DoseError('skipped', 'This dose was marked "not today". Undo that first.');
+  throw new DoseError('not_found', 'That dose could not be found. Please refresh.');
+}
+
+// Correction / Undo for a taken or skipped dose. Returns any stock the dose
+// used. Idempotent: undoing twice changes nothing the second time.
+export async function undoDose(id) {
+  const { error } = await supabase.rpc('myday_untake_dose', { p_dose_id: id });
+  if (!error) return;
+  if (!missingFunction(error)) throw doseWriteError(error);
+  await markDosePending(id);
+}
+
+/**
+ * Logs an as-needed (PRN) dose. `clientId` is made once per tap on the device
+ * and reused on retry, so a lost reply cannot turn into a second dose.
+ */
+export async function logAsNeededDose(medicationId, clientId, takenAt = null) {
+  const { data, error } = await supabase.rpc('myday_log_prn_dose', {
+    p_medication_id: medicationId, p_client_id: clientId, p_taken_at: takenAt,
+  });
+  if (error && missingFunction(error)) {
+    throw new DoseError('unsupported', 'Logging an as-needed dose needs a quick server update. Nothing was recorded.');
+  }
+  if (error) throw doseWriteError(error);
+  if (data?.outcome === 'not_found') throw new DoseError('not_found', 'That medicine could not be found.');
+  return data;
+}
+
 // "Not today": a deliberate decision, not a failure. It is its own status so
 // the sweep never turns it into a missed-dose alert and the adherence history
-// does not count it against the person.
+// does not count it against the person. A taken dose is not overwritten.
 export async function markDoseSkipped(id, reason) {
   const trimmed = String(reason || '').trim().slice(0, 80);
-  const { error } = await supabase.from('myday_doses')
+  const { data, error } = await supabase.from('myday_doses')
     .update({ status: 'skipped', taken_at: null, skipped_at: new Date().toISOString(), skip_reason: trimmed || null })
-    .eq('id', id);
-  if (error) throw error;
+    .eq('id', id).in('status', ['pending', 'missed']).select('id');
+  if (error) throw doseWriteError(error);
+  if (!data?.length) throw new DoseError('settled', 'This dose was already recorded. Undo it first to change it.');
 }
 // Undo, for either outcome. Clearing skip_reason matters: leaving a stale
 // reason on a dose that is pending again would make the history lie.
 export async function markDosePending(id) {
   const { error } = await supabase.from('myday_doses')
     .update({ status: 'pending', taken_at: null, skipped_at: null, skip_reason: null }).eq('id', id);
-  if (error) throw error;
+  if (error) throw doseWriteError(error);
+}
+
+// ---------- inventory ----------
+export async function recordRefill(medicationId, quantity, note = '') {
+  const { data, error } = await supabase.rpc('myday_record_refill', {
+    p_medication_id: medicationId, p_quantity: quantity, p_filled_on: null, p_note: note || null,
+  });
+  if (error && missingFunction(error)) throw new Error('Refills need a quick server update before they can be recorded.');
+  if (error) throw new Error(medicationErrorMessage(error));
+  return data;
+}
+export async function listRefills(medicationId) {
+  const { data, error } = await supabase.from('myday_refills').select('*')
+    .eq('medication_id', medicationId).order('filled_on', { ascending: false }).limit(10);
+  if (error) return [];
+  return data || [];
 }
 
 // ---------- appointments ----------
@@ -313,6 +500,10 @@ export async function listContacts() {
 }
 export async function saveContact(c) {
   const row = { type: c.type, name: c.name, phone: c.phone || null, email: c.email || null, address: c.address || null, notes: c.notes || null };
+  // Columns from migration 0017, sent only when set (or already present on
+  // the row being edited) so a save still works before that migration.
+  if (c.relationship || (c.id && 'relationship' in (c.existing || {}))) row.relationship = c.relationship || null;
+  if (c.is_emergency || (c.id && 'is_emergency' in (c.existing || {}))) row.is_emergency = !!c.is_emergency;
   if (c.id) { const { error } = await supabase.from('myday_contacts').update(row).eq('id', c.id); if (error) throw error; }
   else { const { error } = await supabase.from('myday_contacts').insert(row); if (error) throw error; }
 }
@@ -518,7 +709,7 @@ export async function saveNotificationPrefs(patch) {
 // than being left to guess.
 export async function listNotificationDevices() {
   const { data, error } = await supabase.from('myday_family_devices')
-    .select('id,label,platform,push_enabled,last_delivered_at,last_notified_at,last_error,created_at')
+    .select('id,label,platform,installed,endpoint,push_enabled,last_delivered_at,last_notified_at,last_error,created_at')
     .order('created_at');
   if (error) throw error;
   return data || [];

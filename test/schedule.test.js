@@ -74,7 +74,11 @@ test('course length counts doses, not just days', () => {
     frequency: 'daily', times: ['08:00', '20:00'],
     start_date: '2026-09-14', end_date: '2026-09-23',
   };
-  assert.deepEqual(courseLength(med), { days: 10, doses: 20 });
+  assert.deepEqual(courseLength(med), { days: 10, doses: 20, calendarDays: 10 });
+  // Every other day: dosing days and calendar length differ, and the
+  // review's "for N days" must be the calendar length.
+  const alt = { ...med, frequency: 'alternate' };
+  assert.deepEqual(courseLength(alt), { days: 5, doses: 10, calendarDays: 10 });
   assert.equal(courseLength({ frequency: 'daily' }), null, 'no end date, no length');
 });
 

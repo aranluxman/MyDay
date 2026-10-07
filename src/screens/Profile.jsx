@@ -3,27 +3,22 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext.jsx';
 import { useUI } from '../context/UIContext.jsx';
 import { useAsync } from '../hooks/useAsync.js';
-import { Card, Button, Spinner, Modal, Field, Input, Textarea, EmptyState, SegmentedControl, Avatar, Toggle } from '../components/ui.jsx';
+import { Card, Button, Spinner, Modal, Field, Input, Textarea, EmptyState, SegmentedControl, Avatar, Toggle, Collapsible } from '../components/ui.jsx';
 import { useSettings } from '../context/SettingsContext.jsx';
 import { Icon } from '../components/Icon.jsx';
 import { listContacts, saveContact, deleteContact, listFamilyDevices, saveFamilyDevice, uploadAvatar,
   createGuardianInvite, listGuardians, deleteGuardian, formatGuardianCode, issueGuardianCode, revokeGuardianDevice, setGuardianShareDiary } from '../lib/db.js';
 import { supabase } from '../lib/supabase.js';
+import { deviceLabel } from '../lib/guardian.js';
 import { pushSupported, enablePush } from '../lib/push.js';
 import { useInstallPrompt } from '../hooks/useInstallPrompt.js';
 import { InstallButton } from '../components/InstallButton.jsx';
 import { LANGUAGES, MORE_LANGUAGES, currentLanguage, setLanguage } from '../lib/translate.js';
 import { ageFromBirthday, prettyClock, shortDate } from '../lib/format.js';
 import { THEMES, TEXT_SIZES, profileCompleteness } from '../lib/appearance.js';
+import { CONTACT_TYPES, validPhone, telHref } from '../lib/contacts.js';
 
-const CONTACT_TYPES = [
-  { value: 'pharmacy', label: 'Pharmacy', icon: 'cross' },
-  { value: 'provider', label: 'Provider', icon: 'user' },
-  { value: 'clinic', label: 'Clinic', icon: 'building' },
-  { value: 'insurance', label: 'Insurance', icon: 'shield' },
-  { value: 'merchant', label: 'Merchant', icon: 'cart' },
-  { value: 'other', label: 'Other', icon: 'star' },
-];
+
 // A linking code now lives for 15 minutes, not 14 days, so it is counted in
 // minutes. "Works for 12 more minutes" is also a useful nudge to read it out
 // now rather than leave it on screen.
@@ -45,6 +40,8 @@ function lastSeenWords(iso) {
   if (diff < 172800000) return 'Opened yesterday';
   return `Opened ${shortDate(d.toISOString().slice(0, 10))}`;
 }
+
+const SECTION_IDS = ['guardians', 'language', 'alerts', 'info', 'health', 'explore', 'contacts', 'appearance', 'access', 'more'];
 
 const typeMeta = (t) => CONTACT_TYPES.find((x) => x.value === t) || CONTACT_TYPES[5];
 
@@ -141,7 +138,7 @@ export default function Profile() {
   async function enableAlerts() {
     try {
       const sub = await enablePush();
-      await saveFamilyDevice('This phone', sub);
+      await saveFamilyDevice(deviceLabel(), sub);
       ui.toast('Alerts are on for this phone.');
       devices.reload();
     } catch (e) { ui.toast(e.message || 'Could not turn on alerts.', 'bad'); }
@@ -197,6 +194,25 @@ export default function Profile() {
     catch { ui.toast('Could not save.', 'bad'); }
   }
 
+  // Folding: every section below can shrink to one line with a summary. Once
+  // the profile is complete they start folded, and "Minimize all" / "Show
+  // all" folds or opens them in one tap. Each remembers its own state.
+  const setUp = completeness.pct === 100;
+  const [foldKey, setFoldKey] = useState(0);
+  const [allOpen, setAllOpen] = useState(() => {
+    try { return SECTION_IDS.some((id) => localStorage.getItem(`myday_section_${id}`) === '1'); } catch { return !setUp; }
+  });
+  function foldAll(open) {
+    try { SECTION_IDS.forEach((id) => localStorage.setItem(`myday_section_${id}`, open ? '1' : '0')); } catch {}
+    setAllOpen(open);
+    setFoldKey((k) => k + 1);
+  }
+  const themeName = THEMES.find((t) => t.id === theme)?.name || 'Light';
+  const sizeName = TEXT_SIZES.find((t) => t.id === textSize)?.name || 'Normal';
+  const access = [settings.highContrast && 'More contrast', settings.bold && 'Bold', settings.bigButtons && 'Bigger buttons', settings.calmMotion && 'Calm'].filter(Boolean);
+  const connected = (guardians.data || []).filter((g) => g.deviceCount > 0).length;
+  const fold = { defaultOpen: !setUp, onToggle: (open) => open && setAllOpen(true) };
+
   return (
     <div className="stack">
       {/* identity — tap to view and edit your details */}
@@ -204,33 +220,40 @@ export default function Profile() {
         <div className="account-card">
           <div className="avatar-edit">
             <Avatar name={profile?.full_name} color={profile?.avatar_color} size={64} src={profile?.avatar_url} />
-            <button className="avatar-edit__btn" aria-label="Change profile photo" disabled={uploading} onClick={() => fileRef.current?.click()}>
+            <button type="button" className="avatar-edit__btn" aria-label="Change profile photo" disabled={uploading} onClick={() => fileRef.current?.click()}>
               <Icon name={uploading ? 'clock' : 'plus'} size={16} />
             </button>
             <input ref={fileRef} type="file" accept="image/*" hidden onChange={onPickPhoto} />
           </div>
-          <button className="account-card__main" style={{ background: 'none', border: 0, padding: 0, cursor: 'pointer', textAlign: 'left', color: 'inherit', font: 'inherit' }}
-            onClick={() => setEditProfile(true)}>
-            <div className="account-card__name">{profile?.full_name || 'Your profile'}</div>
-            <div className="account-card__sub">{age != null ? `${age} years old — tap to view and edit` : 'View and manage your profile'}</div>
+          <button type="button" className="account-card__main account-card__btn" onClick={() => setEditProfile(true)}>
+            <span className="account-card__name">{profile?.full_name || 'Your profile'}</span>
+            <span className="account-card__sub">{age != null ? `${age} years old — tap to view and edit` : 'View and manage your profile'}</span>
           </button>
           <Icon name="chevron" size={24} />
         </div>
       </Card>
 
+      <div className="fold-bar">
+        <span className="fold-bar__t">{allOpen ? 'Settings' : 'Settings — tap a section to open it'}</span>
+        <Button variant="ghost" size="sm" full={false} icon={allOpen ? 'minus' : 'plus'} onClick={() => foldAll(!allOpen)}>
+          {allOpen ? 'Minimize all' : 'Show all'}
+        </Button>
+      </div>
+
+      <div className="stack" key={foldKey}>
       {/* guardians — high up: the family link is what keeps someone safe */}
-      <Card>
-        <SectionTitle icon="user" title="Guardians" />
+      <Collapsible id="guardians" icon="user" title="Guardians" {...fold}
+        summary={guardians.data?.length ? `${guardians.data.length} added · ${connected} connected` : 'No guardian yet'}>
         <p className="muted" style={{ margin: '0 0 12px' }}>
           A guardian is someone in your family who can check on their own phone or tablet whether you have
           taken your medicines, and gets an alert if you miss one. Tap <b>Show code</b> and read them the
           6-digit code — it works for 15 minutes and once only. They don't need an account.
         </p>
         <Button icon="plus" onClick={() => setInviteOpen(true)}>Invite a guardian</Button>
-        <div style={{ height: 12 }} />
-        <p className="muted" style={{ margin: '0 0 12px' }}>
+        <p className="muted" style={{ margin: '12px 0' }}>
           They can only <b>look</b>. A guardian can never change your medicines or appointments, and can never
-          mark a dose as taken. You can disconnect any of their devices below at any time.
+          mark a dose as taken. A guardian is not an emergency service: nobody is called or alerted for you
+          except the missed-dose alerts you turn on.
         </p>
         {guardians.data?.length ? (
           <div className="guardian-list">
@@ -243,54 +266,50 @@ export default function Profile() {
             ))}
           </div>
         ) : null}
-      </Card>
+      </Collapsible>
 
       {/* language — near the top, because someone who can't read English
           can't go looking for it further down */}
-      <Card>
-        <SectionTitle icon="globe" title="Language" />
-        <p className="muted" style={{ margin: '0 0 10px' }}>Show MyDay in your language. The page reloads once.</p>
-        <select className="lang-select notranslate" translate="no" aria-label="Language" value={currentLanguage()}
+      <Collapsible id="language" icon="globe" title="Language" {...fold}
+        summary={(LANGUAGES.concat(MORE_LANGUAGES).find((l) => l.code === currentLanguage())?.name) || 'English'}>
+        <label className="muted" htmlFor="lang-select" style={{ display: 'block', margin: '0 0 10px' }}>Show MyDay in your language. The page reloads once.</label>
+        <select id="lang-select" className="lang-select notranslate input input--select" translate="no" value={currentLanguage()}
           onChange={(e) => setLanguage(e.target.value)}>
           {LANGUAGES.map((l) => <option key={l.code} value={l.code}>{l.en ? `${l.name} — ${l.en}` : l.name}</option>)}
           <optgroup label="More languages">
             {MORE_LANGUAGES.map((l) => <option key={l.code} value={l.code}>{`${l.name} — ${l.en}`}</option>)}
           </optgroup>
         </select>
-      </Card>
+      </Collapsible>
 
       {/* alerts */}
-      <Card>
-        <SectionTitle icon="bell" title="Alerts and reminders" />
-        <p className="muted" style={{ margin: '0 0 10px' }}>
-          Reminders when a dose is due, alerts if one is missed, appointment reminders and quiet
-          hours — all in one place.
-        </p>
+      <Collapsible id="alerts" icon="bell" title="Alerts and reminders" {...fold}
+        summary={`Missed after ${ALERT_WINDOWS.find((w) => w.value === alertWindow)?.label || `${alertWindow} min`}${devices.data?.length ? ` · ${devices.data.length} device${devices.data.length === 1 ? '' : 's'}` : ''}`}>
         <MenuRow icon="bell" title="Notification settings"
           desc="Turn alerts on, choose what you are told about, and set quiet hours"
           onClick={() => navigate('/profile/notifications')} />
         <div style={{ height: 10 }} />
-        <p className="muted" style={{ margin: '0 0 6px', fontWeight: 600 }}>Alert me after a dose is</p>
-        <SegmentedControl value={alertWindow} onChange={savingWindow ? () => {} : setAlertWindow}
+        <p className="muted" id="alert-window-label" style={{ margin: '0 0 6px', fontWeight: 600 }}>Alert me after a dose is late by</p>
+        <SegmentedControl label="Alert me after a dose is late by" value={alertWindow} onChange={savingWindow ? () => {} : setAlertWindow}
           options={ALERT_WINDOWS.map((w) => ({ value: w.value, label: w.label }))} />
         <div style={{ height: 14 }} />
         <AlertsEnabler devices={devices} onEnable={enableAlerts} onTest={testAlert} />
-      </Card>
+      </Collapsible>
 
       {completeness.pct < 100 && (
         <Card>
           <div className="progress-card">
-            <div className="progress-card__ring" style={{ '--p': completeness.pct }}><b>{completeness.pct}%</b></div>
+            <div className="progress-card__ring" style={{ '--p': completeness.pct }} aria-hidden="true"><b>{completeness.pct}%</b></div>
             <div className="progress-card__main">
-              <div className="progress-card__t">Profile progress</div>
-              <div className="progress-card__d">You're making progress! Complete your profile to personalise your experience.</div>
+              <div className="progress-card__t">Profile progress: {completeness.pct}%</div>
+              <div className="progress-card__d">Complete your profile to personalise your experience.</div>
             </div>
           </div>
           <ul className="checklist">
             {completeness.missing.map((f) => (
               <li key={f}>
-                <button className="checklist__item" onClick={() => fixField(f)} aria-label={FIELD_LABELS[f] || f}>
-                  <span className="checklist__box"><Icon name="plus" size={16} /></span>
+                <button type="button" className="checklist__item" onClick={() => fixField(f)}>
+                  <span className="checklist__box" aria-hidden="true"><Icon name="plus" size={16} /></span>
                   <span>{FIELD_LABELS[f] || f}</span>
                   <Icon name="chevron" size={20} />
                 </button>
@@ -300,89 +319,97 @@ export default function Profile() {
         </Card>
       )}
 
-      {/* Three named groups rather than one list of seven. Undifferentiated,
-          "About MyDay" sat directly under "Health goals" and the person had to
-          read every row to find the one they wanted. */}
-      <Card>
-        <SectionTitle icon="user" title="My information" />
+      {/* Three named groups rather than one list of seven. */}
+      <Collapsible id="info" icon="user" title="My information" {...fold} summary="Name, birthday, health and goals">
         <div className="menu-list">
           <MenuRow icon="user" title="Personal information" desc="Your name, birthday and more" onClick={() => setEditProfile(true)} />
           <MenuRow icon="cross" title="Health information" desc="Medications, supplements and conditions" onClick={() => setEditProfile(true)} />
           <MenuRow icon="star" title="Health goals" desc="Set and track what you're working toward" onClick={() => setEditProfile(true)} />
         </div>
-      </Card>
+      </Collapsible>
 
-      <Card>
-        <SectionTitle icon="pill" title="My health" />
+      <Collapsible id="health" icon="pill" title="My health" {...fold} summary="Medicines and cards">
         <div className="menu-list">
           <MenuRow icon="pill" title="My medicines" desc="Manage your medicines and times" onClick={() => navigate('/medication', { state: { view: 'medicines' } })} />
           <MenuRow icon="cross" title="My cards" desc="Health card, insurance and other cards" onClick={() => navigate('/cards')} />
         </div>
-      </Card>
+      </Collapsible>
 
-      <Card>
-        <SectionTitle icon="star" title="Explore" />
+      <Collapsible id="explore" icon="star" title="Explore" {...fold} summary="Guide and brain games">
         <div className="menu-list">
           <MenuRow icon="info" title="How to use MyDay" desc="A simple step-by-step guide to every part of the app" onClick={() => navigate('/help')} />
           <MenuRow icon="brain" title="Brain Games" desc="Play games and see your progress" onClick={() => navigate('/games')} />
         </div>
-      </Card>
+      </Collapsible>
 
       {/* contacts — vertical list, never scrolls sideways */}
-      <Card>
-        <SectionTitle icon="phone" title="My contacts" action={<Button variant="ghost" size="sm" full={false} icon="plus" onClick={() => setEditContact({})}>Add</Button>} />
+      <Collapsible id="contacts" icon="phone" title="My contacts" {...fold}
+        summary={contacts.data?.length ? `${contacts.data.length} saved${contacts.data.some((c) => c.is_emergency) ? ' · emergency contact set' : ''}` : 'None yet'}>
+        <Button variant="ghost" icon="plus" onClick={() => setEditContact({})}>Add a contact</Button>
+        <div style={{ height: 10 }} />
         {contacts.loading ? <Spinner label="" /> : !contacts.data?.length ? (
-          <EmptyState>Add your pharmacy, doctor, insurance, and more so they're one tap away.</EmptyState>
+          <EmptyState>Add your pharmacy, doctor, an emergency contact and more so they're one tap away.</EmptyState>
         ) : (
-          <div className="stack">
-            {contacts.data.map((c) => {
+          <ul className="stack contact-list">
+            {[...contacts.data].sort((a, b) => Number(!!b.is_emergency) - Number(!!a.is_emergency)).map((c) => {
               const m = typeMeta(c.type);
+              const tel = telHref(c.phone);
               return (
-                <div key={c.id} className="contact">
-                  <span className="contact__icon"><Icon name={m.icon} size={22} /></span>
+                <li key={c.id} className="contact">
+                  <span className="contact__icon" aria-hidden="true"><Icon name={c.is_emergency ? 'alert' : m.icon} size={22} /></span>
                   <div className="contact__main">
-                    <div className="contact__name">{c.name} <span className="contact__type">{m.label}</span></div>
-                    {c.phone && <a className="contact__line" href={`tel:${c.phone}`}>{c.phone}</a>}
+                    <div className="contact__name">{c.name}</div>
+                    <div className="contact__tags">
+                      <span className="contact__type">{m.label}</span>
+                      {c.is_emergency && <span className="contact__type contact__type--sos">Emergency contact</span>}
+                      {c.relationship && <span className="contact__type">{c.relationship}</span>}
+                    </div>
                     {c.email && <div className="contact__line">{c.email}</div>}
                     {c.address && <div className="contact__line">{c.address}</div>}
                     {c.notes && <div className="contact__line muted">{c.notes}</div>}
+                    {tel && (
+                      <a className="btn btn--good btn--sm contact__call" href={tel} aria-label={`Call ${c.name}, ${m.label}, ${c.phone}`}>
+                        <Icon name="phone" size={18} /> <span>Call {c.phone}</span>
+                      </a>
+                    )}
                   </div>
                   <div className="contact__actions">
-                    <button className="icon-btn" aria-label={`Edit ${c.name}`} onClick={() => setEditContact(c)}><Icon name="edit" size={20} /></button>
-                    <button className="icon-btn" aria-label={`Remove ${c.name}`} onClick={() => removeContact(c)}><Icon name="trash" size={20} /></button>
+                    <button type="button" className="icon-btn" aria-label={`Edit ${c.name}`} onClick={() => setEditContact(c)}><Icon name="edit" size={20} /></button>
+                    <button type="button" className="icon-btn" aria-label={`Remove ${c.name}`} onClick={() => removeContact(c)}><Icon name="trash" size={20} /></button>
                   </div>
-                </div>
+                </li>
               );
             })}
-          </div>
+          </ul>
         )}
-      </Card>
+        <p className="muted" style={{ margin: '12px 0 0', fontSize: 15 }}>
+          In an emergency, call 911. MyDay never calls or messages anyone for you.
+        </p>
+      </Collapsible>
 
       {/* appearance */}
-      <Card>
-        <SectionTitle icon="sun" title="Appearance" />
-        <p className="muted" style={{ margin: '0 0 12px' }}>Pick a look that's comfortable for you.</p>
-        <div className="theme-grid">
+      <Collapsible id="appearance" icon="sun" title="Appearance" {...fold} summary={`${themeName} theme`}>
+        <p className="muted" id="theme-label" style={{ margin: '0 0 12px' }}>Pick a look that's comfortable for you.</p>
+        <div className="theme-grid" role="radiogroup" aria-labelledby="theme-label">
           {THEMES.map((t) => (
-            <button key={t.id} className={`theme-swatch${theme === t.id ? ' is-active' : ''}`} onClick={() => setTheme(t.id)}
-              aria-label={`${t.name} theme`} aria-pressed={theme === t.id}>
-              <span className="theme-swatch__preview" style={{ background: t.bg, color: t.ink }}>
+            <button key={t.id} type="button" role="radio" aria-checked={theme === t.id}
+              className={`theme-swatch${theme === t.id ? ' is-active' : ''}`} onClick={() => setTheme(t.id)}>
+              <span className="theme-swatch__preview" style={{ background: t.bg, color: t.ink }} aria-hidden="true">
                 <span className="theme-swatch__bar" style={{ background: t.ink, opacity: 0.18 }} />
                 <span className="theme-swatch__bar theme-swatch__bar--short" style={{ background: t.ink, opacity: 0.12 }} />
                 <span className="theme-swatch__btn" style={{ background: t.primary }} />
               </span>
-              <span>{t.name}{theme === t.id ? ' ✓' : ''}</span>
+              <span className="theme-swatch__name">{t.name}{theme === t.id ? ' ✓' : ''}</span>
             </button>
           ))}
         </div>
-      </Card>
+      </Collapsible>
 
       {/* accessibility — bigger text, more contrast, easier reading */}
-      <Card>
-        <SectionTitle icon="eye" title="Accessibility" />
+      <Collapsible id="access" icon="eye" title="Accessibility" {...fold} summary={[`${sizeName} text`, ...access].join(' · ')}>
         <p className="muted" style={{ margin: '0 0 4px' }}>Make MyDay easier to see and use — changes apply straight away.</p>
         <SettingRow icon="notes" title="Text size" desc="Make everything on screen bigger." stacked>
-          <SegmentedControl value={textSize} onChange={setTextSize} options={TEXT_SIZES.map((s) => ({ value: s.id, label: s.name }))} />
+          <SegmentedControl label="Text size" value={textSize} onChange={setTextSize} options={TEXT_SIZES.map((s) => ({ value: s.id, label: s.name }))} />
           <p className="size-preview">Sample: today's medicine is ready.</p>
         </SettingRow>
         <SettingRow icon="sun" title="More contrast" desc="Stronger text and outlines, in any theme.">
@@ -391,19 +418,19 @@ export default function Profile() {
         <SettingRow icon="edit" title="Bold text" desc="Thicker letters that are easier to read.">
           <Toggle checked={settings.bold} onChange={(v) => setSetting({ bold: v })} label="Bold text" />
         </SettingRow>
-        <SettingRow icon="plus" title="Bigger buttons" desc="Larger tap targets for steadier pressing.">
+        <SettingRow icon="plus" title="Bigger buttons" desc="Even larger tap targets for steadier pressing.">
           <Toggle checked={settings.bigButtons} onChange={(v) => setSetting({ bigButtons: v })} label="Bigger buttons" />
         </SettingRow>
         <SettingRow icon="moon" title="Calm screen" desc="Turns off moving animations.">
           <Toggle checked={settings.calmMotion} onChange={(v) => setSetting({ calmMotion: v })} label="Calm screen" />
         </SettingRow>
-      </Card>
+      </Collapsible>
 
       {/* other preferences */}
-      <Card>
-        <SectionTitle icon="star" title="More options" />
+      <Collapsible id="more" icon="star" title="More options" {...fold}
+        summary={settings.clock === '24' ? '24-hour clock' : '12-hour clock (AM/PM)'}>
         <SettingRow icon="clock" title="Time format" desc="How times are shown, like 2:30 PM or 14:30." stacked>
-          <SegmentedControl value={settings.clock} onChange={(v) => setSetting({ clock: v })}
+          <SegmentedControl label="Time format" value={settings.clock} onChange={(v) => setSetting({ clock: v })}
             options={[{ value: '12', label: '2:30 PM' }, { value: '24', label: '14:30' }]} />
         </SettingRow>
         <SettingRow icon="calendar" title="Calendar on Home" desc="Show this month's medicine calendar on the Home screen.">
@@ -412,7 +439,8 @@ export default function Profile() {
         <SettingRow icon="brain" title="Brain games on Home" desc="Show the games card and daily reminder.">
           <Toggle checked={settings.homeGames} onChange={(v) => setSetting({ homeGames: v })} label="Brain games on Home" />
         </SettingRow>
-      </Card>
+      </Collapsible>
+      </div>
 
       {inviteOpen && (
         <Modal title={createdInvite ? `${createdInvite.name}'s code` : 'Invite a guardian'} onClose={closeInvite}>
@@ -677,38 +705,91 @@ function ContactForm({ contact, onClose, onSaved }) {
   const [email, setEmail] = useState(contact?.email || '');
   const [address, setAddress] = useState(contact?.address || '');
   const [notes, setNotes] = useState(contact?.notes || '');
+  const [relationship, setRelationship] = useState(contact?.relationship || '');
+  const [emergency, setEmergency] = useState(!!contact?.is_emergency);
+  const [errors, setErrors] = useState({});
   const [busy, setBusy] = useState(false);
+  const typeRefs = useRef([]);
 
   async function save() {
-    if (!name.trim()) { ui.toast('Please enter a name.', 'bad'); return; }
+    const next = {};
+    if (!name.trim()) next.name = 'Please enter a name.';
+    if (!validPhone(phone)) next.phone = 'That phone number does not look right. Use 7 to 15 digits, like (555) 123-4567.';
+    if (emergency && !phone.trim()) next.phone = 'An emergency contact needs a phone number.';
+    setErrors(next);
+    if (Object.keys(next).length) {
+      document.getElementById(next.name ? 'contact-name' : 'contact-phone')?.focus();
+      return;
+    }
     setBusy(true);
     try {
-      await saveContact({ id: contact?.id, type, name: name.trim(), phone: phone.trim(), email: email.trim(), address: address.trim(), notes: notes.trim() });
+      await saveContact({
+        id: contact?.id, existing: contact, type, name: name.trim(), phone: phone.trim(), email: email.trim(),
+        address: address.trim(), notes: notes.trim(), relationship: relationship.trim(), is_emergency: emergency,
+      });
       ui.toast(editing ? 'Contact updated.' : 'Contact added.');
       onSaved();
-    } catch { ui.toast('Could not save.', 'bad'); setBusy(false); }
+    } catch { ui.toast('Could not save. Your details are still here.', 'bad'); setBusy(false); }
+  }
+
+  // A radio group, not six loose buttons inside a <label> — which is why a
+  // screen reader announced "Type Provider Clinic Insurance Merchant Other"
+  // for the Pharmacy button.
+  const idx = Math.max(0, CONTACT_TYPES.findIndex((t) => t.value === type));
+  function onTypeKey(e) {
+    const n = CONTACT_TYPES.length;
+    let nx = null;
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') nx = (idx + 1) % n;
+    else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') nx = (idx - 1 + n) % n;
+    if (nx == null) return;
+    e.preventDefault();
+    setType(CONTACT_TYPES[nx].value);
+    typeRefs.current[nx]?.focus();
   }
 
   return (
-    <Modal title={editing ? 'Edit contact' : 'Add a contact'} onClose={onClose}>
-      <Field label="Type">
-        <div className="type-grid">
-          {CONTACT_TYPES.map((t) => (
-            <button key={t.value} type="button" className={`type-chip${type === t.value ? ' is-active' : ''}`} aria-pressed={type === t.value} onClick={() => setType(t.value)}>
+    <Modal title={editing ? `Edit ${contact.name}` : 'Add a contact'} onClose={onClose}
+      footer={(
+        <div className="btn-row">
+          <Button variant="ghost" onClick={onClose}>Cancel</Button>
+          <Button disabled={busy} icon={busy ? 'clock' : undefined} onClick={save}>{busy ? 'Saving…' : editing ? 'Save changes' : 'Add contact'}</Button>
+        </div>
+      )}>
+      <fieldset className="fieldset">
+        <legend className="field__label" id="contact-type-label">Type</legend>
+        <div className="type-grid" role="radiogroup" aria-labelledby="contact-type-label" onKeyDown={onTypeKey}>
+          {CONTACT_TYPES.map((t, i) => (
+            <button key={t.value} type="button" role="radio" aria-checked={type === t.value} tabIndex={type === t.value ? 0 : -1}
+              ref={(el) => { typeRefs.current[i] = el; }}
+              className={`type-chip${type === t.value ? ' is-active' : ''}`} onClick={() => setType(t.value)}>
               <Icon name={t.icon} size={22} /><span>{t.label}</span>
             </button>
           ))}
         </div>
+      </fieldset>
+      <Field label="Name" error={errors.name} id="contact-name">
+        <Input id="contact-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Riverside Pharmacy" maxLength={80}
+          aria-invalid={!!errors.name} aria-describedby={errors.name ? 'contact-name-err' : undefined} />
       </Field>
-      <Field label="Name"><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Riverside Pharmacy" maxLength={80} /></Field>
-      <Field label="Phone"><Input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="(555) 123-4567" maxLength={40} /></Field>
-      <Field label="Email"><Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} maxLength={80} /></Field>
-      <Field label="Address"><Input value={address} onChange={(e) => setAddress(e.target.value)} maxLength={120} /></Field>
-      <Field label="Notes"><Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} maxLength={200} /></Field>
-      <div className="btn-row" style={{ marginTop: 8 }}>
-        <Button variant="ghost" onClick={onClose}>Cancel</Button>
-        <Button disabled={busy} icon={busy ? 'clock' : undefined} onClick={save}>{busy ? 'Saving…' : editing ? 'Save changes' : 'Add contact'}</Button>
+      <Field label="Phone" error={errors.phone} id="contact-phone">
+        <Input id="contact-phone" type="tel" inputMode="tel" autoComplete="tel" value={phone} onChange={(e) => setPhone(e.target.value)}
+          placeholder="(555) 123-4567" maxLength={40}
+          aria-invalid={!!errors.phone} aria-describedby={errors.phone ? 'contact-phone-err' : undefined} />
+      </Field>
+      <div className="setting-row">
+        <span className="setting-row__ic" aria-hidden="true"><Icon name="alert" size={22} /></span>
+        <div className="setting-row__main">
+          <div className="setting-row__t" id="contact-sos-label">Emergency contact</div>
+          <div className="setting-row__d" id="contact-sos-desc">Shown first, with a big Call button. Nobody is contacted automatically.</div>
+        </div>
+        <Toggle checked={emergency} onChange={setEmergency} labelledBy="contact-sos-label" describedBy="contact-sos-desc" />
       </div>
+      <Field label="Relationship (optional)" hint="For example: daughter, neighbour, family doctor.">
+        <Input value={relationship} onChange={(e) => setRelationship(e.target.value)} maxLength={40} />
+      </Field>
+      <Field label="Email"><Input type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} maxLength={80} /></Field>
+      <Field label="Address"><Input autoComplete="street-address" value={address} onChange={(e) => setAddress(e.target.value)} maxLength={120} /></Field>
+      <Field label="Notes"><Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} maxLength={200} /></Field>
     </Modal>
   );
 }

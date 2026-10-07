@@ -23,8 +23,12 @@ export function prettyTime(hhmm) {
   return `${h12}:${String(m).padStart(2, '0')} ${ampm}`;
 }
 
+// A Date as a clock time, written exactly like prettyTime ("9:30 AM"), so a
+// scheduled time and an actual time never appear in two different styles.
 export function prettyClock(d) {
-  return d.toLocaleTimeString([], { hour: clockPref === '24' ? '2-digit' : 'numeric', minute: '2-digit', hour12: clockPref !== '24' });
+  const t = d instanceof Date ? d : new Date(d);
+  if (!Number.isFinite(t.getTime())) return '';
+  return prettyTime(`${String(t.getHours()).padStart(2, '0')}:${String(t.getMinutes()).padStart(2, '0')}`);
 }
 
 // '2026-06-18' -> 'Thursday, June 18'
