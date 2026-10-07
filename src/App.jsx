@@ -29,7 +29,7 @@ const ResetPassword = lazy(() => import('./screens/ResetPassword.jsx'));
 
 function Root() {
   const { user, loading, recovery, endRecovery } = useApp();
-  const { pathname } = useLocation();
+  const { pathname, key } = useLocation();
   const publicFallback = <div className="content"><PageSkeleton /></div>;
 
   // Legacy invitation links are public. A signed-in person can otherwise be
@@ -48,6 +48,15 @@ function Root() {
     return publicFallback;
   }
   if (pathname === '/guardian') {
+    // Someone with their own account who opens the app straight onto
+    // /guardian — an icon installed from the guardian page (whose manifest
+    // starts there), a reopen, a refresh — wants their own day first. "People
+    // I watch" is one tap away on Home. React Router gives the first location
+    // of a page load the key 'default'; a tap inside the app never has it.
+    // `?from=alert` is a missed-dose alert being tapped, which should open the
+    // dashboard it is about.
+    const launched = key === 'default' && !new URLSearchParams(window.location.search).has('from');
+    if (user && launched) return <Navigate to="/" replace />;
     return <Suspense fallback={publicFallback}>{user ? <AccountGuardian /> : <Guardian />}</Suspense>;
   }
   if (!user) {
