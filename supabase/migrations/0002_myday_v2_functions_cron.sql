@@ -44,7 +44,7 @@ create extension if not exists pg_cron;
 do $$ begin perform cron.unschedule('myday-missed-dose-check'); exception when others then null; end $$;
 select cron.schedule('myday-missed-dose-check', '*/5 * * * *', $job$
   select net.http_post(
-    url := 'https://zciulgqkqusjxomyapcz.supabase.co/functions/v1/missed-dose-check',
+    url := 'https://cthpunnnkdgukuogyvxm.supabase.co/functions/v1/missed-dose-check',
     headers := '{"Content-Type":"application/json"}'::jsonb, body := '{}'::jsonb);
 $job$);
 

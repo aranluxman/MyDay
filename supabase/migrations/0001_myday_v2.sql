@@ -1,5 +1,5 @@
 -- =====================================================================
--- MyDay v2 backend (multi-user, Supabase Auth) for project zciulgqkqusjxomyapcz.
+-- MyDay v2 backend (multi-user, Supabase Auth) for project cthpunnnkdgukuogyvxm.
 -- Every table is owned by an auth user (user_id = auth.uid()) with per-user RLS.
 -- All tables namespaced myday_ to coexist with the other app in this project.
 -- =====================================================================

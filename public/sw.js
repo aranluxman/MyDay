@@ -83,7 +83,7 @@ self.addEventListener('fetch', (e) => {
 // MyDay icon; left in a browser tab it reads "Chrome" no matter what we set
 // here, which is why the app insists on being installed before enabling alerts.
 // Everything below controls the parts we DO own: title, icon, badge, buttons.
-const API = 'https://zciulgqkqusjxomyapcz.supabase.co/functions/v1';
+const API = 'https://cthpunnnkdgukuogyvxm.supabase.co/functions/v1';
 
 self.addEventListener('push', (e) => {
   let data = {};
