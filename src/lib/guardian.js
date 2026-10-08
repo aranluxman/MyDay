@@ -171,6 +171,12 @@ export async function setDailySummary(at, tokenOverride = null) {
   return call({ action: 'summary', token, at: at || null });
 }
 
+export async function setGuardianAlertTiming(timing, tokenOverride = null) {
+  const token = tokenOverride || getGuardianToken();
+  if (!token) throw new GuardianUnlinked();
+  return call({ action: 'alert_timing', token, ...timing });
+}
+
 /** "This is not my device" — revokes the token server-side, then forgets it. */
 export async function disconnectThisDevice() {
   const token = getGuardianToken();

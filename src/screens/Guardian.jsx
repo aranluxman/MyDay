@@ -6,7 +6,7 @@ import { MedCalendar } from '../components/MedCalendar.jsx';
 import { SegmentedControl, Skeleton, SkeletonCard, Pill, Modal } from '../components/ui.jsx';
 import {
   getGuardianToken, linkWithCode, fetchDashboard, disconnectThisDevice,
-  enableGuardianPush, disableGuardianPush, setDailySummary, GuardianUnlinked, forgetGuardianMode,
+  enableGuardianPush, disableGuardianPush, setDailySummary, setGuardianAlertTiming, GuardianUnlinked, forgetGuardianMode,
 } from '../lib/guardian.js';
 import { pushSupported, enablePush, isInstalled } from '../lib/push.js';
 import { doseState, summarise, sortForDisplay, adherence, dayMarkFromCounts, STATE_UI, countsByDay } from '../lib/doseState.js';
@@ -232,6 +232,14 @@ export function Dashboard({ onUnlinked, accountLinkId = null, accountToken = nul
         onClose={() => { setIntro(false); try { localStorage.setItem(SEEN_INTRO_KEY, '1'); } catch {} }} />}
 
       <StatusHeader patient={d.patient} guardianName={d.guardian?.name} summary={todaySummary} date={d.today?.date} />
+
+      {(!accountLinkId || accountToken) && !d.notifications?.push_enabled && (
+        <section className="card">
+          <p className="lead">Medication alerts are off on this device.</p>
+          <p className="muted">Turn them on to hear when {d.patient?.name} has not taken a medicine.</p>
+          <a className="btn btn--primary btn--sm btn--full" href="#guardian-alerts">Set up medication alerts</a>
+        </section>
+      )}
 
       {!accountLinkId && <div className="g-guest-account">
         <span>Want to track your own medicines too?</span>
@@ -500,6 +508,15 @@ function HistoryPanel({ history, opts }) {
       <MedCalendar counts={counts} selected={day}
         onPick={(pick) => { setDay((cur) => (cur === pick ? null : pick)); setLimit(HISTORY_PAGE); }} />
 
+      <label className="g-field">
+        <span>Medication history date</span>
+        <select className="input" value={day || ''} onChange={(e) => { setDay(e.target.value || null); setLimit(HISTORY_PAGE); }}>
+          <option value="">All dates</option>
+          {day && !byDay.some(([date]) => date === day) && <option value={day}>{prettyDate(day)}</option>}
+          {byDay.map(([date]) => <option key={date} value={date}>{prettyDate(date)}</option>)}
+        </select>
+      </label>
+
       {day && (
         <button className="g-clear" onClick={() => setDay(null)}>
           <Icon name="close" size={18} /> Showing {prettyDate(day)} — show all days
@@ -607,6 +624,9 @@ function AlertsPanel({ notifications, patient, token, onChanged }) {
   const [error, setError] = useState('');
   const on = !!notifications?.push_enabled;
   const summaryAt = notifications?.daily_summary_at || '';
+  const alertMode = notifications?.alert_mode || 'delay';
+  const alertDelay = notifications?.alert_delay_minutes ?? 60;
+  const alertAt = notifications?.alert_at || '19:00';
   const installed = isInstalled();
 
   async function turnOn() {
@@ -630,9 +650,17 @@ function AlertsPanel({ notifications, patient, token, onChanged }) {
     catch (e) { setError(e.message || 'Could not save.'); }
     finally { setBusy(false); }
   }
+  async function pickTiming(patch) {
+    setError(''); setBusy(true);
+    try {
+      await setGuardianAlertTiming({ mode: alertMode, delay_minutes: alertDelay, at: alertAt, ...patch }, token);
+      await onChanged();
+    } catch (e) { setError(e.message || 'Could not save alert timing.'); }
+    finally { setBusy(false); }
+  }
 
   return (
-    <section className="card">
+    <section className="card" id="guardian-alerts">
       <h3 className="g-section">Alerts on this device</h3>
       {error && <div className="g-warn" role="alert">{error}</div>}
 
@@ -643,7 +671,30 @@ function AlertsPanel({ notifications, patient, token, onChanged }) {
         </p>
       ) : on ? (
         <>
-          <p className="g-ok"><Icon name="check" size={20} /> You'll be alerted if {patient} misses a medicine.</p>
+          <p className="g-ok"><Icon name="check" size={20} /> Alerts are enabled for {patient} on this device.</p>
+          {notifications?.last_error && <p className="g-warn" role="status">The last alert could not be delivered. Turn alerts off and on again to reconnect this device.</p>}
+          <label className="g-field">
+            <span>When a medicine has not been taken</span>
+            <select className="input" value={alertMode} disabled={busy} onChange={(e) => pickTiming({ mode: e.target.value })}>
+              <option value="delay">After the dose is due</option>
+              <option value="time">At a set time</option>
+            </select>
+          </label>
+          {alertMode === 'delay' ? <label className="g-field">
+            <span>How long after the dose is due?</span>
+            <select className="input" value={alertDelay} disabled={busy} onChange={(e) => pickTiming({ delay_minutes: Number(e.target.value) })}>
+              {[15, 30, 45, 60].map((n) => <option key={n} value={n}>{n === 60 ? '1 hour' : `${n} minutes`}</option>)}
+            </select>
+          </label> : <form onSubmit={(e) => {
+            e.preventDefault(); pickTiming({ at: new FormData(e.currentTarget).get('alert_at') });
+          }}>
+            <label className="g-field">
+              <span>Check for untaken medicines at</span>
+              <input className="input" type="time" name="alert_at" required defaultValue={alertAt} key={alertAt} disabled={busy} />
+            </label>
+            <button className="btn btn--primary btn--sm btn--full" type="submit" disabled={busy}>Save alert time</button>
+          </form>}
+          <p className="muted">{alertMode === 'time' ? "Uses the medication owner's local time. Doses due after that time are checked the next day." : 'The delay starts at each scheduled dose time.'} Alerts are checked every 5 minutes and stop once the dose is taken or marked not needed.</p>
           <label className="g-field">
             <span>Daily summary</span>
             <select className="input" value={summaryAt} disabled={busy}

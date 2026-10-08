@@ -10,7 +10,7 @@ export const SETTINGS_DEFAULTS = {
   highContrast: false,  // stronger text/borders on top of any theme
   clock: '12',          // '12' | '24' hour times
   homeCalendar: true,   // show the month calendar on the Home screen
-  homeGames: true,      // show the brain-games card + reminder on Home
+  homeGames: true,      // show the brain-games reminder on Home
 };
 
 const KEY = 'myday_settings';

@@ -72,7 +72,7 @@ Deno.serve(async (req) => {
     const name = String(body.name || '').trim().slice(0, 60);
 
     const { error: devErr } = await admin.from('myday_guardian_devices')
-      .upsert({ guardian_id: guardian.id, endpoint: sub.endpoint, subscription: sub }, { onConflict: 'endpoint' });
+      .upsert({ guardian_id: guardian.id, endpoint: sub.endpoint, subscription: sub, push_enabled: true }, { onConflict: 'guardian_id,endpoint' });
     if (devErr) return json({ error: 'Could not turn on alerts. Please try again.' }, 500);
 
     const patch: Record<string, unknown> = { status: 'active', activated_at: new Date().toISOString() };

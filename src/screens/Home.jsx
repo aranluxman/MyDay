@@ -3,6 +3,7 @@ import { useDoseActions } from '../hooks/useDoseActions.js';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext.jsx';
 import { useUI } from '../context/UIContext.jsx';
+import { useDayRefresh } from '../hooks/useDayRefresh.js';
 import { useAsync } from '../hooks/useAsync.js';
 import { Card, Button, Avatar, Skeleton, SkeletonCard } from '../components/ui.jsx';
 import { Icon } from '../components/Icon.jsx';
@@ -32,6 +33,7 @@ export default function Home() {
     ]);
     return { doses, appts, games, guardians, watching, meds };
   });
+  useDayRefresh(reload);
   const actions = useDoseActions(reload);
 
   if (loading) return <HomeSkeleton />;
@@ -163,13 +165,11 @@ export default function Home() {
             <span className="glance__n">{appts.length}</span>
             <span className="glance__l">Appointments</span>
           </button>
-          {settings.homeGames && (
-            <button className="glance__chip" onClick={() => navigate('/games')}>
-              <span className="glance__ic glance__ic--violet"><Icon name="brain" size={22} /></span>
-              <span className="glance__n">{games}</span>
-              <span className="glance__l">Brain Games</span>
-            </button>
-          )}
+          <button className="glance__chip" onClick={() => navigate('/games')}>
+            <span className="glance__ic glance__ic--violet"><Icon name="brain" size={22} /></span>
+            <span className="glance__n">{games}</span>
+            <span className="glance__l">Brain Games</span>
+          </button>
         </div>
       </section>
 

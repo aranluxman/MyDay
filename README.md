@@ -143,6 +143,26 @@ synthetic data. See `docs/audit/REPORT.md` for the phone/accessibility audit fix
 screenshots and migration notes (apply migration 0017 before deploying the updated
 `dose-action` and `ai-assist` functions).
 
+## Guardian alert timing and day refresh
+
+The guardian can choose 15, 30, 45 or 60 minutes after each scheduled dose, or
+a fixed clock time in the medication owner's timezone. Taken and skipped doses
+never qualify. A fixed-time check includes earlier untaken doses; doses due after
+that time are checked the next day. The five-minute cron runs without the app open.
+
+Before publishing this update, apply
+`supabase/migrations/20261008163927_guardian_alert_timing.sql`, then deploy
+`guardian-data`, `guardian-join`, `missed-dose-check` and `send-reminders` with their
+existing JWT verification settings. Deploy the rebuilt `dist/` to Cloudflare Pages
+after the backend update. Existing code/token checks and row access policies remain
+in place. Re-enable alerts on any connection whose subscription was cleared by
+the older subscription behavior.
+
+Home and Medication refresh on reopening and every minute while visible.
+Dose generation preserves completed mornings and generates an evening dose only
+when that time is part of the medicine's schedule. History has a date dropdown
+on both the patient and guardian screens; Profile is under More on phones.
+
 ## Run locally
 
 ```bash
