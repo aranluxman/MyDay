@@ -143,7 +143,7 @@ create extension if not exists pg_cron;
 do $$ begin perform cron.unschedule('myday-send-reminders'); exception when others then null; end $$;
 select cron.schedule('myday-send-reminders', '*/5 * * * *', $job$
   select net.http_post(
-    url := 'https://zciulgqkqusjxomyapcz.supabase.co/functions/v1/send-reminders',
+    url := 'https://cthpunnnkdgukuogyvxm.supabase.co/functions/v1/send-reminders',
     headers := '{"Content-Type":"application/json"}'::jsonb, body := '{}'::jsonb);
 $job$);
 

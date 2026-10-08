@@ -2,8 +2,8 @@ import { createClient } from '@supabase/supabase-js';
 
 // Public, client-safe values (the publishable key is meant to ship in the
 // browser). All data access is governed by per-user Row Level Security.
-export const SUPABASE_URL = 'https://zciulgqkqusjxomyapcz.supabase.co';
-export const SUPABASE_KEY = 'sb_publishable_t3LKmsyqW22dT4ZMlKWQkg_UIyTziIe';
+export const SUPABASE_URL = 'https://cthpunnnkdgukuogyvxm.supabase.co';
+export const SUPABASE_KEY = 'sb_publishable_IpWSKPM68ZIRMqjaKGpTvQ_QyyZZEQ8';
 
 // Web-push VAPID public key (private key lives server-side only).
 export const VAPID_PUBLIC_KEY =

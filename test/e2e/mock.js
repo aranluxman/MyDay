@@ -9,7 +9,7 @@
 //   and the dose RPCs from migration 0017 with the same idempotent semantics
 //   (verified separately against real Postgres in test/sql/0017_test.sql).
 
-export const PROJECT = 'https://zciulgqkqusjxomyapcz.supabase.co';
+export const PROJECT = 'https://cthpunnnkdgukuogyvxm.supabase.co';
 export const USER_ID = '00000000-0000-4000-8000-00000000aaaa';
 
 const b64 = (o) => Buffer.from(JSON.stringify(o)).toString('base64url');
@@ -175,7 +175,7 @@ export async function installMock(page, { now, fixtures, onCall } = {}) {
 
   await page.addInitScript(([key, s]) => {
     try { localStorage.setItem(key, JSON.stringify(s)); } catch {}
-  }, ['sb-zciulgqkqusjxomyapcz-auth-token', session]);
+  }, ['sb-cthpunnnkdgukuogyvxm-auth-token', session]);
 
   await page.route('**/*', async (route) => {
     const req = route.request();

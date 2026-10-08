@@ -188,16 +188,17 @@ No environment variables are required (the publishable key is public and lives i
 
 ---
 
-## Supabase (already configured on project `zciulgqkqusjxomyapcz`)
+## Supabase (already configured on project `cthpunnnkdgukuogyvxm`)
 
-- Schema, RLS, dose functions and the 5-minute cron are applied (see
+- MyDay has its own project (Supabase Pro). It moved off the shared project
+  `zciulgqkqusjxomyapcz` in October 2026 with its accounts (same passwords),
+  data and photos.
+- Schema, RLS, dose functions and the crons are applied (see
   `supabase/migrations/`).
-- Edge Functions: `ai-assist` (OpenAI, see below — deploy it yourself), `signup` (instant pre-confirmed accounts) and
-  `missed-dose-check` (cron + multi-user web push). Both are implemented with Web
-  Crypto — no external push library.
-- A pre-existing, broken `handle_new_user` trigger on `auth.users` (from another app
-  in the same project) was blocking all sign-ups; it was fixed and made
-  exception-safe so a profile insert can never block account creation.
+- Edge Functions: `ai-assist` (OpenAI, see below — needs the `OPENAI_API_KEY` secret), `signup` (instant pre-confirmed accounts),
+  `missed-dose-check` (cron + multi-user web push), `send-reminders` (cron),
+  `daily-summary` (hourly cron, 8pm recap), `dose-action`, `guardian-join` and
+  `guardian-data`. Push is implemented with Web Crypto — no external push library.
 - Web-push VAPID keys are stored in `myday_push_config` (private key server-side
   only); the public key is in `src/lib/supabase.js`.
 
@@ -209,8 +210,8 @@ switched on in Supabase (it checks the project's public auth settings, so it is 
 1. Google Cloud Console → APIs & Services → **OAuth consent screen**: app name `MyDay`, your email, publish.
 2. **Credentials** → Create credentials → **OAuth client ID** → Web application.
    - Authorized JavaScript origins: `https://myday-1rn.pages.dev`
-   - Authorized redirect URIs: `https://zciulgqkqusjxomyapcz.supabase.co/auth/v1/callback`
-3. Supabase (project `zciulgqkqusjxomyapcz`) → Authentication → **Sign In / Providers** → **Google** →
+   - Authorized redirect URIs: `https://cthpunnnkdgukuogyvxm.supabase.co/auth/v1/callback`
+3. Supabase (project `cthpunnnkdgukuogyvxm`) → Authentication → **Sign In / Providers** → **Google** →
    enable, paste the Client ID and Client Secret → Save.
 4. Supabase → Authentication → **URL Configuration**: Site URL `https://myday-1rn.pages.dev`, and add it to
    Redirect URLs.
