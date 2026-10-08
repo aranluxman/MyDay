@@ -436,8 +436,8 @@ export default function Profile() {
         <SettingRow icon="calendar" title="Calendar on Home" desc="Show this month's medicine calendar on the Home screen.">
           <Toggle checked={settings.homeCalendar} onChange={(v) => setSetting({ homeCalendar: v })} label="Calendar on Home" />
         </SettingRow>
-        <SettingRow icon="brain" title="Brain games on Home" desc="Show the games card and daily reminder.">
-          <Toggle checked={settings.homeGames} onChange={(v) => setSetting({ homeGames: v })} label="Brain games on Home" />
+        <SettingRow icon="brain" title="Brain game suggestions on Home" desc="Show a reminder to play. Games are always available on Home.">
+          <Toggle checked={settings.homeGames} onChange={(v) => setSetting({ homeGames: v })} label="Brain game suggestions on Home" />
         </SettingRow>
       </Collapsible>
       </div>

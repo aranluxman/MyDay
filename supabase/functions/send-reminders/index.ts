@@ -75,7 +75,7 @@ Deno.serve(async (req) => {
   const devicesByUser: Record<string, any[]> = {};
   for (const d of devices || []) (devicesByUser[d.user_id] ||= []).push(d);
   const userIds = Object.keys(devicesByUser);
-  if (!userIds.length) return json({ ok: true, sent: 0, skipped: 0, note: 'no subscribed devices' });
+  // Guardian summaries still run when the patient has no subscribed device.
 
   const [{ data: profiles }, { data: prefsRows }] = await Promise.all([
     admin.from('myday_profiles').select('user_id, full_name, timezone').in('user_id', userIds),

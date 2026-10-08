@@ -339,6 +339,7 @@ Deno.serve(async (req) => {
     await admin.from('myday_guardian_devices')
       .update({ endpoint: null, subscription: null, push_enabled: false })
       .eq('endpoint', sub.endpoint)
+      .eq('guardian_id', guardian.id)
       .neq('id', device.id);
 
     const { error } = await admin.from('myday_guardian_devices')
@@ -365,6 +366,20 @@ Deno.serve(async (req) => {
     }
     await admin.from('myday_guardian_devices')
       .update({ daily_summary_at: at }).eq('id', device.id);
+    return json({ ok: true });
+  }
+
+  if (action === 'alert_timing') {
+    const mode = body.mode;
+    const delay = body.delay_minutes;
+    const at = body.at;
+    if (!['delay', 'time'].includes(mode) || ![15, 30, 45, 60].includes(delay)
+        || typeof at !== 'string' || !/^([01]\d|2[0-3]):[0-5]\d$/.test(at)) {
+      return json({ error: 'Choose a delay of 15, 30, 45 minutes or 1 hour, or a valid time.' }, 400);
+    }
+    const { error } = await admin.from('myday_guardian_devices')
+      .update({ alert_mode: mode, alert_delay_minutes: delay, alert_at: at }).eq('id', device.id);
+    if (error) return json({ error: 'Could not save alert timing. Please try again.' }, 500);
     return json({ ok: true });
   }
 
@@ -441,6 +456,10 @@ Deno.serve(async (req) => {
     notifications: {
       push_enabled: !!device.push_enabled,
       daily_summary_at: device.daily_summary_at || null,
+      alert_mode: device.alert_mode || 'delay',
+      alert_delay_minutes: device.alert_delay_minutes ?? 60,
+      alert_at: device.alert_at || '19:00',
+      last_error: device.last_error || null,
     },
     // Stated by the server so the page cannot promise a guardian more than the
     // boundary actually allows.

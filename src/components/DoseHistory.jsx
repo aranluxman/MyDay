@@ -30,6 +30,8 @@ export function DoseHistory({ windowMinutes }) {
   const { data, loading, error, reload } = useAsync(() => doseHistory(range.from, range.to), [range.from, range.to]);
   const [filter, setFilter] = useState('all');
   const [medId, setMedId] = useState('all');
+  const [date, setDate] = useState('all');
+  const dates = useMemo(() => [...new Set((data || []).map((d) => d.dose_date))].sort().reverse(), [data]);
   const [limit, setLimit] = useState(PAGE);
   const opts = useMemo(() => ({ windowMinutes }), [windowMinutes]);
 
@@ -46,6 +48,7 @@ export function DoseHistory({ windowMinutes }) {
   const days = useMemo(() => {
     const map = new Map();
     for (const d of data || []) {
+      if (date !== 'all' && d.dose_date !== date) continue;
       if (medId !== 'all' && d.medication_id !== medId) continue;
       if (!map.has(d.dose_date)) map.set(d.dose_date, []);
       map.get(d.dose_date).push(d);
@@ -58,7 +61,7 @@ export function DoseHistory({ windowMinutes }) {
         shown: filter === 'all' ? doses : doses.filter((d) => doseState(d, opts) === filter),
       }))
       .filter((day) => day.shown.length);
-  }, [data, medId, filter, opts]);
+  }, [data, date, medId, filter, opts]);
 
   if (loading) return <div className="stack"><SkeletonCard lines={3} /><SkeletonCard lines={3} /></div>;
   if (error) return <EmptyState icon="alert" title="Could not load your history" action={<Button onClick={reload}>Try again</Button>} />;
@@ -70,6 +73,15 @@ export function DoseHistory({ windowMinutes }) {
   return (
     <div className="stack">
       <div className="hist__filters">
+        <label className="g-field">
+          <span>Medication history date</span>
+          <select className="input" value={date} onChange={(e) => {
+            setDate(e.target.value); setFilter('all'); setMedId('all'); setLimit(PAGE);
+          }}>
+            <option value="all">All dates</option>
+            {dates.map((day) => <option key={day} value={day}>{prettyDate(day)}</option>)}
+          </select>
+        </label>
         <div className="chips" role="group" aria-label="Show doses">
           {FILTERS.map((f) => (
             <button key={f.id} type="button" className={`chip${filter === f.id ? ' is-on' : ''}`}

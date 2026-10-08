@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useUI } from '../context/UIContext.jsx';
+import { useDayRefresh } from '../hooks/useDayRefresh.js';
 import { useAsync } from '../hooks/useAsync.js';
 import { useDoseActions } from '../hooks/useDoseActions.js';
 import { Card, Button, EmptyState, HeroEmpty, TipCard, SegmentedControl, TabPanel, SkeletonCard, Input, Modal, Field } from '../components/ui.jsx';
@@ -54,6 +55,7 @@ export default function Medication() {
   }, [location.key]);
 
   const reloadAll = useCallback(() => { meds.reload(); today.reload(); }, [meds.reload, today.reload]);
+  useDayRefresh(reloadAll);
   const actions = useDoseActions(reloadAll);
 
   // Removing is a soft delete, so Undo is a flag flip rather than a re-entry

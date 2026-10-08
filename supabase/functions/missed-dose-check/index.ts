@@ -7,13 +7,12 @@
 // from the locked-down myday_push_config table via the service role.
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
 
+import { sendPush, type Vapid } from '../_shared/webpush.ts';
+import { guardianAlertDue, guardianDeliveryKey } from '../_shared/guardianAlerts.js';
+import { shouldSend } from '../_shared/notificationRules.js';
+
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-const enc = new TextEncoder();
-const subtle = globalThis.crypto.subtle;
-const b64urlToBuf = (s: string) => Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/').padEnd(s.length + ((4 - (s.length % 4)) % 4), '=')), (c) => c.charCodeAt(0));
-const bufToB64url = (b: ArrayBuffer | Uint8Array) => btoa(String.fromCharCode(...new Uint8Array(b))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-const concat = (...a: Uint8Array[]) => { const t = new Uint8Array(a.reduce((n, x) => n + x.length, 0)); let o = 0; for (const x of a) { t.set(x, o); o += x.length; } return t; };
 
 function prettyTime(hhmm: string): string { const [h, m] = hhmm.split(':').map(Number); const ap = h < 12 ? 'AM' : 'PM'; const h12 = h % 12 === 0 ? 12 : h % 12; return `${h12}:${String(m).padStart(2, '0')} ${ap}`; }
 function doseLabel(d: any): string { const med = d.medication?.name as string | undefined; return `${prettyTime(d.scheduled_time)}${med ? ` ${med}` : ''}`; }
@@ -25,47 +24,6 @@ function missedBody(name: string, doses: any[]): string {
     return `${name} has not taken their ${prettyTime(doses[0].scheduled_time)} medication${med ? ` (${med})` : ''}.`;
   }
   return `${name} missed ${doses.length} medications: ${doses.map(doseLabel).join(', ')}.`;
-}
-
-async function hkdf(salt: Uint8Array, ikm: Uint8Array, info: Uint8Array, len: number) {
-  const key = await subtle.importKey('raw', ikm, 'HKDF', false, ['deriveBits']);
-  return new Uint8Array(await subtle.deriveBits({ name: 'HKDF', hash: 'SHA-256', salt, info }, key, len * 8));
-}
-async function encryptPayload(p256dh: string, authKey: string, plaintext: string) {
-  const uaPublic = b64urlToBuf(p256dh); const authSecret = b64urlToBuf(authKey);
-  const asPair = await subtle.generateKey({ name: 'ECDH', namedCurve: 'P-256' }, true, ['deriveBits']);
-  const asPublic = new Uint8Array(await subtle.exportKey('raw', asPair.publicKey));
-  const uaKey = await subtle.importKey('raw', uaPublic, { name: 'ECDH', namedCurve: 'P-256' }, false, []);
-  const shared = new Uint8Array(await subtle.deriveBits({ name: 'ECDH', public: uaKey }, asPair.privateKey, 256));
-  const ikm = await hkdf(authSecret, shared, concat(enc.encode('WebPush: info\0'), uaPublic, asPublic), 32);
-  const salt = crypto.getRandomValues(new Uint8Array(16));
-  const cek = await hkdf(salt, ikm, enc.encode('Content-Encoding: aes128gcm\0'), 16);
-  const nonce = await hkdf(salt, ikm, enc.encode('Content-Encoding: nonce\0'), 12);
-  const record = concat(enc.encode(plaintext), new Uint8Array([0x02]));
-  const aesKey = await subtle.importKey('raw', cek, { name: 'AES-GCM' }, false, ['encrypt']);
-  const ct = new Uint8Array(await subtle.encrypt({ name: 'AES-GCM', iv: nonce, tagLength: 128 }, aesKey, record));
-  const rs = new Uint8Array(4); new DataView(rs.buffer).setUint32(0, 4096);
-  return concat(salt, rs, new Uint8Array([asPublic.length]), asPublic, ct);
-}
-async function vapidAuth(endpoint: string, pub: string, priv: string, contact: string) {
-  const aud = new URL(endpoint).origin;
-  const header = bufToB64url(enc.encode(JSON.stringify({ typ: 'JWT', alg: 'ES256' })));
-  const payload = bufToB64url(enc.encode(JSON.stringify({ aud, exp: Math.floor(Date.now() / 1000) + 12 * 3600, sub: contact })));
-  const signingInput = `${header}.${payload}`;
-  const p = b64urlToBuf(pub);
-  const jwk = { kty: 'EC', crv: 'P-256', x: bufToB64url(p.subarray(1, 33)), y: bufToB64url(p.subarray(33, 65)), d: priv, ext: true, key_ops: ['sign'] };
-  const key = await subtle.importKey('jwk', jwk, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['sign']);
-  const sig = await subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, key, enc.encode(signingInput));
-  return `vapid t=${signingInput}.${bufToB64url(sig)}, k=${pub}`;
-}
-type Vapid = { public: string; private: string; contact: string };
-async function sendPush(subscription: any, payload: object, vapid: Vapid): Promise<number> {
-  try {
-    const body = await encryptPayload(subscription.keys.p256dh, subscription.keys.auth, JSON.stringify(payload));
-    const auth = await vapidAuth(subscription.endpoint, vapid.public, vapid.private, vapid.contact);
-    const res = await fetch(subscription.endpoint, { method: 'POST', headers: { 'Content-Encoding': 'aes128gcm', 'Content-Type': 'application/octet-stream', TTL: '86400', Urgency: 'high', Authorization: auth }, body });
-    return res.status;
-  } catch { return 0; }
 }
 
 Deno.serve(async (req) => {
@@ -122,70 +80,111 @@ Deno.serve(async (req) => {
     const { data: devices } = await admin.from('myday_family_devices').select('*').eq('user_id', user.id);
     const { data: prof } = await admin.from('myday_profiles').select('full_name').eq('user_id', user.id).maybeSingle();
     const name = prof?.full_name || 'You';
-    const { delivered } = await broadcast('myday_family_devices', devices || [], { title: 'MyDay test alert', body: `Test alert for ${name}. Missed-dose alerts are working.`, url: './' });
+    const { delivered } = await broadcast('myday_family_devices', devices || [], { title: 'MyDay test alert', body: `Test alert for ${name}. This device can receive MyDay alerts.`, url: './' });
     return json({ ok: true, mode: 'test', devices: (devices || []).length, delivered });
   }
 
-  await admin.rpc('myday_cron_ensure_and_mark');
-  const dayAgo = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
-  const { data: missed } = await admin.from('myday_doses')
-    .select('id, user_id, scheduled_time, medication:myday_medications(name)')
-    .eq('status', 'missed').eq('notified', false).gte('due_at', dayAgo).order('due_at', { ascending: true });
-  const list = missed || [];
+  const { error: sweepError } = await admin.rpc('myday_cron_ensure_and_mark');
+  if (sweepError) return json({ ok: false, error: 'Could not refresh doses' }, 500);
+  const now = Date.now();
+  // Recover claims abandoned by a terminated worker. The lease exceeds the
+  // maximum Edge Function run time, so an active sender retains its claims.
+  const { error: cleanupError } = await admin.from('myday_notification_log').delete()
+    .in('kind', ['guardian_missed', 'dose_missed']).eq('device_count', 0)
+    .lt('delivered_at', new Date(now - 15 * 60_000).toISOString());
+  if (cleanupError) return json({ ok: false, error: 'Could not recover pending alerts' }, 500);
+  const { data: doses, error: doseError } = await admin.from('myday_doses')
+    .select('id, user_id, due_at, scheduled_time, status, taken_at, notified, medication:myday_medications(name, active, reminders_enabled)')
+    .in('status', ['pending', 'missed']).gte('due_at', new Date(now - 48 * 3600_000).toISOString())
+    .lte('due_at', new Date(now).toISOString()).order('due_at');
+  if (doseError) return json({ ok: false, error: 'Could not read doses' }, 500);
+  const list = doses || [];
+  const userIds = [...new Set(list.map((d: any) => d.user_id))];
+  if (!userIds.length) return json({ ok: true, mode: 'cron', missed: 0, delivered: 0 });
+  const [profiles, prefs, family, guardians] = await Promise.all([
+    admin.from('myday_profiles').select('user_id, full_name, timezone').in('user_id', userIds),
+    admin.from('myday_notification_prefs').select('*').in('user_id', userIds),
+    admin.from('myday_family_devices').select('*').in('user_id', userIds).eq('push_enabled', true).not('subscription', 'is', null),
+    admin.from('myday_guardians').select('id, user_id').in('user_id', userIds).eq('status', 'active'),
+  ]);
+  if ([profiles, prefs, family, guardians].some((r) => r.error)) return json({ ok: false, error: 'Could not read recipients' }, 500);
+  const byProfile = Object.fromEntries((profiles.data || []).map((p: any) => [p.user_id, p]));
+  const byPrefs = Object.fromEntries((prefs.data || []).map((p: any) => [p.user_id, p]));
+  const guardianIds = (guardians.data || []).map((g: any) => g.id);
+  const guardianDevices = guardianIds.length
+    ? await admin.from('myday_guardian_devices').select('*').in('guardian_id', guardianIds)
+      .eq('push_enabled', true).is('revoked_at', null).not('subscription', 'is', null)
+    : { data: [], error: null };
+  if (guardianDevices.error) return json({ ok: false, error: 'Could not read guardian devices' }, 500);
   let delivered = 0;
-  if (list.length) {
-    // Group the newly-missed doses by user so each person gets ONE batched push.
-    const byUser: Record<string, any[]> = {}; for (const d of list as any[]) (byUser[d.user_id] ||= []).push(d);
-    const userIds = Object.keys(byUser);
 
-    const { data: profs } = await admin.from('myday_profiles').select('user_id, full_name').in('user_id', userIds);
-    const nameByUser: Record<string, string> = {}; for (const p of (profs || [])) nameByUser[p.user_id] = p.full_name || 'Your family member';
-
-    // Recipients: the patient's own devices, plus every active guardian's devices.
-    const { data: fam } = await admin.from('myday_family_devices').select('*').in('user_id', userIds);
-    const famByUser: Record<string, any[]> = {}; for (const d of (fam || [])) (famByUser[d.user_id] ||= []).push(d);
-
-    const { data: guardians } = await admin.from('myday_guardians').select('id, user_id').eq('status', 'active').in('user_id', userIds);
-    const guardianList = guardians || [];
-    const gIds = guardianList.map((g: any) => g.id);
-    // Since the guardian dashboard landed, a device row can exist purely to
-    // hold a dashboard token, with no push subscription at all (alerts are
-    // optional, and iOS refuses them until the app is installed). Pushing to
-    // such a row would throw on a null subscription, so only rows that are
-    // live AND actually subscribed are recipients.
-    const { data: gdevs } = gIds.length
-      ? await admin.from('myday_guardian_devices').select('*')
-          .in('guardian_id', gIds).is('revoked_at', null).not('subscription', 'is', null)
-      : { data: [] as any[] };
-    const devByGuardian: Record<string, any[]> = {}; for (const d of (gdevs || [])) (devByGuardian[d.guardian_id] ||= []).push(d);
-    const guardiansByUser: Record<string, any[]> = {}; for (const g of guardianList) (guardiansByUser[g.user_id] ||= []).push(g);
-
-    for (const uid of userIds) {
-      const doses = byUser[uid];
-      const name = nameByUser[uid] || 'Your family member';
-      const body = missedBody(name, doses);
-      // The patient's own devices open the app where they can act on the dose;
-      // a guardian's tap belongs on the guardian dashboard, which is the only
-      // page they can actually use.
-      const ownPayload = { title: 'MyDay', body, url: '/', tag: `myday-missed-${uid}` };
-      const guardianPayload = { title: 'MyDay', body, url: '/guardian', tag: `myday-missed-${uid}` };
-
-      delivered += (await broadcast('myday_family_devices', famByUser[uid] || [], ownPayload)).delivered;
-
-      for (const g of (guardiansByUser[uid] || [])) {
-        const gd = devByGuardian[g.id] || [];
-        // No subscribed device is not the same as a broken link: this guardian
-        // may be using the dashboard without alerts, which is a valid setup.
-        if (!gd.length) continue;
-        // 'clear', not 'delete': a dead endpoint must not cost this guardian
-        // their dashboard. The guardian also stays 'active' — their token still
-        // works, so demoting them to 'pending' would misreport the truth to the
-        // patient. The Profile list shows alerts-off per device instead.
-        delivered += (await broadcast('myday_guardian_devices', gd, guardianPayload, 'clear')).delivered;
-      }
-
-      await admin.from('myday_doses').update({ notified: true }).in('id', doses.map((d: any) => d.id));
+  // Claim separately for every recipient and dose. A patient's earlier alert
+  // must not swallow a guardian's later one; a failed send releases its claims.
+  async function deliver(table: string, device: any, candidates: any[], uid: string, isGuardian: boolean) {
+    const claimed: any[] = [];
+    for (const dose of candidates) {
+      const key = isGuardian ? guardianDeliveryKey(device.id, dose.id) : `family_missed:${device.id}:${dose.id}`;
+      const { error } = await admin.from('myday_notification_log').insert({
+        key, user_id: uid, kind: isGuardian ? 'guardian_missed' : 'dose_missed', ref_id: dose.id,
+        device_count: 0,
+      });
+      if (error?.code === '23505') continue;
+      if (error) throw new Error('Could not claim notification');
+      claimed.push({ ...dose, key });
     }
+    if (!claimed.length) return;
+    const keys = claimed.map((d) => d.key);
+    // The patient may have tapped Done while this cron was gathering recipients.
+    const current = await admin.from('myday_doses').select('id, status, taken_at')
+      .in('id', claimed.map((d) => d.id)).in('status', ['pending', 'missed']).is('taken_at', null);
+    if (current.error) {
+      await admin.from('myday_notification_log').delete().in('key', keys);
+      throw new Error('Could not recheck dose status');
+    }
+    const remaining = claimed.filter((d) => current.data?.some((row: any) => row.id === d.id));
+    const settledKeys = claimed.filter((d) => !remaining.some((row) => row.id === d.id)).map((d) => d.key);
+    if (settledKeys.length) await admin.from('myday_notification_log').delete().in('key', settledKeys);
+    if (!remaining.length) return;
+    const status = await sendPush(device.subscription, {
+      title: 'MyDay', body: missedBody(byProfile[uid]?.full_name || 'Your family member', remaining),
+      url: isGuardian ? '/guardian' : '/', kind: isGuardian ? 'guardian_alert' : 'dose_missed',
+      tag: `myday-missed-${uid}`,
+    }, vapid, { urgency: 'high' });
+    if (status >= 200 && status < 300) {
+      delivered++;
+      const at = new Date().toISOString();
+      await admin.from(table).update({ last_notified_at: at, last_delivered_at: at, last_error: null }).eq('id', device.id);
+      await admin.from('myday_notification_log').update({ device_count: 1, delivered_at: at }).in('key', remaining.map((d) => d.key));
+      if (!isGuardian) await admin.from('myday_doses').update({ notified: true }).in('id', remaining.map((d) => d.id));
+    } else {
+      // Deleting claims permits a retry on the next cron without duplicating
+      // successes on other devices. Dead subscriptions retain dashboard access.
+      await admin.from('myday_notification_log').delete().in('key', keys);
+      await admin.from(table).update({
+        last_error: `push failed (${status})`,
+        ...([404, 410].includes(status) ? { push_enabled: false, ...(isGuardian ? { endpoint: null, subscription: null } : {}) } : {}),
+      }).eq('id', device.id);
+    }
+  }
+
+  try {
+    for (const uid of userIds as string[]) {
+      const userDoses = list.filter((d: any) => d.user_id === uid && d.medication?.active !== false && d.medication?.reminders_enabled !== false);
+      if (shouldSend({ type: 'dose_missed' }, byPrefs[uid]).send) {
+        for (const device of (family.data || []).filter((d: any) => d.user_id === uid)) {
+          await deliver('myday_family_devices', device, userDoses.filter((d: any) => d.status === 'missed'), uid, false);
+        }
+      }
+      if (!shouldSend({ type: 'guardian_alert' }, byPrefs[uid]).send) continue;
+      for (const guardian of (guardians.data || []).filter((g: any) => g.user_id === uid)) {
+        for (const device of (guardianDevices.data || []).filter((d: any) => d.guardian_id === guardian.id)) {
+          await deliver('myday_guardian_devices', device,
+            userDoses.filter((d: any) => guardianAlertDue(d, device, { now, timezone: byProfile[uid]?.timezone || 'UTC' })), uid, true);
+        }
+      }
+    }
+  } catch {
+    return json({ ok: false, error: 'Could not process alerts; delivery will retry', delivered }, 500);
   }
   return json({ ok: true, mode: 'cron', missed: list.length, delivered });
 });
