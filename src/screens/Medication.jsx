@@ -6,7 +6,7 @@ import { useAsync } from '../hooks/useAsync.js';
 import { useDoseActions } from '../hooks/useDoseActions.js';
 import { Card, Button, EmptyState, HeroEmpty, TipCard, SegmentedControl, TabPanel, SkeletonCard, Input, Modal, Field } from '../components/ui.jsx';
 import { Icon } from '../components/Icon.jsx';
-import { MedCalendar } from '../components/MedCalendar.jsx';
+import { MedCalendar, WeekStrip } from '../components/MedCalendar.jsx';
 import { MedicineWizard, TimePicker } from '../components/MedicineWizard.jsx';
 import { MedicineBatch } from '../components/MedicineBatch.jsx';
 import { MedicineInsights } from '../components/MedicineInsights.jsx';
@@ -92,7 +92,9 @@ export default function Medication() {
 
       <TabPanel idBase={TABS} value={view}>
         {view === 'today' && <TodayView state={today} meds={meds.data || []} actions={actions} windowMinutes={windowMinutes}
-          onAdd={() => { setView('medicines'); setBatchOpen(true); }} />}
+          onAdd={() => { setView('medicines'); setBatchOpen(true); }}
+          onPickDay={(day) => { setSelectedDay(day); setHistoryMode('calendar'); setView('calendar'); }}
+          onHistory={() => setView('calendar')} />}
 
         {view === 'calendar' && (
           <div className="stack">
@@ -129,7 +131,7 @@ export default function Medication() {
   );
 }
 
-function TodayView({ state, meds, actions, onAdd, windowMinutes }) {
+function TodayView({ state, meds, actions, onAdd, onPickDay, onHistory, windowMinutes }) {
   const { data: doses, loading, error, reload } = state;
   const asNeeded = meds.filter((m) => m.frequency === 'as_needed');
   if (loading) return <div className="stack"><SkeletonCard lines={2} /><SkeletonCard lines={2} /></div>;
@@ -148,13 +150,31 @@ function TodayView({ state, meds, actions, onAdd, windowMinutes }) {
     );
   }
   const summary = summarise(scheduled, { windowMinutes });
+  // What still needs doing stays full size; what is already done folds into
+  // one quieter group, so the eye lands on the next thing to take.
+  const sorted = sortForDisplay(scheduled, { windowMinutes });
+  const isDone = (d) => ['taken', 'skipped'].includes(doseState(d, { windowMinutes }));
+  const open = sorted.filter((d) => !isDone(d));
+  const done = sorted.filter(isDone);
   return (
     <div className="stack">
       {!!scheduled.length && <p className="today__headline" aria-live="polite">{summary.headline}</p>}
       {/* What needs doing first, then the rest by time. */}
-      {sortForDisplay(scheduled, { windowMinutes }).map((d) => (
+      {open.map((d) => (
         <DoseCard key={d.id} dose={d} actions={actions} windowMinutes={windowMinutes} />
       ))}
+      {!!done.length && (
+        <details className="done-group" open={!open.length}>
+          <summary>
+            <Icon name="check" size={20} stroke={2.5} />
+            <span>Completed today <span className="done-group__n">{done.length}</span></span>
+            <Icon name="chevron" size={20} className="done-group__chev" />
+          </summary>
+          <div className="stack">
+            {done.map((d) => <DoseCard key={d.id} dose={d} actions={actions} windowMinutes={windowMinutes} compact />)}
+          </div>
+        </details>
+      )}
       {!!asNeeded.length && (
         <section className="stack" aria-labelledby="prn-h">
           <h3 className="subsection" id="prn-h">Only when needed</h3>
@@ -163,8 +183,20 @@ function TodayView({ state, meds, actions, onAdd, windowMinutes }) {
           ))}
         </section>
       )}
+      {/* The last seven days right here, so checking how the week went does
+          not mean switching to the History tab. Tap a day to open it. */}
+      <section aria-labelledby="week-h">
+        <h3 className="subsection" id="week-h" style={{ margin: '0 0 8px' }}>Your last 7 days</h3>
+        <WeekStrip start={daysAgo(6)} windowMinutes={windowMinutes} onPick={onPickDay}
+          onMore={onHistory} moreLabel="See full history" />
+      </section>
     </div>
   );
+}
+
+function daysAgo(n) {
+  const d = new Date(); d.setDate(d.getDate() - n);
+  return localDateStr(undefined, d);
 }
 
 // An as-needed medicine is never "due", so it has no reminder and is never
@@ -309,7 +341,7 @@ function DayDoses({ dateStr, windowMinutes, meds }) {
 // State comes from doseState(), the same function Home and the guardian
 // dashboard use, so the badge here can no longer disagree with the counters
 // there.
-function DoseCard({ dose, actions, readOnly, windowMinutes }) {
+function DoseCard({ dose, actions, readOnly, windowMinutes, compact }) {
   const [asking, setAsking] = useState(false);
   const [earlier, setEarlier] = useState(false);
   const m = dose.medication || {};
@@ -322,8 +354,10 @@ function DoseCard({ dose, actions, readOnly, windowMinutes }) {
   // What was recorded at the time, if the medicine has been edited since.
   const doseText = dose.dose_snapshot || m.dose;
 
+  // Not yet open to marking: shown as "later", calmer than a card to act on.
+  const later = !readOnly && !markable && st !== 'taken' && st !== 'skipped';
   return (
-    <Card accent={ui.tone}>
+    <Card accent={ui.tone} className={`${compact ? 'dose-card--done' : ''}${later ? ' dose-card--later' : ''}`}>
       <div className="dose">
         <span className="dose__chip" style={{ background: color }} aria-hidden="true"><Icon name={medIcon(m)} size={20} /></span>
         <div className="dose__main">
@@ -341,8 +375,8 @@ function DoseCard({ dose, actions, readOnly, windowMinutes }) {
           {st === 'taken' && dose.taken_at && (
             <div className="dose__when">Taken at {prettyClock(new Date(dose.taken_at))}</div>
           )}
-          {m.instructions && <div className="card__meta">{m.instructions}</div>}
-          {m.note && <div className="card__meta">{m.note}</div>}
+          {!compact && m.instructions && <div className="card__meta">{m.instructions}</div>}
+          {!compact && m.note && <div className="card__meta">{m.note}</div>}
         </div>
       </div>
       {st === 'skipped' && (
@@ -365,9 +399,14 @@ function DoseCard({ dose, actions, readOnly, windowMinutes }) {
               </>
             )
             : (
-              <div className="dose__locked">
-                <Icon name="clock" size={18} />
-                {unlock ? `You can mark this from ${prettyClock(unlock)}` : 'Not due yet'}
+              // A status, not an instruction: a greyed clock and the time it
+              // opens, so it never looks like a button that is stuck.
+              <div className="dose__locked" role="status">
+                <span className="dose__locked-ic" aria-hidden="true"><Icon name="clock" size={20} /></span>
+                <span>
+                  <b>{unlock ? `Available at ${prettyClock(unlock)}` : 'Not due yet'}</b>
+                  <small>Nothing to do until then.</small>
+                </span>
               </div>
             )}
           <button type="button" className="dose__skip" disabled={busy} onClick={() => setAsking(true)}>

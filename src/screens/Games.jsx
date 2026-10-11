@@ -64,6 +64,16 @@ function streakFromResults(results) {
   return streak;
 }
 
+// Encouraging, never a scorecard: no "0 days", and milestones are celebrated
+// gently rather than turned into something to lose.
+function streakMessage(streak) {
+  if (!streak) return 'Play one game today to start your streak — any game counts.';
+  if (streak >= 30) return `${streak} days in a row — that's a wonderful habit. Well done!`;
+  if (streak >= 7) return `A whole week or more in a row. Your brain thanks you!`;
+  if (streak >= 3) return `${streak} days in a row — lovely. Keep it going if you can.`;
+  return 'Nice start! Come back tomorrow to keep it going.';
+}
+
 export default function Games() {
   const navigate = useNavigate();
   const [screen, setScreen] = useState('menu'); // menu | level | play | result | progress
@@ -95,9 +105,11 @@ function Menu({ onPick, onProgress, onHome }) {
     <div className="stack">
       <div className="games-head">
         <h2 className="section" style={{ fontSize: 23 }}>Challenge your mind <span aria-hidden="true">🧠</span></h2>
-        {streak > 0 && <span className="streak-badge"><span aria-hidden="true">🔥</span> {streak} day streak</span>}
+        {streak > 0
+          ? <span className="streak-badge"><span aria-hidden="true">🔥</span> {streak} day streak</span>
+          : <span className="streak-badge streak-badge--start"><span aria-hidden="true">🌱</span> Start a streak today</span>}
       </div>
-      <p className="muted" style={{ margin: 0 }}>Play daily to keep your brain sharp and build your streak.</p>
+      <p className="muted" style={{ margin: 0 }}>{streakMessage(streak)}</p>
       <SuggestedGame onPick={onPick} />
 
       <div className="game-grid">
@@ -127,8 +139,8 @@ function Menu({ onPick, onProgress, onHome }) {
         </div>
         <div className="stat-tile">
           <span className="stat-tile__ic stat-tile__ic--gold"><Icon name="pulse" size={20} /></span>
-          <span className="stat-tile__n">{streak} day{streak === 1 ? '' : 's'}</span>
-          <span className="stat-tile__l">Current streak</span>
+          <span className="stat-tile__n">{streak ? `${streak} day${streak === 1 ? '' : 's'}` : 'Ready'}</span>
+          <span className="stat-tile__l">{streak ? 'Current streak' : 'Play today to start'}</span>
         </div>
         <div className="stat-tile">
           <span className="stat-tile__ic stat-tile__ic--blue"><Icon name="sparkle" size={20} /></span>

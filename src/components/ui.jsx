@@ -229,7 +229,9 @@ export function Modal({ title, children, onClose, wide, footer }) {
 // A section that folds down to one line once it is set up. The summary says
 // what is chosen ("Light theme · Large text") so it is useful folded, and the
 // whole header is one big button. Open/closed is remembered per section.
-export function Collapsible({ id, icon, title, summary, children, defaultOpen = true, forceOpen, onToggle }) {
+// `attention` outlines the card and tints its summary for a section that
+// needs setting up — used for Guardians while nobody is connected.
+export function Collapsible({ id, icon, title, summary, children, defaultOpen = true, forceOpen, onToggle, attention }) {
   const key = `myday_section_${id}`;
   const [open, setOpen] = useState(() => {
     try {
@@ -246,7 +248,7 @@ export function Collapsible({ id, icon, title, summary, children, defaultOpen = 
     onToggle?.(next);
   }
   return (
-    <section className={`card fold${isOpen ? ' is-open' : ''}`} aria-labelledby={`${bodyId}-h`}>
+    <section className={`card fold${isOpen ? ' is-open' : ''}${attention ? ' fold--attention' : ''}`} aria-labelledby={`${bodyId}-h`}>
       <h2 className="fold__h" id={`${bodyId}-h`}>
         <button type="button" className="fold__btn" aria-expanded={isOpen} aria-controls={bodyId} onClick={toggle}>
           {icon && <span className="fold__ic" aria-hidden="true"><Icon name={icon} size={22} /></span>}

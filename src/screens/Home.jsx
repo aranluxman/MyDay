@@ -7,7 +7,7 @@ import { useDayRefresh } from '../hooks/useDayRefresh.js';
 import { useAsync } from '../hooks/useAsync.js';
 import { Card, Button, Avatar, Skeleton, SkeletonCard } from '../components/ui.jsx';
 import { Icon } from '../components/Icon.jsx';
-import { MedCalendar } from '../components/MedCalendar.jsx';
+import { MedCalendar, WeekStrip } from '../components/MedCalendar.jsx';
 import { useSettings } from '../context/SettingsContext.jsx';
 import { todaysDoses, upcomingAppointments, playedTodayCount, listGuardians, listMedications } from '../lib/db.js';
 import { prettyTime, prettyDate, localDateStr } from '../lib/format.js';
@@ -25,6 +25,8 @@ export default function Home() {
   const { installed } = useInstallPrompt();
   const { settings } = useSettings();
   const navigate = useNavigate();
+  const [fullMonth, setFullMonth] = useState(false);
+  const reminderProblem = useReminderProblem(installed);
   const { data, loading, error, reload } = useAsync(async () => {
     // Guardians are a nudge, not the day: if they fail to load, show nothing.
     const [doses, appts, games, guardians, watching, meds] = await Promise.all([
@@ -69,9 +71,12 @@ export default function Home() {
 
       {/* Never fail silently: if this device cannot deliver reminders, the Home
           screen says so rather than letting someone believe they are covered. */}
-      <ReminderWarning installed={installed} />
+      <ReminderWarning problem={reminderProblem} />
 
-      <GuardianNudge guardians={guardians} />
+      {/* One urgent banner at a time: while reminders are broken, the guardian
+          nudge shrinks to a single quiet line instead of stacking a second
+          full card of things to do on arrival. */}
+      <GuardianNudge guardians={guardians} quiet={!!reminderProblem.status} />
 
       <section className="home-watching" aria-label="People I watch">
           <h3 className="subsection">People I watch</h3>
@@ -133,18 +138,31 @@ export default function Home() {
           </div>
         </Card>
       ) : (
-        <Card className="status">
+        <Card className="status" accent={missed ? 'missed' : undefined}>
+          {/* Missed doses are the one number that needs doing something about,
+              so they get a big, coloured, tappable badge of their own rather
+              than sitting as one of three equal counters. */}
+          {missed > 0 && (
+            <button type="button" className="status__alert" onClick={() => navigate('/medication')}>
+              <span className="status__alert-n" aria-hidden="true">{missed}</span>
+              <span className="status__alert-t">
+                <b>{missed === 1 ? '1 dose missed today' : `${missed} doses missed today`}</b>
+                <small>Tap to review — you can still mark it if you took it late</small>
+              </span>
+              <Icon name="chevron" size={22} />
+            </button>
+          )}
           <div className="status__head">
             {/* State first, score second: "0 of 3 taken" reads as failure at
                 eight in the morning, when the truth is "3 doses to take". */}
-            <span>{s.headline}</span>
+            <span>{missed > 0 ? "Today's medicines" : s.headline}</span>
             <span className="status__count">{taken} of {total}</span>
           </div>
           <div className="bar"><div className="bar__fill" style={{ width: `${pct}%` }} /></div>
           <div className="status__row">
-            <Stat kind="taken" n={taken} label="Taken" />
-            <Stat kind="missed" n={missed} label="Missed" />
-            <Stat kind="pending" n={toTake} label="To take" />
+            <Stat kind="taken" n={taken} label="Taken" icon="check" />
+            <Stat kind="missed" n={missed} label="Missed" icon="close" />
+            <Stat kind="pending" n={toTake} label="To take" icon="clock" />
           </div>
         </Card>
       )}
@@ -173,11 +191,21 @@ export default function Home() {
         </div>
       </section>
 
+      {/* This week by default: seven days answer "how am I doing?" at a glance,
+          and the full month is one tap away for anyone who wants it. */}
       {settings.homeCalendar && (
-        <section aria-label="Medicine calendar for this month">
-          <h3 className="subsection" style={{ margin: '0 0 8px' }}>Calendar</h3>
-          <MedCalendar selected={null} windowMinutes={windowMinutes} meds={meds}
-            onPick={(day) => navigate('/medication', { state: { view: 'calendar', day } })} />
+        <section aria-label={fullMonth ? 'Medicine calendar for this month' : 'Medicines this week'}>
+          <h3 className="subsection" style={{ margin: '0 0 8px' }}>{fullMonth ? 'Calendar' : 'This week'}</h3>
+          {fullMonth ? (
+            <>
+              <MedCalendar selected={null} windowMinutes={windowMinutes} meds={meds}
+                onPick={(day) => navigate('/medication', { state: { view: 'calendar', day } })} />
+              <button type="button" className="cal__today-btn" onClick={() => setFullMonth(false)}>Show just this week</button>
+            </>
+          ) : (
+            <WeekStrip windowMinutes={windowMinutes} meds={meds} onMore={() => setFullMonth(true)}
+              onPick={(day) => navigate('/medication', { state: { view: 'calendar', day } })} />
+          )}
         </section>
       )}
 
@@ -197,22 +225,32 @@ export default function Home() {
 // Shown only when something is actually wrong, and always with the fix for
 // this exact device. Dismissable, because being nagged daily about an iPad you
 // do not use for alerts is its own problem — but it comes back on a new device.
-function ReminderWarning({ installed }) {
-  const navigate = useNavigate();
+// Returns { status, hide } where status is null unless there is a real
+// blocker on screen, so Home can quiet everything else while it shows.
+function useReminderProblem(installed) {
   const [hidden, setHidden] = useState(() => {
     try { return localStorage.getItem('myday_reminder_warning_hidden') === '1'; } catch { return false; }
   });
-
   const status = deliveryStatus({
     supported: pushSupported(),
     permission: typeof Notification !== 'undefined' ? Notification.permission : 'default',
     installed,
     platform: platformTag(),
   });
-
+  function hide() {
+    setHidden(true);
+    try { localStorage.setItem('myday_reminder_warning_hidden', '1'); } catch {}
+  }
   // 'not_asked' is not a fault — they simply have not opted in, and Profile
   // asks properly. Only a real blocker is worth a Home-screen warning.
-  if (status.ok || status.code === 'not_asked' || hidden) return null;
+  const blocked = !status.ok && status.code !== 'not_asked' && !hidden;
+  return { status: blocked ? status : null, hide };
+}
+
+function ReminderWarning({ problem }) {
+  const navigate = useNavigate();
+  const { status } = problem;
+  if (!status) return null;
 
   return (
     <Card accent="missed" className="reminder-warn">
@@ -224,10 +262,7 @@ function ReminderWarning({ installed }) {
         </div>
       </div>
       <div className="btn-row">
-        <Button variant="ghost" size="sm" onClick={() => {
-          setHidden(true);
-          try { localStorage.setItem('myday_reminder_warning_hidden', '1'); } catch {}
-        }}>Hide this</Button>
+        <Button variant="ghost" size="sm" onClick={problem.hide}>Hide this</Button>
         <Button size="sm" onClick={() => navigate('/profile/notifications')}>Fix it</Button>
       </div>
     </Card>
@@ -237,13 +272,24 @@ function ReminderWarning({ installed }) {
 // Nobody is watching out for missed doses yet: say so on Home, where it will
 // be seen, with one tap to fix it. "Not now" quiets it for a week, not forever.
 const GUARDIAN_NUDGE_KEY = 'myday_guardian_nudge_hidden_until';
-function GuardianNudge({ guardians }) {
+function GuardianNudge({ guardians, quiet }) {
   const navigate = useNavigate();
   const [hidden, setHidden] = useState(() => {
     try { return Number(localStorage.getItem(GUARDIAN_NUDGE_KEY) || 0) > Date.now(); } catch { return false; }
   });
   if (!guardians || hidden || guardians.some((g) => g.deviceCount > 0)) return null;
   const waiting = guardians[0];
+  const open = () => navigate('/profile', { state: { add: 'guardian', guardianId: waiting?.id } });
+
+  if (quiet) {
+    return (
+      <button type="button" className="gnudge-line" onClick={open}>
+        <Icon name="user" size={20} />
+        <span>{waiting ? `Finish connecting ${waiting.name}` : 'Add a family guardian'} — when you're ready</span>
+        <Icon name="chevron" size={20} />
+      </button>
+    );
+  }
 
   return (
     <Card className="gnudge">
@@ -263,7 +309,7 @@ function GuardianNudge({ guardians }) {
           setHidden(true);
           try { localStorage.setItem(GUARDIAN_NUDGE_KEY, String(Date.now() + 7 * 86400000)); } catch {}
         }}>Not now</Button>
-        <Button size="sm" icon="plus" onClick={() => navigate('/profile', { state: { add: 'guardian', guardianId: waiting?.id } })}>
+        <Button size="sm" icon="plus" onClick={open}>
           {waiting ? 'Show code' : 'Set it up'}
         </Button>
       </div>
@@ -290,8 +336,15 @@ function HomeSkeleton() {
     </div>
   );
 }
-function Stat({ kind, n, label }) {
-  return <div className={`stat stat--${kind}`}><div className="stat__num">{n}</div><div className="stat__label">{label}</div></div>;
+// Colour, an icon and a word together; a counter only lights up when it is
+// above zero, so a row of zeros stays calm.
+function Stat({ kind, n, label, icon }) {
+  return (
+    <div className={`stat stat--${kind}${n > 0 ? ' is-on' : ''}`}>
+      <div className="stat__num">{n}</div>
+      <div className="stat__label"><Icon name={icon} size={14} stroke={2.5} /> {label}</div>
+    </div>
+  );
 }
 function greetingFor() {
   const h = new Date().getHours();

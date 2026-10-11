@@ -41,7 +41,7 @@ function lastSeenWords(iso) {
   return `Opened ${shortDate(d.toISOString().slice(0, 10))}`;
 }
 
-const SECTION_IDS = ['guardians', 'language', 'alerts', 'info', 'health', 'explore', 'contacts', 'appearance', 'access', 'more'];
+const SECTION_IDS = ['access', 'guardians', 'alerts', 'contacts', 'info', 'health', 'language', 'appearance', 'more', 'explore'];
 
 const typeMeta = (t) => CONTACT_TYPES.find((x) => x.value === t) || CONTACT_TYPES[5];
 
@@ -241,9 +241,38 @@ export default function Profile() {
       </div>
 
       <div className="stack" key={foldKey}>
-      {/* guardians — high up: the family link is what keeps someone safe */}
+      {/* accessibility first — bigger text and more contrast help with reading
+          everything else on this page */}
+      <Collapsible id="access" icon="eye" title="Accessibility" {...fold} summary={[`${sizeName} text`, ...access].join(' · ')}>
+        <p className="muted" style={{ margin: '0 0 4px' }}>Make MyDay easier to see and use — changes apply straight away.</p>
+        <SettingRow icon="notes" title="Text size" desc="Make everything on screen bigger." stacked>
+          <SegmentedControl label="Text size" value={textSize} onChange={setTextSize} options={TEXT_SIZES.map((s) => ({ value: s.id, label: s.name }))} />
+          <p className="size-preview">Sample: today's medicine is ready.</p>
+        </SettingRow>
+        <SettingRow icon="sun" title="More contrast" desc="Stronger text and outlines, in any theme.">
+          <Toggle checked={settings.highContrast} onChange={(v) => setSetting({ highContrast: v })} label="More contrast" />
+        </SettingRow>
+        <SettingRow icon="edit" title="Bold text" desc="Thicker letters that are easier to read.">
+          <Toggle checked={settings.bold} onChange={(v) => setSetting({ bold: v })} label="Bold text" />
+        </SettingRow>
+        <SettingRow icon="plus" title="Bigger buttons" desc="Even larger tap targets for steadier pressing.">
+          <Toggle checked={settings.bigButtons} onChange={(v) => setSetting({ bigButtons: v })} label="Bigger buttons" />
+        </SettingRow>
+        <SettingRow icon="moon" title="Calm screen" desc="Turns off moving animations.">
+          <Toggle checked={settings.calmMotion} onChange={(v) => setSetting({ calmMotion: v })} label="Calm screen" />
+        </SettingRow>
+      </Collapsible>
+
+      <h2 className="settings-group">Safety &amp; care</h2>
+      {/* guardians — the family link is what keeps someone safe, so with nobody
+          connected the card is outlined and says what it is for */}
       <Collapsible id="guardians" icon="user" title="Guardians" {...fold}
-        summary={guardians.data?.length ? `${guardians.data.length} added · ${connected} connected` : 'No guardian yet'}>
+        attention={guardians.data && !connected}
+        summary={!guardians.data ? '' : !connected ? 'Add a family guardian to enable safety alerts'
+          : `${guardians.data.length} added · ${connected} connected`}>
+        {guardians.data && !connected && (
+          <p className="fold__alert"><Icon name="shield" size={20} /> No one gets an alert yet if you miss a medicine. Add a family guardian to turn on safety alerts.</p>
+        )}
         <p className="muted" style={{ margin: '0 0 12px' }}>
           A guardian is someone in your family who can check on their own phone or tablet whether you have
           taken your medicines, and gets an alert if you miss one. Tap <b>Show code</b> and read them the
@@ -268,20 +297,6 @@ export default function Profile() {
         ) : null}
       </Collapsible>
 
-      {/* language — near the top, because someone who can't read English
-          can't go looking for it further down */}
-      <Collapsible id="language" icon="globe" title="Language" {...fold}
-        summary={(LANGUAGES.concat(MORE_LANGUAGES).find((l) => l.code === currentLanguage())?.name) || 'English'}>
-        <label className="muted" htmlFor="lang-select" style={{ display: 'block', margin: '0 0 10px' }}>Show MyDay in your language. The page reloads once.</label>
-        <select id="lang-select" className="lang-select notranslate input input--select" translate="no" value={currentLanguage()}
-          onChange={(e) => setLanguage(e.target.value)}>
-          {LANGUAGES.map((l) => <option key={l.code} value={l.code}>{l.en ? `${l.name} — ${l.en}` : l.name}</option>)}
-          <optgroup label="More languages">
-            {MORE_LANGUAGES.map((l) => <option key={l.code} value={l.code}>{`${l.name} — ${l.en}`}</option>)}
-          </optgroup>
-        </select>
-      </Collapsible>
-
       {/* alerts */}
       <Collapsible id="alerts" icon="bell" title="Alerts and reminders" {...fold}
         summary={`Missed after ${ALERT_WINDOWS.find((w) => w.value === alertWindow)?.label || `${alertWindow} min`}${devices.data?.length ? ` · ${devices.data.length} device${devices.data.length === 1 ? '' : 's'}` : ''}`}>
@@ -294,52 +309,6 @@ export default function Profile() {
           options={ALERT_WINDOWS.map((w) => ({ value: w.value, label: w.label }))} />
         <div style={{ height: 14 }} />
         <AlertsEnabler devices={devices} onEnable={enableAlerts} onTest={testAlert} />
-      </Collapsible>
-
-      {completeness.pct < 100 && (
-        <Card>
-          <div className="progress-card">
-            <div className="progress-card__ring" style={{ '--p': completeness.pct }} aria-hidden="true"><b>{completeness.pct}%</b></div>
-            <div className="progress-card__main">
-              <div className="progress-card__t">Profile progress: {completeness.pct}%</div>
-              <div className="progress-card__d">Complete your profile to personalise your experience.</div>
-            </div>
-          </div>
-          <ul className="checklist">
-            {completeness.missing.map((f) => (
-              <li key={f}>
-                <button type="button" className="checklist__item" onClick={() => fixField(f)}>
-                  <span className="checklist__box" aria-hidden="true"><Icon name="plus" size={16} /></span>
-                  <span>{FIELD_LABELS[f] || f}</span>
-                  <Icon name="chevron" size={20} />
-                </button>
-              </li>
-            ))}
-          </ul>
-        </Card>
-      )}
-
-      {/* Three named groups rather than one list of seven. */}
-      <Collapsible id="info" icon="user" title="My information" {...fold} summary="Name, birthday, health and goals">
-        <div className="menu-list">
-          <MenuRow icon="user" title="Personal information" desc="Your name, birthday and more" onClick={() => setEditProfile(true)} />
-          <MenuRow icon="cross" title="Health information" desc="Medications, supplements and conditions" onClick={() => setEditProfile(true)} />
-          <MenuRow icon="star" title="Health goals" desc="Set and track what you're working toward" onClick={() => setEditProfile(true)} />
-        </div>
-      </Collapsible>
-
-      <Collapsible id="health" icon="pill" title="My health" {...fold} summary="Medicines and cards">
-        <div className="menu-list">
-          <MenuRow icon="pill" title="My medicines" desc="Manage your medicines and times" onClick={() => navigate('/medication', { state: { view: 'medicines' } })} />
-          <MenuRow icon="cross" title="My cards" desc="Health card, insurance and other cards" onClick={() => navigate('/cards')} />
-        </div>
-      </Collapsible>
-
-      <Collapsible id="explore" icon="star" title="Explore" {...fold} summary="Guide and brain games">
-        <div className="menu-list">
-          <MenuRow icon="info" title="How to use MyDay" desc="A simple step-by-step guide to every part of the app" onClick={() => navigate('/help')} />
-          <MenuRow icon="brain" title="Brain Games" desc="Play games and see your progress" onClick={() => navigate('/games')} />
-        </div>
       </Collapsible>
 
       {/* contacts — vertical list, never scrolls sideways */}
@@ -387,6 +356,60 @@ export default function Profile() {
         </p>
       </Collapsible>
 
+      <h2 className="settings-group">Personal info &amp; health</h2>
+      {completeness.pct < 100 && (
+        <Card>
+          <div className="progress-card">
+            <div className="progress-card__ring" style={{ '--p': completeness.pct }} aria-hidden="true"><b>{completeness.pct}%</b></div>
+            <div className="progress-card__main">
+              <div className="progress-card__t">Profile progress: {completeness.pct}%</div>
+              <div className="progress-card__d">Complete your profile to personalise your experience.</div>
+            </div>
+          </div>
+          <ul className="checklist">
+            {completeness.missing.map((f) => (
+              <li key={f}>
+                <button type="button" className="checklist__item" onClick={() => fixField(f)}>
+                  <span className="checklist__box" aria-hidden="true"><Icon name="plus" size={16} /></span>
+                  <span>{FIELD_LABELS[f] || f}</span>
+                  <Icon name="chevron" size={20} />
+                </button>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
+
+      <Collapsible id="info" icon="user" title="My information" {...fold} summary="Name, birthday, health and goals">
+        <div className="menu-list">
+          <MenuRow icon="user" title="Personal information" desc="Your name, birthday and more" onClick={() => setEditProfile(true)} />
+          <MenuRow icon="cross" title="Health information" desc="Medications, supplements and conditions" onClick={() => setEditProfile(true)} />
+          <MenuRow icon="star" title="Health goals" desc="Set and track what you're working toward" onClick={() => setEditProfile(true)} />
+        </div>
+      </Collapsible>
+
+      <Collapsible id="health" icon="pill" title="My health" {...fold} summary="Medicines and cards">
+        <div className="menu-list">
+          <MenuRow icon="pill" title="My medicines" desc="Manage your medicines and times" onClick={() => navigate('/medication', { state: { view: 'medicines' } })} />
+          <MenuRow icon="cross" title="My cards" desc="Health card, insurance and other cards" onClick={() => navigate('/cards')} />
+        </div>
+      </Collapsible>
+
+      <h2 className="settings-group">App settings</h2>
+      {/* language — first in App settings, with a globe icon that reads in any
+          language, for someone who can't read English */}
+      <Collapsible id="language" icon="globe" title="Language" {...fold}
+        summary={(LANGUAGES.concat(MORE_LANGUAGES).find((l) => l.code === currentLanguage())?.name) || 'English'}>
+        <label className="muted" htmlFor="lang-select" style={{ display: 'block', margin: '0 0 10px' }}>Show MyDay in your language. The page reloads once.</label>
+        <select id="lang-select" className="lang-select notranslate input input--select" translate="no" value={currentLanguage()}
+          onChange={(e) => setLanguage(e.target.value)}>
+          {LANGUAGES.map((l) => <option key={l.code} value={l.code}>{l.en ? `${l.name} — ${l.en}` : l.name}</option>)}
+          <optgroup label="More languages">
+            {MORE_LANGUAGES.map((l) => <option key={l.code} value={l.code}>{`${l.name} — ${l.en}`}</option>)}
+          </optgroup>
+        </select>
+      </Collapsible>
+
       {/* appearance */}
       <Collapsible id="appearance" icon="sun" title="Appearance" {...fold} summary={`${themeName} theme`}>
         <p className="muted" id="theme-label" style={{ margin: '0 0 12px' }}>Pick a look that's comfortable for you.</p>
@@ -405,27 +428,6 @@ export default function Profile() {
         </div>
       </Collapsible>
 
-      {/* accessibility — bigger text, more contrast, easier reading */}
-      <Collapsible id="access" icon="eye" title="Accessibility" {...fold} summary={[`${sizeName} text`, ...access].join(' · ')}>
-        <p className="muted" style={{ margin: '0 0 4px' }}>Make MyDay easier to see and use — changes apply straight away.</p>
-        <SettingRow icon="notes" title="Text size" desc="Make everything on screen bigger." stacked>
-          <SegmentedControl label="Text size" value={textSize} onChange={setTextSize} options={TEXT_SIZES.map((s) => ({ value: s.id, label: s.name }))} />
-          <p className="size-preview">Sample: today's medicine is ready.</p>
-        </SettingRow>
-        <SettingRow icon="sun" title="More contrast" desc="Stronger text and outlines, in any theme.">
-          <Toggle checked={settings.highContrast} onChange={(v) => setSetting({ highContrast: v })} label="More contrast" />
-        </SettingRow>
-        <SettingRow icon="edit" title="Bold text" desc="Thicker letters that are easier to read.">
-          <Toggle checked={settings.bold} onChange={(v) => setSetting({ bold: v })} label="Bold text" />
-        </SettingRow>
-        <SettingRow icon="plus" title="Bigger buttons" desc="Even larger tap targets for steadier pressing.">
-          <Toggle checked={settings.bigButtons} onChange={(v) => setSetting({ bigButtons: v })} label="Bigger buttons" />
-        </SettingRow>
-        <SettingRow icon="moon" title="Calm screen" desc="Turns off moving animations.">
-          <Toggle checked={settings.calmMotion} onChange={(v) => setSetting({ calmMotion: v })} label="Calm screen" />
-        </SettingRow>
-      </Collapsible>
-
       {/* other preferences */}
       <Collapsible id="more" icon="star" title="More options" {...fold}
         summary={settings.clock === '24' ? '24-hour clock' : '12-hour clock (AM/PM)'}>
@@ -440,6 +442,13 @@ export default function Profile() {
           <Toggle checked={settings.homeGames} onChange={(v) => setSetting({ homeGames: v })} label="Brain game suggestions on Home" />
         </SettingRow>
       </Collapsible>
+      <Collapsible id="explore" icon="star" title="Explore" {...fold} summary="Guide and brain games">
+        <div className="menu-list">
+          <MenuRow icon="info" title="How to use MyDay" desc="A simple step-by-step guide to every part of the app" onClick={() => navigate('/help')} />
+          <MenuRow icon="brain" title="Brain Games" desc="Play games and see your progress" onClick={() => navigate('/games')} />
+        </div>
+      </Collapsible>
+
       </div>
 
       {inviteOpen && (

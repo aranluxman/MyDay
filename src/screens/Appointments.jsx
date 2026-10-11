@@ -35,23 +35,18 @@ export default function Appointments() {
 
   return (
     <div className="stack">
+      {/* One welcoming card rather than an empty card above a second empty
+          card: what this page is for, the button, and a few ideas to start. */}
       {!data.length && (
-        <>
-          <HeroEmpty icon="calendar" title="No appointments yet"
-            action={<Button icon="plus" onClick={() => setEditing({})}>Add an appointment</Button>}>
-            Keep your check-ups, clinic visits, and tests all in one place.
-          </HeroEmpty>
-          <div className="section-head"><h3>Upcoming</h3></div>
-          <Card>
-            <div className="row-card">
-              <span className="row-card__ic"><Icon name="clock" size={22} /></span>
-              <div className="row-card__main">
-                <div className="row-card__t">Nothing scheduled</div>
-                <div className="row-card__d">Your upcoming appointments will appear here.</div>
-              </div>
-            </div>
-          </Card>
-        </>
+        <HeroEmpty icon="calendar" title="Let's add your first appointment"
+          action={(
+            <>
+              <Button icon="plus" onClick={() => setEditing({})}>Add an appointment</Button>
+              <ApptTemplates title="Common check-ups to add" items={STARTERS} onPick={setEditing} />
+            </>
+          )}>
+          Keep your check-ups, clinic visits, and tests in one place. Upcoming ones will show here with a countdown.
+        </HeroEmpty>
       )}
       {!!upcoming.length && (
         <>
@@ -78,9 +73,45 @@ export default function Appointments() {
         </>
       )}
 
-      {data.length > 0 && <Button icon="plus" onClick={() => setEditing({})}>Add an appointment</Button>}
-      {editing && <ApptForm appt={editing.id ? editing : null} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); reload(); }} />}
+      {data.length > 0 && (
+        <>
+          <Button icon="plus" onClick={() => setEditing({})}>Add an appointment</Button>
+          <ApptTemplates title="Quick add" items={TEMPLATES} onPick={setEditing} />
+        </>
+      )}
+      {editing && <ApptForm appt={editing.id ? editing : null} draft={editing.id ? null : editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); reload(); }} />}
     </div>
+  );
+}
+
+// One-tap starting points that open the form with the reason already typed,
+// so a routine visit is a date and a tap rather than typing from scratch.
+const TEMPLATES = [
+  { label: 'Doctor visit', reason: 'Doctor visit' },
+  { label: 'Lab test', reason: 'Lab test' },
+  { label: 'Pharmacy pickup', reason: 'Pharmacy pickup' },
+  { label: 'Dentist', reason: 'Dentist check-up' },
+  { label: 'Eye exam', reason: 'Eye exam' },
+];
+const STARTERS = [
+  { label: 'Annual physical', reason: 'Annual physical' },
+  { label: 'Dentist', reason: 'Dentist check-up' },
+  { label: 'Eye exam', reason: 'Eye exam' },
+  { label: 'Lab test', reason: 'Lab test' },
+];
+function ApptTemplates({ title, items, onPick }) {
+  const id = `appt-tpl-${title.replace(/\W+/g, '-').toLowerCase()}`;
+  return (
+    <section className="quickadd appt-tpl" aria-labelledby={id}>
+      <h3 className="quickadd__h" id={id}>{title}</h3>
+      <div className="feeling__tags quickadd__tags">
+        {items.map((t) => (
+          <button key={t.label} type="button" className="feeling__tag" onClick={() => onPick({ reason: t.reason })}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+    </section>
   );
 }
 
@@ -168,14 +199,14 @@ function ApptCard({ appt: a, contacts, index, past, onEdit, onRemove }) {
   );
 }
 
-function ApptForm({ appt, onClose, onSaved }) {
+function ApptForm({ appt, draft, onClose, onSaved }) {
   const ui = useUI();
   const editing = !!appt;
   const [date, setDate] = useState(appt?.appt_date || localDateStr());
   const [time, setTime] = useState(appt?.appt_time || '');
   const [doctor, setDoctor] = useState(appt?.doctor_name || '');
   const [loc, setLoc] = useState(appt?.location || '');
-  const [reason, setReason] = useState(appt?.reason || '');
+  const [reason, setReason] = useState(appt?.reason || draft?.reason || '');
   const [busy, setBusy] = useState(false);
 
   async function save() {

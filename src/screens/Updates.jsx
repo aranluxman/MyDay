@@ -6,14 +6,50 @@ import { Card, Button, Modal, Field, Input, Textarea, EmptyState, SegmentedContr
 import { Icon } from '../components/Icon.jsx';
 import { NoteChat } from '../components/NoteChat.jsx';
 import { listDiary, saveDiary, deleteDiary } from '../lib/db.js';
-import { relativeTime } from '../lib/format.js';
+import { prettyClock, prettyDate, localDateStr } from '../lib/format.js';
 
+// Diary words, not chart words: "How I felt" in a warm tone rather than
+// SYMPTOM in alarm red, which read like a medical alert on a personal note.
+// The stored values stay the same, so older entries keep their category.
 const CATS = {
-  symptom: { label: 'Symptom', icon: 'pulse', cls: 'bad' },
-  event: { label: 'Health event', icon: 'cross', cls: 'warn' },
-  note: { label: 'Note', icon: 'notes', cls: 'primary' },
-  other: { label: 'Other', icon: 'star', cls: 'good' },
+  symptom: { label: 'How I felt', icon: 'pulse', cls: 'warm' },
+  event: { label: 'Health moment', icon: 'cross', cls: 'primary' },
+  note: { label: 'Journal entry', icon: 'notes', cls: 'good' },
+  other: { label: 'Mood log', icon: 'star', cls: 'violet' },
 };
+
+// Replies saved from "Chat with MyDay" are appended to the note's text with
+// this prefix. Split them back out so the helper's words show as its own
+// speech bubble rather than reading as part of what the person wrote.
+const CHAT_PREFIX = 'From my chat with MyDay: ';
+function splitChat(body = '') {
+  const parts = String(body).split(/\n{2}(?=From my chat with MyDay: )|^(?=From my chat with MyDay: )/);
+  const own = [];
+  const replies = [];
+  for (const p of parts) {
+    if (p.startsWith(CHAT_PREFIX)) replies.push(p.slice(CHAT_PREFIX.length).trim());
+    else if (p.trim()) own.push(p);
+  }
+  return { text: own.join('\n\n'), replies };
+}
+
+// "Today", "Yesterday", then the full date, so the diary reads by day.
+function dayHeading(isoDate) {
+  const today = localDateStr();
+  const d = new Date(); d.setDate(d.getDate() - 1);
+  if (isoDate === today) return 'Today';
+  if (isoDate === localDateStr(undefined, d)) return 'Yesterday';
+  return prettyDate(isoDate);
+}
+function groupByDay(rows) {
+  const groups = [];
+  for (const e of rows) {
+    const day = localDateStr(undefined, new Date(e.entry_at));
+    const last = groups[groups.length - 1];
+    if (last && last.day === day) last.rows.push(e); else groups.push({ day, rows: [e] });
+  }
+  return groups;
+}
 
 export default function Updates() {
   const ui = useUI();
@@ -62,29 +98,44 @@ export default function Updates() {
         ? <FeelingPrompt onPick={(draft) => setEditing(draft)} />
         : <QuickAdd onPick={(draft) => setEditing(draft)} />}
 
-      <div className="timeline">
-        {data.map((e) => {
-          const c = CATS[e.category] || CATS.note;
-          return (
-            <div key={e.id} className="tl">
-              <span className={`tl__dot tl__dot--${c.cls}`}><Icon name={c.icon} size={18} /></span>
-              <Card className="tl__card">
-                <div className="tl__top">
-                  <span className={`tl__cat tl__cat--${c.cls}`}>{c.label}</span>
-                  <span className="tl__time">{relativeTime(e.entry_at)}</span>
+      {groupByDay(data).map((g) => (
+        <section key={g.day} className="tl-day" aria-label={dayHeading(g.day)}>
+          <h3 className="tl-day__h">{dayHeading(g.day)}</h3>
+          <div className="timeline">
+            {g.rows.map((e) => {
+              const c = CATS[e.category] || CATS.note;
+              const { text, replies } = splitChat(e.body);
+              return (
+                <div key={e.id} className="tl">
+                  <span className={`tl__dot tl__dot--${c.cls}`}><Icon name={c.icon} size={18} /></span>
+                  <Card className="tl__card">
+                    <div className="tl__top">
+                      <span className={`tl__cat tl__cat--${c.cls}`}>{c.label}</span>
+                      <span className="tl__time">{prettyClock(new Date(e.entry_at))}</span>
+                    </div>
+                    {e.title && <div className="card__title">{e.title}</div>}
+                    {text && <div className="tl__body">{text}</div>}
+                    {!!replies.length && (
+                      <details className="tl__chat">
+                        <summary>
+                          <span className="nchat__av" aria-hidden="true"><Icon name="sparkle" size={14} /></span>
+                          {replies.length === 1 ? 'MyDay replied' : `MyDay replied ${replies.length} times`}
+                        </summary>
+                        {replies.map((r, i) => <p key={i} className="tl__bubble">{r}</p>)}
+                      </details>
+                    )}
+                    <Button variant="ghost" size="sm" icon="chat" className="tl__talk" onClick={() => setChatting(e)}>Chat with MyDay</Button>
+                    <div className="btn-row">
+                      <Button variant="ghost" size="sm" icon="edit" onClick={() => setEditing(e)}>Edit</Button>
+                      <Button variant="danger" size="sm" icon="trash" onClick={() => remove(e)}>Delete</Button>
+                    </div>
+                  </Card>
                 </div>
-                {e.title && <div className="card__title">{e.title}</div>}
-                {e.body && <div className="tl__body">{e.body}</div>}
-                <Button variant="ghost" size="sm" icon="chat" className="tl__talk" onClick={() => setChatting(e)}>Chat with MyDay</Button>
-                <div className="btn-row">
-                  <Button variant="ghost" size="sm" icon="edit" onClick={() => setEditing(e)}>Edit</Button>
-                  <Button variant="danger" size="sm" icon="trash" onClick={() => remove(e)}>Delete</Button>
-                </div>
-              </Card>
-            </div>
-          );
-        })}
-      </div>
+              );
+            })}
+          </div>
+        </section>
+      ))}
 
       <Button icon="plus" onClick={() => setEditing({})}>Add a health note</Button>
       {editing && <DiaryForm entry={editing.id ? editing : null} draft={editing.id ? null : editing} onClose={() => setEditing(null)}
