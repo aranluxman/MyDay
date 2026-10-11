@@ -78,9 +78,14 @@ export function readinessChecklist({ prefs, permission, supported, installed, me
  * its own name (or its platform), "This device" for the current one, a
  * number when names repeat, and when it was added.
  */
+function savedDeviceName(device) {
+  const label = String(device.label || '').trim();
+  return label && !/^this (phone|device|browser)$/i.test(label) ? label : PLATFORM_NAMES[device.platform] || 'Saved device';
+}
+
 export function describeDevice(d, { myEndpoint, index = 0, all = [], shortDate = (x) => x, prettyClock = (x) => String(x) } = {}) {
-  const base = (d.label && d.label !== 'This phone' ? d.label : PLATFORM_NAMES[d.platform] || d.label || 'Device').trim();
-  const same = all.filter((x) => ((x.label && x.label !== 'This phone' ? x.label : PLATFORM_NAMES[x.platform] || x.label || 'Device').trim()) === base);
+  const base = savedDeviceName(d);
+  const same = all.filter((x) => savedDeviceName(x) === base);
   const nth = same.length > 1 ? ` ${same.indexOf(d) + 1}` : '';
   const added = d.created_at ? `added ${shortDate(String(d.created_at).slice(0, 10))}` : `device ${index + 1}`;
   const kind = d.installed === true ? 'installed app' : d.installed === false ? 'browser' : null;

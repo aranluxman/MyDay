@@ -215,8 +215,39 @@ html[data-contrast='1'] .switch__track { outline: 2px solid var(--ink); outline-
 .insights .section-title { flex-wrap: wrap; gap: 8px; }
 
 /* ---------- sheets: scrollable body, reachable footer, keyboard aware ---------- */
+.guardian-code { display: grid; gap: 10px; min-width: 0; color: var(--ink); }
+.guardian-code > label { font-weight: 700; }
+.guardian-code__input {
+  width: 100%; min-width: 0; min-height: 56px; font-size: 1.25em;
+  letter-spacing: 0.18em; text-align: center; font-variant-numeric: tabular-nums;
+}
+.guardian-code__hint { margin: 0 0 6px; color: var(--ink-soft); line-height: 1.5; }
+.guardian-code .ob__err { margin: 0; }
+.btn:disabled, .mkt-btn:disabled, .assist__send:disabled, .switch:disabled {
+  opacity: 1; background: var(--surface-2); color: var(--ink-soft);
+  border: 2px dashed var(--line); box-shadow: none; cursor: not-allowed;
+}
+.switch:disabled .switch__track { background: var(--surface-2); color: var(--ink-soft); }
+.wiz__dialogtitle { font-size: 1rem; margin: 0 0 4px; overflow-wrap: anywhere; }
+.wiz__headmain { min-width: 0; text-align: left; }
+.wiz__head { padding-inline: 0; }
+.wiz__body { padding-inline: 0; }
+.wiz__body > .wiz__title { margin-bottom: 14px; }
+.wiz__count, .wiz__title { overflow-wrap: anywhere; }
+.wiz__foot { display: flex; gap: 8px; padding-inline: 0; }
+.wiz__foot > .btn { flex: 1; min-width: 0; padding-inline: 6px; overflow-wrap: anywhere; }
+.wiz__foot > .btn--full { width: auto; }
+.wiz__foot > .wiz__skip { margin-top: 0; }
+.nchat__note > span { min-width: 0; overflow-wrap: anywhere; }
 .sheet, .sheet--wizard { max-height: min(92dvh, calc(var(--vvh, 100dvh) - 8px)); }
-.sheet__title { margin: 0; font-size: 21px; }
+.sheet { min-width: 0; max-width: 100%; display: flex; flex-direction: column; overflow: hidden; }
+.sheet__head, .sheet__grab { flex: none; }
+.sheet__head .icon-btn { flex: none; }
+.sheet__body { flex: 1 1 auto; min-height: 0; min-width: 0; overflow-y: auto; overscroll-behavior: contain; }
+.sheet__title { margin: 0; font-size: 21px; min-width: 0; overflow-wrap: anywhere; }
+.nchat__fail { overflow-wrap: anywhere; }
+.tl__card { min-width: 0; overflow-wrap: anywhere; }
+.tl__top { flex-wrap: wrap; }
 .sheet--footed { display: flex; flex-direction: column; overflow: hidden; padding-bottom: 0; }
 .sheet--footed .sheet__body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding-bottom: 8px; }
 .sheet__foot {
@@ -226,7 +257,7 @@ html[data-contrast='1'] .switch__track { outline: 2px solid var(--ink); outline-
 .sheet__foot .btn-row { margin-top: 0; }
 /* The wizard's step area takes what is left and scrolls, so the Continue /
    Save footer is always on screen — with the keyboard up too. */
-.sheet--wizard { overflow: hidden; }
+.sheet--wizard { overflow: hidden; padding: 4px 12px 0; }
 .sheet--wizard .wiz__view { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
 .sheet--wizard .wiz__head, .sheet--wizard .wiz__progress, .sheet--wizard .wiz__foot { flex: none; }
 @media (max-height: 500px) {

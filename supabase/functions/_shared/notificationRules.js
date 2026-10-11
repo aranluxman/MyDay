@@ -272,5 +272,5 @@ export function deliveryStatus(env = {}) {
   if (permission !== 'granted') {
     return { ok: false, code: 'not_asked', message: 'Alerts are not switched on yet.', fix: 'Tap "Turn on alerts".' };
   }
-  return { ok: true, code: 'ready', message: 'Alerts are on for this device.', fix: null };
+  return { ok: true, code: 'ready', message: 'This device allows notifications.', fix: 'Registration and saved reminder settings are also needed. Send a test and check that it appears.' };
 }

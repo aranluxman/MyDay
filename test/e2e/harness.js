@@ -6,7 +6,7 @@ import { installMock } from './mock.js';
 // Wednesday Oct 7, 2026, 9:30 AM in Toronto — matching the audit's "October 7".
 export const NOW = Date.parse('2026-10-07T09:30:00-04:00');
 export const BASE = process.env.MYDAY_BASE || 'http://localhost:4173';
-export const executablePath = process.env.CHROME || '/opt/pw-browsers/chromium';
+export const executablePath = process.env.CHROME;
 
 export async function launch() {
   return chromium.launch({ executablePath });

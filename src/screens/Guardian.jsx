@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { GuardianCodeEntry as CodeEntry } from '../components/GuardianCodeEntry.jsx';
 import { Icon } from '../components/Icon.jsx';
 import { medIcon } from '../lib/medIcon.js';
 import { InstallCard } from '../components/InstallCard.jsx';
@@ -84,7 +85,7 @@ function LinkDevice({ onLinked }) {
             Ask the person you're helping to open MyDay, tap <b>Profile</b>, then <b>Invite a guardian</b>.
             They'll read you a 6-digit code. It lasts 15 minutes.
           </p>
-          {error && <div className="ob__err" role="alert">{error}</div>}
+
 
           <div className="ob-field">
             <label htmlFor="g-name">Choose your name</label>
@@ -92,7 +93,7 @@ function LinkDevice({ onLinked }) {
               placeholder="e.g. Sarah" maxLength={60} autoComplete="name" />
           </div>
 
-          <CodeEntry error={error} busy={busy} onSubmit={submit} />
+          <CodeEntry error={error} busy={busy} nameRequired name={name} onSubmit={submit} />
           <p className="ob__switch">
             Not a guardian? <a href="/?home=1" onClick={forgetGuardianMode}>Use MyDay for myself</a>
           </p>
@@ -103,62 +104,7 @@ function LinkDevice({ onLinked }) {
   );
 }
 
-// Six big digit boxes. One digit per box, auto-advance, paste and backspace all
-// work, and the numeric keypad comes up on a tablet.
-export function CodeEntry({ error, busy, onSubmit }) {
-  const [digits, setDigits] = useState(['', '', '', '', '', '']);
-  const refs = useRef([]);
-  const code = digits.join('');
-
-  useEffect(() => { refs.current[0]?.focus(); }, []);
-  // A rejected code clears itself: retyping is one action rather than six
-  // backspaces, and the empty boxes are themselves the "try again" signal.
-  useEffect(() => {
-    if (!error) return;
-    setDigits(['', '', '', '', '', '']);
-    refs.current[0]?.focus();
-  }, [error]);
-
-  function setAt(i, value) {
-    const only = value.replace(/\D/g, '');
-    if (!only) { setDigits((d) => d.map((x, j) => (j === i ? '' : x))); return; }
-    // A paste (or a fast typist) can deliver several digits at once.
-    setDigits((d) => {
-      const next = [...d];
-      for (let k = 0; k < only.length && i + k < 6; k++) next[i + k] = only[k];
-      return next;
-    });
-    refs.current[Math.min(i + only.length, 5)]?.focus();
-  }
-  function onKeyDown(i, e) {
-    if (e.key === 'Backspace' && !digits[i] && i > 0) {
-      e.preventDefault();
-      setDigits((d) => d.map((x, j) => (j === i - 1 ? '' : x)));
-      refs.current[i - 1]?.focus();
-    }
-    if (e.key === 'Enter' && code.length === 6) onSubmit(code);
-  }
-
-  return (
-    <>
-      <div className={`code-boxes${error ? ' code-boxes--rejected' : ''}`}>
-        {digits.map((d, i) => (
-          <input key={i} ref={(el) => { refs.current[i] = el; }} className="code-box"
-            type="text" inputMode="numeric" autoComplete={i === 0 ? 'one-time-code' : 'off'}
-            maxLength={6} value={d} aria-label={`Digit ${i + 1} of 6`}
-            onChange={(e) => setAt(i, e.target.value)} onKeyDown={(e) => onKeyDown(i, e)}
-            onFocus={(e) => e.target.select()} />
-        ))}
-      </div>
-      <div className="ob__actions">
-        <button type="button" className="mkt-btn mkt-btn--primary mkt-btn--block"
-          disabled={code.length !== 6 || busy} onClick={() => onSubmit(code)}>
-          {busy ? 'Connecting…' : 'Connect'}
-        </button>
-      </div>
-    </>
-  );
-}
+export { GuardianCodeEntry as CodeEntry } from '../components/GuardianCodeEntry.jsx';
 
 /* =============================== dashboard =============================== */
 
@@ -672,6 +618,7 @@ function AlertsPanel({ notifications, patient, token, onChanged }) {
       ) : on ? (
         <>
           <p className="g-ok"><Icon name="check" size={20} /> Alerts are enabled for {patient} on this device.</p>
+          <p className="muted">This device is registered. That does not confirm an alert was received; device permissions, connection and notification settings affect whether it appears.</p>
           {notifications?.last_error && <p className="g-warn" role="status">The last alert could not be delivered. Turn alerts off and on again to reconnect this device.</p>}
           <label className="g-field">
             <span>When a medicine has not been taken</span>
@@ -715,7 +662,7 @@ function AlertsPanel({ notifications, patient, token, onChanged }) {
           {/* Installing is not optional dressing: iPadOS will not deliver web
               push at all until the app is on the home screen. */}
           {!installed && (
-            <InstallCard why={`Alerts only arrive properly — and show as MyDay rather than your browser — once MyDay is on your home screen. On an iPad they will not arrive at all until then.`} />
+            <InstallCard why={`Installing shows alerts under MyDay. iPhone and iPad require the home screen app for push. Device permission and settings are also needed.`} />
           )}
           <div style={{ height: 10 }} />
           <button className="btn btn--primary btn--md btn--full" disabled={busy} onClick={turnOn}>

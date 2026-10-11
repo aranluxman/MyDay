@@ -6,6 +6,7 @@
 // an unknown setting, a made-up unit or a birthday in the future.
 //
 // Pure functions, no browser APIs, so they are unit-tested in test/aiParse.test.js.
+import { safeChatResult } from '../../supabase/functions/_shared/chatSafety.js';
 import { UNIT_IDS, amountValue, cleanStrength } from './doseUnits.js';
 import { FREQUENCY_IDS, normaliseTimes } from './schedule.js';
 import { THEME_IDS, TEXT_SIZES } from './appearance.js';
@@ -185,7 +186,7 @@ export function medsSignature(meds) {
  * tap-to-answer suggestions, and `urgent` only when the model said exactly true.
  */
 export function normaliseChatReply(raw) {
-  const r = raw && typeof raw === 'object' ? raw : {};
+  const r = safeChatResult(raw);
   const reply = String(r.reply || '').trim().slice(0, 1200)
     || 'Sorry, I did not catch that. Could you tell me a little more?';
   const suggestions = [...new Set((Array.isArray(r.suggestions) ? r.suggestions : [])
