@@ -16,6 +16,7 @@ import { searchMedicineNames } from '../lib/medicineNames.js';
 import { toMedicationPayload, medicineProblems } from '../lib/medicationPayload.js';
 import { saveMedication, uploadMedPhoto, medPhotoUrl, recentMedicineNames, listContacts } from '../lib/db.js';
 import { prettyTime, prettyDate, localDateStr } from '../lib/format.js';
+import { blankMedicineForm, meaningfulMedicineDraft } from '../lib/medicineDraft.js';
 
 // Adding a medicine, as a short guided sheet instead of one dense form.
 //
@@ -91,7 +92,10 @@ export function MedicineWizard({ med, prefill, stageDraft, onDraftChange, onStag
   // existing one would silently reapply changes they walked away from.
   useEffect(() => {
     if (editing || staging) return;
-    try { localStorage.setItem(DRAFT_KEY, JSON.stringify({ at: Date.now(), form })); } catch {}
+    try {
+      if (meaningfulMedicineDraft(form)) localStorage.setItem(DRAFT_KEY, JSON.stringify({ at: Date.now(), form }));
+      else localStorage.removeItem(DRAFT_KEY);
+    } catch {}
   }, [form, editing, staging]);
 
   const set = (patch) => setForm((f) => ({ ...f, ...patch }));
@@ -169,7 +173,7 @@ export function MedicineWizard({ med, prefill, stageDraft, onDraftChange, onStag
         confirmLabel: 'Discard changes', cancelLabel: 'Keep editing', danger: true,
       });
       if (!ok) return;
-    } else if (!editing && !staging && dirty) {
+    } else if (!editing && !staging && meaningfulMedicineDraft(form)) {
       ui.toast('Kept on this device — you can finish it later.', 'info');
     }
     onClose();
@@ -192,31 +196,23 @@ export function MedicineWizard({ med, prefill, stageDraft, onDraftChange, onStag
         <div className="sheet__grab" aria-hidden="true" />
 
         <div className="wiz__head">
-          {/* On the first step there is nothing to go back to, and showing a
-              second identical ✕ next to Close just invites a mis-tap. */}
-          {step === 0
-            ? <span className="wiz__headspacer" aria-hidden="true" />
-            : (
-              <button type="button" className="icon-btn" aria-label={`Back to ${STEP_TITLES[STEPS[step - 1]].toLowerCase()}`}
-                onClick={() => goTo(step - 1)}>
-                <Icon name="back" size={22} />
-              </button>
-            )}
           <div className="wiz__headmain">
+            <h2 className="wiz__dialogtitle" id={titleId}>{editing ? 'Edit medicine' : 'Add medicine'}</h2>
             <span className="wiz__count">
-              {editing ? `Editing ${med.name}` : staging ? 'Preparing a medicine' : 'Adding a medicine'} · Step {step + 1} of {STEPS.length}
+              Step {step + 1} of {STEPS.length}
             </span>
-            <h2 className="wiz__title" id={titleId} ref={titleRef} tabIndex={-1}>{STEP_TITLES[stepId]}</h2>
           </div>
           <button type="button" className="icon-btn" aria-label="Close" onClick={requestClose}><Icon name="close" size={22} /></button>
         </div>
 
-        <div className="wiz__progress" aria-hidden="true">
+        <div className="wiz__progress" role="progressbar" aria-label="Medicine setup"
+          aria-valuemin={1} aria-valuemax={STEPS.length} aria-valuenow={step + 1} aria-valuetext={`Step ${step + 1} of ${STEPS.length}`}>
           <div className="wiz__progressfill" style={{ width: `${pct}%` }} />
         </div>
 
         <AutoHeight dir={dir} step={step}>
           <div className="wiz__body" key={stepId}>
+            <h3 className="wiz__title" ref={titleRef} tabIndex={-1}>{STEP_TITLES[stepId]}</h3>
             {stepId === 'name' && (
               <>
                 {resumed && (
@@ -243,21 +239,20 @@ export function MedicineWizard({ med, prefill, stageDraft, onDraftChange, onStag
                 onFix={(p) => stopAt([p])} onJump={(id) => goTo(STEPS.indexOf(id))}
                 onRemove={editing && onRemove ? () => onRemove(med) : null} medName={med?.name} />
             )}
+            {stepId !== 'review' && (
+              <button type="button" className="wiz__skip" onClick={skipToSummary}>Skip to the summary</button>
+            )}
           </div>
         </AutoHeight>
 
         <div className="wiz__foot">
+          {step > 0 && <Button variant="ghost" full={false} onClick={() => goTo(step - 1)}>Back</Button>}
           {stepId === 'review' ? (
             <Button size="lg" icon={busy ? 'clock' : 'check'} disabled={busy} aria-disabled={busy || undefined} onClick={save}>
               {busy ? 'Saving…' : editing ? 'Save changes' : staging ? 'Add to review' : 'Add this medicine'}
             </Button>
           ) : (
             <Button size="lg" onClick={next}>Continue</Button>
-          )}
-          {stepId !== 'review' && (
-            <button type="button" className="wiz__skip" onClick={skipToSummary}>
-              Skip to the summary
-            </button>
           )}
         </div>
       </div>
@@ -266,14 +261,7 @@ export function MedicineWizard({ med, prefill, stageDraft, onDraftChange, onStag
   );
 }
 
-function blankForm() {
-  return {
-    name: '', dose_amount: '1', dose_unit: 'tablet', dose_other: '', strength: '', route: '', instructions: '',
-    times: ['08:00'], frequency: 'daily', days_of_week: [],
-    start_date: '', end_date: '', with_food: false, note: '', color: COLORS[0].hex, photo_path: null,
-    stock_quantity: '', refill_threshold: '', pharmacy_contact_id: '', prescriber_contact_id: '',
-  };
-}
+const blankForm = blankMedicineForm;
 
 // Amounts live in the form as the text in the box, so "1 1/2" or "0.125"
 // is shown back exactly as it will be saved.
@@ -329,7 +317,7 @@ function initialForm(med, fromPhoto, stagedForm, staging) {
   // New: resume a draft if one is recent enough to still be what they meant.
   try {
     const raw = JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null');
-    if (raw?.form && Date.now() - raw.at < 24 * 3600 * 1000) {
+    if (meaningfulMedicineDraft(raw?.form) && Date.now() - raw.at < 24 * 3600 * 1000) {
       return { resumed: true, form: withAmount({ ...blank, ...raw.form }) };
     }
   } catch {}

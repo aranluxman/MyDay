@@ -59,7 +59,7 @@ export default function Landing() {
             {family ? (
               <>
                 <h1>Know Mom or Dad took their pills. <span className="grad">Without calling to check.</span></h1>
-                <p className="mkt-hero__sub">Set MyDay up on your parent's phone. If a dose isn't taken within an hour, you get an alert on yours — free, and ready in minutes.</p>
+                <p className="mkt-hero__sub">Set MyDay up on your parent's phone. Family alerts follow each guardian's saved delay or check-in time. Set up notifications on your device to receive them.</p>
                 <div className="mkt-hero__cta">
                   <button className="mkt-btn mkt-btn--primary mkt-btn--lg" onClick={forParent}>Set up for a parent <Icon name="chevron" size={20} /></button>
                   <button className="mkt-btn mkt-btn--ghost mkt-btn--lg" onClick={guardian}>I have a guardian code</button>
@@ -68,7 +68,7 @@ export default function Landing() {
             ) : (
               <>
                 <h1>Never miss a dose. <span className="grad">Stay close to the ones you love.</span></h1>
-                <p className="mkt-hero__sub">Your medicines, appointments, and a few minutes of brain games — one calm daily routine. If a dose is missed, your family knows.</p>
+                <p className="mkt-hero__sub">Your medicines, appointments, and a few minutes of brain games — one calm daily routine. Connected guardians can receive alerts about untaken doses when notifications are set up.</p>
                 <div className="mkt-hero__cta">
                   <button className="mkt-btn mkt-btn--primary mkt-btn--lg" onClick={start}>Get started free <Icon name="chevron" size={20} /></button>
                 </div>
@@ -100,7 +100,7 @@ export default function Landing() {
           <p className="mkt-lede" data-reveal>Simple, large, and clear — designed so it's easy to use every single day.</p>
           <div className="feat-grid">
             <Feature i={0} ic="blue" icon="pill" title="Medication reminders" text="Add any medicine or vitamin with its times. Tap one big button when you take it — pending, taken, and missed are tracked for you." />
-            <Feature i={1} ic="red" icon="bell" title="Family alerts" text="If a dose isn't taken within an hour, a notification goes to a family member's phone — quietly keeping everyone in the loop." />
+            <Feature i={1} ic="red" icon="bell" title="Family alerts" text="MyDay can send alerts about untaken doses at each guardian's chosen delay or check-in time. Device permissions and notification settings affect receipt." />
             <Feature i={2} ic="green" icon="calendar" title="Calendar &amp; history" text="A clear month calendar shows exactly which doses were taken, so you can look back over the whole month at a glance." />
             <Feature i={0} ic="purple" icon="brain" title="Keep your mind sharp" text="A few minutes of gentle games fit right into your daily check-in, next to your morning pills — word puzzles, pairs, and number patterns at seven friendly levels." />
             <Feature i={1} ic="orange" icon="notes" title="Health diary" text="Jot down symptoms, health events, and anything worth remembering, all on a simple timeline you can show your doctor." />
@@ -117,7 +117,7 @@ export default function Landing() {
           <div className="steps" style={{ marginTop: 36 }}>
             <Step i={0} n="1" title="Create your account" text="Answer a few simple questions and you're in — no complicated setup." />
             <Step i={1} n="2" title="Add your medicines" text="Enter each medicine and the times you take it. We'll handle the daily reminders." />
-            <Step i={2} n="3" title="Relax — we'll remind you" text="Tap Done when you take a dose. If one's missed, your family is gently notified." />
+            <Step i={2} n="3" title="Relax — we'll remind you" text="Tap Done when you take a dose. Connected guardians can receive alerts at their saved timing when notifications are enabled." />
           </div>
         </div>
       </section>
@@ -131,7 +131,7 @@ export default function Landing() {
           <div className="steps">
             <Step i={0} n="1" title="They get MyDay" text="Create their account on their phone — or set it up together. It takes a few minutes." />
             <Step i={1} n="2" title="They invite you" text="In their Profile, they tap Invite a guardian. Their phone shows a 6-digit code." />
-            <Step i={2} n="3" title="You get alerts" text="Type the code on your phone. If a dose is missed, you'll know within the hour." />
+            <Step i={2} n="3" title="You get alerts" text="Type the code on your phone, choose your alert timing, and set up notifications. Check a test alert on your device." />
           </div>
           <div className="quote quote--inline" data-reveal>
             <Icon name="star" size={28} />

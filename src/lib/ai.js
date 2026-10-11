@@ -5,16 +5,24 @@ import { supabase } from './supabase.js';
 import { compressImage } from './db.js';
 import { describeSchedule } from './schedule.js';
 import { prettyTime } from './format.js';
+import { aiFailure } from './aiErrors.js';
 
 async function call(body) {
   const { data, error } = await supabase.functions.invoke('ai-assist', { body });
   if (error) {
-    // The function's own plain-words message, when it sent one.
-    let msg = 'The helper is not available right now. Please try again.';
-    try { const b = await error.context.json(); if (b?.error) msg = b.error; } catch {}
-    throw new Error(msg);
+    let errorBody = {};
+    try { errorBody = await error.context.json(); } catch {}
+    const failure = aiFailure({ ...errorBody, status: error.context?.status || 0, mode: body.mode });
+    throw Object.assign(new Error(failure.message), failure);
   }
-  if (data?.error) throw new Error(data.error);
+  if (data?.error) {
+    const failure = aiFailure({ ...data, mode: body.mode });
+    throw Object.assign(new Error(failure.message), failure);
+  }
+  if (!data?.result) {
+    const failure = aiFailure({ status: 502, mode: body.mode });
+    throw Object.assign(new Error(failure.message), failure);
+  }
   return data?.result;
 }
 

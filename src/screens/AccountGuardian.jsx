@@ -116,11 +116,11 @@ export default function AccountGuardian() {
       <Card className="g-account-join">
         <h2>Add someone with a code</h2>
         <p>Ask them to open Profile → Invite a guardian and read you their 6-digit code.</p>
-        {error && <p className="ob__err" role="alert">{error}</p>}
+
         <label className="g-account-label" htmlFor="account-guardian-name">Your name</label>
         <input id="account-guardian-name" className="input" maxLength={60} autoComplete="name"
           value={name} onChange={(e) => setName(e.target.value)} placeholder="Name they will see" />
-        <CodeEntry error={error} busy={busy} onSubmit={submit} />
+        <CodeEntry error={error} busy={busy} nameRequired name={name} onSubmit={submit} />
       </Card>
     </div>
   );

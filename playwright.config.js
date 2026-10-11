@@ -12,7 +12,7 @@ export default defineConfig({
   reporter: [['list']],
   use: {
     baseURL: 'http://localhost:4173',
-    launchOptions: { executablePath: process.env.CHROME || '/opt/pw-browsers/chromium' },
+    launchOptions: process.env.CHROME ? { executablePath: process.env.CHROME } : {},
   },
   webServer: {
     command: 'npm run build && npx vite preview --port 4173 --strictPort',

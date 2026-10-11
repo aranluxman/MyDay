@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
+import { GuardianCodeEntry } from '../components/GuardianCodeEntry.jsx';
 import { Icon } from '../components/Icon.jsx';
 import { InstallButton } from '../components/InstallButton.jsx';
 import { useInstallPrompt } from '../hooks/useInstallPrompt.js';
@@ -33,6 +34,7 @@ export default function GuardianJoin() {
   const [credential, setCredential] = useState(linkToken ? { token: linkToken } : null);
   const [name, setName] = useState('');
   const [error, setError] = useState('');
+  const [checkingCode, setCheckingCode] = useState(false);
 
   // Link route: look the invite up straight away.
   useEffect(() => {
@@ -52,8 +54,9 @@ export default function GuardianJoin() {
   // Code route: the helper typed six digits.
   async function submitCode(code) {
     setError('');
-    setStatus('loading');
+    setCheckingCode(true);
     const { data, error: err } = await callGuardianJoin({ action: 'info', code });
+    setCheckingCode(false);
     if (err) { setError(err); setStatus('code'); return; }
     setCredential({ code });
     setInfo(data);
@@ -91,7 +94,7 @@ export default function GuardianJoin() {
 
       <div className="ob__body">
         <div className="ob__card">
-          {status === 'code' && <CodeEntry error={error} onSubmit={submitCode} />}
+          {status === 'code' && <CodeEntry error={error} busy={checkingCode} onSubmit={submitCode} />}
 
           {status === 'loading' && <p style={{ color: 'var(--m-soft)' }}>Checking…</p>}
 
@@ -110,10 +113,10 @@ export default function GuardianJoin() {
               <div className="ob__art" aria-hidden="true" style={{ marginBottom: 8 }}><Icon name="check" size={44} /></div>
               <h2 className="ob__q" style={{ marginBottom: 6 }}>You're all set</h2>
               <p style={{ color: 'var(--m-soft)', marginTop: 0 }}>
-                You'll get an alert on this device if {patient} misses a medication, plus a short summary each evening.
+                This device is registered for alerts about {patient}. Your device settings and connection affect whether they appear.
               </p>
               <p style={{ color: 'var(--m-soft)' }}>
-                Keep MyDay on your home screen so alerts keep arriving. You can close this page.
+                Keep MyDay on your home screen and allow notifications in your device settings. Registration does not confirm that an alert has been received.
               </p>
             </>
           )}
@@ -128,77 +131,12 @@ export default function GuardianJoin() {
   );
 }
 
-// Six big digit boxes. One digit per box, auto-advance, paste and backspace all
-// work, and the numeric keypad comes up on a tablet.
-function CodeEntry({ error, onSubmit }) {
-  const [digits, setDigits] = useState(['', '', '', '', '', '']);
-  const refs = useRef([]);
-  const code = digits.join('');
-
-  useEffect(() => { refs.current[0]?.focus(); }, []);
-  // A rejected code clears itself: retyping is one action rather than six
-  // backspaces, and the empty boxes are themselves the "try again" signal.
-  useEffect(() => {
-    if (!error) return;
-    setDigits(['', '', '', '', '', '']);
-    refs.current[0]?.focus();
-  }, [error]);
-
-  function setAt(i, value) {
-    const only = value.replace(/\D/g, '');
-    if (!only) { setDigits((d) => d.map((x, j) => (j === i ? '' : x))); return; }
-    // A paste (or a fast typist) can deliver several digits at once.
-    setDigits((d) => {
-      const next = [...d];
-      for (let k = 0; k < only.length && i + k < 6; k++) next[i + k] = only[k];
-      return next;
-    });
-    const landed = Math.min(i + only.length, 5);
-    refs.current[landed]?.focus();
-  }
-  function onKeyDown(i, e) {
-    if (e.key === 'Backspace' && !digits[i] && i > 0) {
-      e.preventDefault();
-      setDigits((d) => d.map((x, j) => (j === i - 1 ? '' : x)));
-      refs.current[i - 1]?.focus();
-    }
-    if (e.key === 'Enter' && code.length === 6) onSubmit(code);
-  }
-
-  return (
-    <>
-      <h2 className="ob__q" style={{ marginBottom: 6 }}>Enter your code</h2>
-      <p style={{ color: 'var(--m-soft)', marginTop: 0, marginBottom: 18 }}>
-        Ask the person you're helping to open MyDay, tap <b>Profile</b>, then <b>Invite a guardian</b>. They'll
-        read you a 6-digit code. Type it below.
-      </p>
-      {error && <div className="ob__err" role="alert">{error}</div>}
-
-      <div className={`code-boxes${error ? ' code-boxes--rejected' : ''}`}>
-        {digits.map((d, i) => (
-          <input
-            key={i}
-            ref={(el) => { refs.current[i] = el; }}
-            className="code-box"
-            type="text"
-            inputMode="numeric"
-            autoComplete={i === 0 ? 'one-time-code' : 'off'}
-            maxLength={6}
-            value={d}
-            aria-label={`Digit ${i + 1} of 6`}
-            onChange={(e) => setAt(i, e.target.value)}
-            onKeyDown={(e) => onKeyDown(i, e)}
-            onFocus={(e) => e.target.select()}
-          />
-        ))}
-      </div>
-
-      <div className="ob__actions">
-        <button type="button" className="mkt-btn mkt-btn--primary mkt-btn--block"
-          disabled={code.length !== 6} onClick={() => onSubmit(code)}>Connect</button>
-      </div>
-    </>
-  );
+function CodeEntry({ error, busy, onSubmit }) {
+  return <>
+    <h2 className="ob__q">Enter your code</h2>
+    <p>Ask the person you are helping to open Profile → Invite a guardian and read you their code.</p>
+    <GuardianCodeEntry error={error} busy={busy} onSubmit={onSubmit} />
+  </>;
 }
 
 // Second step: confirm who you are, install MyDay, then switch alerts on.
@@ -226,13 +164,13 @@ function ConnectStep({ patient, name, setName, error, saving, onTurnOn }) {
     <>
       <h2 className="ob__q" style={{ marginBottom: 6 }}>{patient} invited you</h2>
       <p style={{ color: 'var(--m-soft)', marginTop: 0, marginBottom: 18 }}>
-        You'll get a notification on this device if {patient} misses a medication — plus a short daily summary.
+        MyDay can send alerts about untaken doses for {patient} using the saved alert timing, plus a daily summary if enabled.
       </p>
       {error && <div className="ob__err">{error}</div>}
 
       <div className="ob-field">
-        <label>Your name</label>
-        <input className="ob-input" value={name} onChange={(e) => setName(e.target.value)}
+        <label htmlFor="join-name">Your name</label>
+        <input id="join-name" className="ob-input" maxLength={60} value={name} onChange={(e) => setName(e.target.value)}
           placeholder="e.g. Sarah" autoComplete="name" />
       </div>
 
@@ -242,8 +180,7 @@ function ConnectStep({ patient, name, setName, error, saving, onTurnOn }) {
         <div className="join-gate">
           <div className="join-gate__t"><Icon name="download" size={20} /> First, add MyDay to this device</div>
           <p className="join-gate__d">
-            Alerts only arrive properly — and show up as <b>MyDay</b> rather than your web browser — once MyDay is
-            on the home screen. It takes about ten seconds.
+            Install MyDay to show alerts under its name. iPhone and iPad require the home screen app for push alerts. Permission, device settings and a connection are also needed.
           </p>
           <InstallButton className="mkt-btn mkt-btn--primary mkt-btn--block" label="Add MyDay to this device" iconSize={20} />
           <button type="button" className="join-gate__skip" onClick={() => setOverride(true)}>
@@ -252,9 +189,9 @@ function ConnectStep({ patient, name, setName, error, saving, onTurnOn }) {
         </div>
       )}
 
-      <div style={{ height: 12 }} />
+      <p className="guardian-code__hint">Enter your name and install MyDay, or choose the browser option, before turning on alerts.</p>
       <button type="button" className="mkt-btn mkt-btn--primary mkt-btn--block"
-        onClick={onTurnOn} disabled={saving || !canEnable}>
+        onClick={onTurnOn} disabled={saving || !canEnable || !name.trim()}>
         {saving ? 'Turning on…' : 'Turn on alerts'}
       </button>
     </>

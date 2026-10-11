@@ -72,7 +72,7 @@ export default function Updates() {
   async function offerChat(row) {
     const ok = await ui.confirm({
       title: 'Nice work writing that down!',
-      message: 'Want to chat about it with MyDay? It can cheer you on, or help you work out why you feel this way.',
+      message: 'Want to chat about it with MyDay? It can help you reflect on your note and prepare questions for your doctor or pharmacist.',
       confirmLabel: 'Yes, let\'s chat', cancelLabel: 'Not now',
     });
     if (ok) setChatting(row);

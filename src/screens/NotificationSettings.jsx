@@ -106,7 +106,7 @@ export default function NotificationSettings() {
       setPermission('granted');
       devices.reload();
       if (!prefs?.master) await update({ master: true });
-      ui.toast('Alerts are on for this device.');
+      ui.toast('This device is registered. Send a test and check that it appears.', 'info');
     } catch (e) {
       setPermission(typeof Notification !== 'undefined' ? Notification.permission : 'default');
       ui.toast(e.message || 'Could not turn on alerts.', 'bad');
@@ -119,10 +119,10 @@ export default function NotificationSettings() {
       if (error) throw error;
       if (!data?.delivered) {
         // A test that goes nowhere is the most useful thing to be honest about.
-        ui.toast('No device received it. Check the list below.', 'bad');
+        ui.toast('The test could not be sent to any notification service. Check the devices below.', 'bad');
         return;
       }
-      ui.toast(`Test alert sent to ${data.delivered} device${data.delivered === 1 ? '' : 's'}.`, 'info');
+      ui.toast(`Test alert sent to the notification service for ${data.delivered} device${data.delivered === 1 ? '' : 's'}.`, 'info');
       devices.reload();
     } catch { ui.toast('Could not send a test alert.', 'bad'); }
   }
@@ -181,6 +181,8 @@ export default function NotificationSettings() {
         {status.ok && (
           <>
             <div style={{ height: 12 }} />
+            {!devices.data?.some((d) => d.endpoint === myEndpoint && d.push_enabled !== false) &&
+              <Button icon="bell" onClick={turnOn}>Turn on alerts on this device</Button>}
             <Button variant="ghost" icon="bell" onClick={sendTest}>Send a test alert</Button>
           </>
         )}
@@ -235,9 +237,11 @@ export default function NotificationSettings() {
 
       {/* ---- missed dose ---- */}
       <Collapsible id="ns-missed" icon="clock" title="Missed doses"
-        summary={`Missed after ${ALERT_WINDOWS.find((w) => w.value === (profile?.alert_window_minutes ?? 60))?.label || ''} · ${prefs.repeat_every_minutes ? `repeat every ${prefs.repeat_every_minutes} min` : 'no repeats'}`}>
+        summary={`Missed after ${ALERT_WINDOWS.find((w) => w.value === (profile?.alert_window_minutes ?? 60))?.label || `${profile?.alert_window_minutes ?? 60} min`} · ${prefs.repeat_every_minutes ? `repeat every ${prefs.repeat_every_minutes} min` : 'no repeats'}`}>
         <p className="muted" id="ns-window-label" style={{ margin: '0 0 10px' }}>
-          How long after a dose is due before it counts as missed.
+          The default is {profile?.alert_window_minutes ?? 60} minutes after a scheduled dose. A medicine with its own missed-dose window uses that instead.
+          {meds.data?.some((m) => m.alert_window_override != null) && ' Some medicines have their own window; see their medicine details.'}
+          {' '}Guardian alerts use each guardian connection's delay or fixed time, independently of this setting. Alerts are checked every 5 minutes; enabling a toggle does not confirm receipt.
         </p>
         <SegmentedControl label="How long after a dose is due before it counts as missed"
           value={profile?.alert_window_minutes ?? 60}
@@ -392,7 +396,7 @@ export default function NotificationSettings() {
                   <div className="ns-med__main">
                     <div className="ns-med__name">
                       {info.name}
-                      {info.current && <span className="contact__type">This device</span>}
+                      <span className="contact__type">{info.current ? 'This device' : 'Saved device'}</span>
                     </div>
                     <div className="ns-med__meta">{info.meta}</div>
                     {/* Last-sent and last-error are shown so a silent failure

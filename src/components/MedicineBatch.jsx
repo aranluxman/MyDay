@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Button, Modal } from './ui.jsx';
 import { Icon } from './Icon.jsx';
 import { MedicineWizard } from './MedicineWizard.jsx';
@@ -9,6 +9,7 @@ import { readMedicineBatch, writeMedicineBatch, clearMedicineBatch } from '../li
 import { toMedicationPayload, medicineProblems } from '../lib/medicationPayload.js';
 import { buildDoseString } from '../lib/doseUnits.js';
 import { describeSchedule } from '../lib/schedule.js';
+import { meaningfulMedicineDraft } from '../lib/medicineDraft.js';
 import { prettyTime } from '../lib/format.js';
 
 export function MedicineBatch({ userId, onClose, onSaved }) {
@@ -19,6 +20,18 @@ export function MedicineBatch({ userId, onClose, onSaved }) {
   const [showWizard, setShowWizard] = useState(false);
   const [showPhoto, setShowPhoto] = useState(false);
   const [busy, setBusy] = useState(false);
+  const saving = useRef(false);
+  const opener = useRef(document.activeElement);
+  useEffect(() => () => {
+    requestAnimationFrame(() => {
+      if (opener.current?.isConnected && !opener.current.closest('[inert]')) opener.current.focus({ preventScroll: true });
+    });
+  }, []);
+
+  function closeWizard() {
+    if (working?.index == null && !meaningfulMedicineDraft(working?.form)) setWorking(null);
+    setShowWizard(false);
+  }
 
   useEffect(() => { writeMedicineBatch(userId, { items, working }); }, [userId, items, working]);
 
@@ -92,12 +105,13 @@ export function MedicineBatch({ userId, onClose, onSaved }) {
   const invalidCount = invalid.filter(Boolean).length;
 
   async function saveAll() {
-    if (!items.length || working || busy) return;
+    if (!items.length || working || saving.current) return;
     if (invalidCount) {
       const i = invalid.findIndex(Boolean);
       ui.toast(`${items[i].form.name || 'One medicine'} needs fixing first: ${invalid[i].message}`, 'bad');
       return;
     }
+    saving.current = true;
     setBusy(true);
     try {
       await saveMedicationsBulk(items);
@@ -110,13 +124,18 @@ export function MedicineBatch({ userId, onClose, onSaved }) {
       onSaved();
     } catch (error) {
       ui.toast(error.message || 'Could not save. Your review is still here — please try again.', 'bad');
+      saving.current = false;
       setBusy(false);
     }
   }
 
   return (
     <>
-      <Modal title="Add medicines" onClose={onClose} wide>
+      {!showWizard && !showPhoto && <Modal title="Add medicines" onClose={busy ? undefined : onClose} wide footer={
+        <Button size="lg" icon="check" onClick={saveAll} disabled={!items.length || !!working || busy}>
+          {busy ? 'Saving medicines…' : `Save all ${items.length || ''} ${items.length === 1 ? 'medicine' : 'medicines'}`}
+        </Button>
+      }>
         <div className="medbatch">
           <p className="medbatch__intro">Add each medicine, check the list, then save them together.</p>
           {!!items.length && (
@@ -158,17 +177,14 @@ export function MedicineBatch({ userId, onClose, onSaved }) {
             </div>
           )}
           {!!invalidCount && <p className="medbatch__saved" role="status">{invalidCount === 1 ? 'One medicine needs fixing' : `${invalidCount} medicines need fixing`} before you can save.</p>}
-          <Button size="lg" icon="check" onClick={saveAll} disabled={!items.length || !!working || busy}>
-            {busy ? 'Saving medicines…' : `Save all ${items.length || ''} ${items.length === 1 ? 'medicine' : 'medicines'}`}
-          </Button>
           {(!!items.length || !!working) && <p className="medbatch__saved">Your review is kept on this device if you close it.</p>}
           {(!!items.length || !!working) && <Button variant="danger" onClick={discardBatch} disabled={busy}>Discard this review</Button>}
         </div>
-      </Modal>
+      </Modal>}
       {showPhoto && <MedicinePhotoTray onClose={() => setShowPhoto(false)} onResult={scanned} />}
       {showWizard && working && <MedicineWizard key={working.index ?? 'new'} stageDraft={working}
         prefill={working.scan} onDraftChange={(progress) => setWorking((w) => w ? { ...w, ...progress } : w)}
-        onStage={stage} onClose={() => setShowWizard(false)} />}
+        onStage={stage} onClose={closeWizard} />}
     </>
   );
 }

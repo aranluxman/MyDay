@@ -4,6 +4,7 @@ import { Icon } from './Icon.jsx';
 import { useApp } from '../context/AppContext.jsx';
 import { useUI } from '../context/UIContext.jsx';
 import { chatAboutNote } from '../lib/ai.js';
+import { CHAT_UNAVAILABLE } from '../lib/aiErrors.js';
 import { normaliseChatReply } from '../lib/aiParse.js';
 import { todaysDoses, saveDiary } from '../lib/db.js';
 import { doseState } from '../lib/doseState.js';
@@ -29,6 +30,11 @@ export function NoteChat({ entry, recent = [], onClose, onSaved }) {
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(null);
   const [saved, setSaved] = useState(false);
+  const [savingNote, setSavingNote] = useState(false);
+  const sending = useRef(false);
+  const saving = useRef(false);
+  const mounted = useRef(true);
+  const followLatest = useRef(true);
   const doses = useRef(null);
   const endRef = useRef(null);
 
@@ -50,7 +56,9 @@ export function NoteChat({ entry, recent = [], onClose, onSaved }) {
 
   async function send(message) {
     const msg = (message ?? text).trim();
-    if (busy) return;
+    if (sending.current || (message == null && !msg) || messages.filter((m) => m.role === 'user').length >= MAX_TURNS) return;
+    sending.current = true;
+    followLatest.current = true;
     const history = messages;
     const next = msg ? [...history, { role: 'user', content: msg }] : history;
     setMessages(next);
@@ -61,34 +69,56 @@ export function NoteChat({ entry, recent = [], onClose, onSaved }) {
     try {
       const raw = await chatAboutNote({
         entry, recent: recent.filter((r) => r.id !== entry.id).slice(0, 5),
-        doses: await loadDoses(), history: history.slice(-MAX_TURNS), message: msg,
+        doses: await loadDoses(), history: history.slice(-MAX_TURNS * 2), message: msg,
       });
+      if (!mounted.current) return;
       const r = normaliseChatReply(raw);
       setMessages([...next, { role: 'assistant', content: r.reply }]);
       setSuggestions(r.suggestions);
       if (r.urgent) setUrgent(true);
     } catch (e) {
-      setFailed({ message: msg, error: e.message || 'The helper could not answer just now.' });
+      if (!mounted.current) return;
+      setFailed({ message: msg, error: CHAT_UNAVAILABLE, retryable: e.retryable === true });
       setMessages(history);
+      setText(msg);
+    } finally {
+      sending.current = false;
+      if (mounted.current) setBusy(false);
     }
-    setBusy(false);
   }
 
   // Opens with the helper's first message, so there is nothing to figure out.
   const started = useRef(false);
-  useEffect(() => { if (!started.current) { started.current = true; send(''); } }, []);
-  useEffect(() => { endRef.current?.scrollIntoView({ block: 'end', behavior: 'smooth' }); }, [messages, busy]);
+  useEffect(() => {
+    mounted.current = true;
+    if (!started.current) { started.current = true; send(''); }
+    return () => { mounted.current = false; };
+  }, []);
+  useEffect(() => {
+    const body = endRef.current?.closest('.sheet__body');
+    if (!body) return;
+    const track = () => { followLatest.current = body.scrollHeight - body.scrollTop - body.clientHeight < 80; };
+    body.addEventListener('scroll', track);
+    return () => body.removeEventListener('scroll', track);
+  }, []);
+  useEffect(() => {
+    const body = endRef.current?.closest('.sheet__body');
+    if (body && followLatest.current) body.scrollTop = body.scrollHeight;
+  }, [messages, busy]);
 
   async function saveToNote() {
     const last = [...messages].reverse().find((m) => m.role === 'assistant');
-    if (!last) return;
-    const add = `From my chat with MyDay: ${last.content}`;
+    if (!last || saving.current || saved) return;
+    saving.current = true;
+    setSavingNote(true);
+    const add = `From my chat with MyDay (generated text, not clinical advice): ${last.content}`;
     try {
       await saveDiary({ ...entry, body: [entry.body, add].filter(Boolean).join('\n\n') });
       setSaved(true);
       ui.toast('Added to your note.');
       onSaved?.();
     } catch { ui.toast('Could not save.', 'bad'); }
+    finally { saving.current = false; if (mounted.current) setSavingNote(false); }
   }
 
   const turns = messages.filter((m) => m.role === 'user').length;
@@ -124,15 +154,16 @@ export function NoteChat({ entry, recent = [], onClose, onSaved }) {
             </div>
           )}
           {failed && (
-            <div className="nchat__fail">
+            <div className="nchat__fail" role="alert">
               <p>{failed.error}</p>
-              <Button variant="ghost" size="sm" full={false} icon="refresh" onClick={() => send(failed.message)}>Try again</Button>
+              <Button variant="ghost" size="sm" onClick={onClose}>Return to health diary</Button>
+              {failed.retryable && <Button variant="ghost" size="sm" full={false} icon="refresh" onClick={() => send(failed.message)}>Retry</Button>}
             </div>
           )}
           <div ref={endRef} />
         </div>
 
-        {!busy && !!suggestions.length && (
+        {!busy && !atLimit && !!suggestions.length && (
           <div className="chips nchat__chips">
             {suggestions.map((s) => <button key={s} type="button" className="chip" onClick={() => send(s)}>{s}</button>)}
           </div>
@@ -140,7 +171,7 @@ export function NoteChat({ entry, recent = [], onClose, onSaved }) {
 
         {atLimit ? (
           <p className="muted">Great chat — you're doing a wonderful job looking after yourself. If you still feel unwell, call your doctor or pharmacist.</p>
-        ) : (
+        ) : !failed && (
           <form className="assist__bar nchat__bar" onSubmit={(e) => { e.preventDefault(); send(); }}>
             <input className="assist__input" value={text} onChange={(e) => setText(e.target.value)}
               placeholder="Type a message…" maxLength={500} enterKeyHint="send"
@@ -152,11 +183,11 @@ export function NoteChat({ entry, recent = [], onClose, onSaved }) {
         )}
 
         {entry.id && messages.some((m) => m.role === 'assistant') && (
-          <Button variant="ghost" icon={saved ? 'check' : 'notes'} disabled={saved || busy} onClick={saveToNote}>
-            {saved ? 'Saved to your note' : 'Save this to my note'}
+          <Button variant="ghost" icon={saved ? 'check' : 'notes'} disabled={saved || busy || savingNote} onClick={saveToNote}>
+            {saved ? 'Saved to your note' : savingNote ? 'Saving…' : 'Save this to my note'}
           </Button>
         )}
-        <p className="nchat__disclaimer">MyDay's helper is not a doctor. For anything worrying, call your doctor, pharmacist, or Health811 (dial 811).</p>
+        <p className="nchat__disclaimer">Generated text is not clinical advice. MyDay cannot diagnose, prescribe, or recommend dose changes. Ask your doctor or pharmacist about symptoms or treatment.</p>
       </div>
     </Modal>
   );

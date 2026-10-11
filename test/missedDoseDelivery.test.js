@@ -9,7 +9,7 @@ import { shouldSend } from '../supabase/functions/_shared/notificationRules.js';
 // Run the actual Edge Function handler against an in-memory database and push
 // transport. No real subscriptions or patient data are used.
 const source = (await readFile(new URL('../supabase/functions/missed-dose-check/index.ts', import.meta.url), 'utf8'))
-  .replace(/^import .*?;\n/gm, '');
+  .replace(/^import .*?;\r?\n/gm, '');
 const { code } = await transform(source, { loader: 'ts', format: 'esm' });
 function setup(handlerCode = code) {
   const now = Date.now();
@@ -149,7 +149,7 @@ test('each failed patient device can retry independently of successful devices',
 
 test('guardian daily summaries run without any subscribed patient device', async () => {
   const source = (await readFile(new URL('../supabase/functions/send-reminders/index.ts', import.meta.url), 'utf8'))
-    .replace(/^import[\s\S]*?;\n/gm, '');
+    .replace(/^import[\s\S]*?;\r?\n/gm, '');
   const { code } = await transform(source, { loader: 'ts', format: 'esm' });
   const s = setup(code);
   const device = s.db.myday_guardian_devices[0];

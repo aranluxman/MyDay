@@ -4,7 +4,7 @@ export async function openNewMedicine(page) {
   await page.getByRole('tab', { name: 'Medicines' }).click();
   await page.getByRole('button', { name: 'Add medicines' }).first().click();
   await page.getByRole('button', { name: 'Type a medicine' }).click();
-  await expect(page.getByRole('dialog', { name: /What is it called/ })).toBeVisible();
+  await expect(page.getByRole('dialog', { name: 'Add medicine' })).toBeVisible();
 }
 
 export const wizard = (page) => page.getByRole('dialog').filter({ has: page.locator('.wiz__title') });
