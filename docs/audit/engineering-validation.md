@@ -2,6 +2,8 @@
 
 Prepared October 11, 2026 from repository commit `d720e4428e6bf950a177101fdf86c75e44540f6f`, on local branch `fix/engineering-behavior`.
 
+Before publication, the branch was merged with updated `main` at `7214c5d` to include the latest dashboard changes. Validation was repeated against the combined code.
+
 ## Implemented
 
 - Chat uses “Chat is unavailable right now. You can still use your health diary.” Raw configuration/provider errors are hidden, including errors from an older backend. Return to health diary is always available on failure. Retry is offered for temporary network/service/rate-limit failures, and withheld for configuration, credential, quota, validation and refusal errors.
@@ -54,4 +56,4 @@ Boundary regression tests cover representative English inputs and generated outp
 
 ## Applying the change
 
-The reviewable patch applies to the base commit above with `git apply myday-engineering.patch`. It includes source changes, unit/browser tests and this checklist. Rebuild the frontend and deploy the updated `ai-assist` Edge Function to make both client and server behavior live. No migration, secret change or notification-timing change is included. Publishing the branch/PR or deploying requires approval under the supplied AGENTS.md instructions.
+The original reviewable patch applies to the initial base commit above with `git apply myday-engineering.patch`. It includes source changes, unit/browser tests and this checklist. The pull request also incorporates the updated main branch. Rebuild the frontend and deploy the updated `ai-assist` Edge Function to make both client and server behavior live. No migration, secret change or notification-timing change is included. The user approved branch and pull-request publication; merging and deployment still require separate approval under the supplied AGENTS.md instructions.
