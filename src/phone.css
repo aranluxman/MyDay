@@ -387,3 +387,118 @@ html:not([data-theme]), [data-theme='light'] {
   html[data-text='xlarge'] .topbar, html[data-text='xlarge'] .fab { zoom: 0.9; }
   html[data-text='huge'] .topbar, html[data-text='huge'] .fab { zoom: 0.8; }
 }
+
+/* ---- Calmer dashboards (Home, Appointments, Diary, Settings, Medication) ---- */
+
+/* Home: missed doses get their own big, coloured, tappable badge. */
+.status__alert {
+  display: flex; align-items: center; gap: 12px; width: 100%; margin: 0 0 14px; padding: 12px 14px;
+  border: 2px solid color-mix(in srgb, var(--bad) 45%, transparent); border-radius: 16px;
+  background: var(--bad-bg); color: var(--bad-ink); text-align: left; cursor: pointer; font: inherit;
+}
+.status__alert-n {
+  flex: none; min-width: 48px; height: 48px; padding: 0 10px; border-radius: 999px; display: grid; place-items: center;
+  background: var(--bad); color: #fff; font-size: 26px; font-weight: 800; font-variant-numeric: tabular-nums;
+}
+.status__alert-t { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.status__alert-t b { font-size: 18px; }
+.status__alert-t small { font-size: 14px; color: var(--ink-soft); }
+.status__alert:focus-visible { outline: 3px solid var(--primary); outline-offset: 2px; }
+.stat__label { display: inline-flex; align-items: center; justify-content: center; gap: 4px; width: 100%; }
+.stat--taken.is-on { background: var(--good-bg); }
+.stat--missed.is-on { background: var(--bad-bg); box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--bad) 40%, transparent); }
+.stat--pending.is-on { background: var(--warn-bg); }
+.stat.is-on .stat__label { color: var(--ink); }
+
+/* Home: the guardian nudge as one quiet line while a bigger problem shows. */
+.gnudge-line {
+  display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 14px; border-radius: 14px;
+  border: 1px dashed var(--line); background: transparent; color: var(--ink-soft);
+  font: inherit; font-size: 15px; font-weight: 600; text-align: left; cursor: pointer;
+}
+.gnudge-line span { flex: 1; }
+.gnudge-line:focus-visible { outline: 3px solid var(--primary); outline-offset: 2px; }
+
+/* Calendar: the symbol key folds behind one line; week strip shows weekdays in-cell. */
+.cal__key { margin-top: 10px; text-align: center; }
+.cal__key summary {
+  display: inline-flex; align-items: center; gap: 6px; cursor: pointer; list-style: none;
+  font-size: 14px; font-weight: 700; color: var(--primary-text); padding: 6px 10px; border-radius: 999px;
+}
+.cal__key summary::-webkit-details-marker { display: none; }
+.cal__key summary:focus-visible { outline: 3px solid var(--primary); outline-offset: 2px; }
+.cal__key .cal__legend { margin-top: 8px; }
+.cal--week .cal__weekdays { margin-top: 0; }
+.cal__today-btn { color: var(--primary-text); min-height: 44px; }
+.cal__key summary { min-height: 44px; }
+.cal__foot { display: flex; flex-direction: column; align-items: center; }
+.cal__foot .cal__today-btn { margin-top: 4px; }
+
+/* Appointments: starter ideas inside the welcome card are centred. */
+.hero-empty .appt-tpl { margin-top: 18px; }
+.hero-empty .quickadd__tags { justify-content: center; }
+
+/* Diary: day headers, softer category words, and MyDay's replies as a bubble. */
+.tl-day { display: flex; flex-direction: column; gap: 10px; }
+.tl-day__h { margin: 6px 0 0; font-size: 18px; font-weight: 800; color: var(--ink); }
+.tl__cat { text-transform: none; letter-spacing: 0; font-weight: 700; padding: 3px 10px; border-radius: 999px; }
+.tl__cat--warm { color: var(--warn-ink); background: var(--warn-bg); }
+.tl__cat--good { background: var(--good-bg); }
+.tl__cat--primary { background: var(--primary-soft); color: var(--primary-text); }
+.tl__cat--violet { color: #6d28d9; background: color-mix(in srgb, #7c3aed 12%, var(--surface)); }
+.tl__dot--warm { background: var(--warn-bg); color: var(--warn-ink); }
+.tl__dot--violet { background: color-mix(in srgb, #7c3aed 12%, var(--surface)); color: #6d28d9; }
+[data-theme='dark'] .tl__cat--violet, [data-theme='midnight'] .tl__cat--violet,
+[data-theme='dark'] .tl__dot--violet, [data-theme='midnight'] .tl__dot--violet { background: rgba(167, 139, 250, 0.18); color: #c4b5fd; }
+.tl__chat { margin-top: 10px; }
+.tl__chat summary {
+  display: inline-flex; align-items: center; gap: 8px; cursor: pointer; list-style: none;
+  font-size: 15px; font-weight: 700; color: var(--primary-text);
+}
+.tl__chat summary::-webkit-details-marker { display: none; }
+.tl__chat summary .nchat__av { width: 24px; height: 24px; }
+.tl__chat summary:focus-visible { outline: 3px solid var(--primary); outline-offset: 2px; border-radius: 8px; }
+.tl__bubble {
+  margin: 8px 0 0 32px; padding: 10px 14px; border-radius: 18px; border-bottom-left-radius: 6px;
+  background: var(--surface-2); border: 1px solid var(--line); color: var(--ink);
+  font-size: 16px; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere;
+}
+
+/* Games: an encouraging "start" badge instead of a zero. */
+.streak-badge--start { background: var(--good-bg); color: var(--good-ink); }
+
+/* Settings: group headings, and an outlined Guardians card while nobody is connected. */
+.settings-group { margin: 12px 4px 0; font-size: 15px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-soft); }
+.fold--attention { border: 2px solid var(--warn); box-shadow: 0 0 0 4px color-mix(in srgb, var(--warn) 15%, transparent); }
+.fold--attention .fold__ic { background: var(--warn-bg); color: var(--warn-ink); }
+.fold--attention .fold__s { color: var(--warn-ink); font-weight: 700; }
+.fold__alert {
+  display: flex; gap: 10px; align-items: flex-start; margin: 0 0 12px; padding: 10px 12px; border-radius: 12px;
+  background: var(--warn-bg); color: var(--warn-ink); font-weight: 700;
+}
+.fold__alert svg { flex: none; margin-top: 2px; }
+
+/* Medication: a dose that is not open yet reads as a calm status. */
+.dose__locked { justify-content: flex-start; text-align: left; gap: 12px; border-style: solid; background: var(--surface-2); }
+.dose__locked-ic { flex: none; width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; background: var(--surface); color: var(--ink-soft); }
+.dose__locked > span:last-child { display: flex; flex-direction: column; gap: 2px; }
+.dose__locked b { color: var(--ink); font-size: 17px; }
+.dose__locked small { font-size: 14px; font-weight: 600; }
+.dose-card--later .dose__chip { opacity: 0.75; }
+
+/* Medication: done doses fold into one quieter group. */
+.done-group { border-radius: var(--radius); }
+.done-group > summary {
+  display: flex; align-items: center; gap: 10px; cursor: pointer; list-style: none; padding: 14px 16px;
+  border-radius: var(--radius); background: var(--good-bg); color: var(--good-ink); font-size: 17px; font-weight: 800;
+}
+.done-group > summary::-webkit-details-marker { display: none; }
+.done-group > summary > span { flex: 1; }
+.done-group > summary:focus-visible { outline: 3px solid var(--primary); outline-offset: 2px; }
+.done-group__n { display: inline-grid; place-items: center; min-width: 26px; height: 26px; margin-left: 6px; padding: 0 8px; border-radius: 999px; background: var(--surface); font-size: 15px; }
+.done-group__chev { transition: transform 0.2s ease; }
+.done-group[open] .done-group__chev { transform: rotate(90deg); }
+.done-group > .stack { margin-top: 10px; }
+.dose-card--done { background: color-mix(in srgb, var(--surface-2) 60%, var(--surface)); box-shadow: none; padding-top: 12px; padding-bottom: 12px; }
+.dose-card--done .card__title { font-size: 17px; }
+html[data-motion='calm'] .done-group__chev { transition: none; }

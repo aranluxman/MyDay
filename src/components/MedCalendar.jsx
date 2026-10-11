@@ -137,12 +137,84 @@ export function MedCalendar({ selected, onPick, counts, windowMinutes = 60, meds
         </div>
       )}
       {!onThisMonth && <button type="button" className="cal__today-btn" onClick={goToday}>Back to today</button>}
+      <CalLegend planned={!!meds} />
+    </div>
+  );
+}
+
+// The symbol key folds away behind one line: the marks sit next to a word in
+// every cell's label already, so the key is there for whoever wants it rather
+// than five chips everybody has to read past.
+function CalLegend({ planned }) {
+  return (
+    <details className="cal__key">
+      <summary><Icon name="info" size={16} /> What do the symbols mean?</summary>
       <div className="cal__legend">
         <span className="lg--taken">✓ All taken</span>
         <span className="lg--partial">◐ Some taken</span>
         <span className="lg--pending">• To take</span>
         <span className="lg--missed">! Missed</span>
-        {meds && <span className="lg--planned">○ Planned</span>}
+        {planned && <span className="lg--planned">○ Planned</span>}
+      </div>
+    </details>
+  );
+}
+
+/**
+ * A single row of days, built from the same counts and marks as the month
+ * grid. `start` is the first day shown; it defaults to this week's Sunday.
+ * Home shows this week, and Today shows the last seven days, so checking how
+ * the week went no longer means switching tabs.
+ */
+export function WeekStrip({ start, days = 7, onPick, windowMinutes = 60, meds = null, onMore, moreLabel = 'Show the whole month' }) {
+  const today = localDateStr(deviceTimezone());
+  const first = useMemo(() => {
+    if (start) return start;
+    const d = new Date();
+    d.setDate(d.getDate() - d.getDay());
+    return localDateStr(undefined, d);
+  }, [start]);
+  const list = useMemo(() => {
+    const [y, m, d] = first.split('-').map(Number);
+    return Array.from({ length: days }, (_, i) => {
+      const at = new Date(y, m - 1, d + i);
+      return { iso: iso(at.getFullYear(), at.getMonth(), at.getDate()), day: at.getDate(), wd: WEEKDAYS[at.getDay()] };
+    });
+  }, [first, days]);
+  const last = list[list.length - 1].iso;
+  const { data, loading } = useAsync(() => dosesInRange(first, last), [first, last]);
+  const byDate = useMemo(() => countsByDay(data || [], { windowMinutes }), [data, windowMinutes]);
+  const plannedFor = (dStr) => {
+    if (!meds?.length || dStr <= today) return 0;
+    return meds.reduce((n, m) => n + (m.active !== false && isDueOn(m, dStr) ? normaliseTimes(m.times).length : 0), 0);
+  };
+
+  return (
+    <div className="cal cal--week">
+      <div className="cal__weekdays" aria-hidden="true">{list.map(({ iso: dStr, wd }) => <span key={dStr}>{wd}</span>)}</div>
+      {loading ? <Spinner label="" /> : (
+        <div className="cal__grid">
+          {list.map(({ iso: dStr, day }) => {
+            const agg = byDate?.[dStr];
+            const planned = agg?.total ? 0 : plannedFor(dStr);
+            const status = planned ? 'planned' : dayMarkFromCounts(agg);
+            const cls = `cal__cell${status !== 'none' ? ` cal__cell--${status}` : ''}${dStr === today ? ' is-today' : ''}`;
+            const Cell = onPick ? 'button' : 'span';
+            return (
+              <Cell key={dStr} type={onPick ? 'button' : undefined} className={cls}
+                onClick={onPick ? () => onPick(dStr) : undefined}
+                aria-label={dayLabel(dStr, agg, planned)}
+                aria-current={dStr === today ? 'date' : undefined}>
+                <span className="cal__day" aria-hidden="true">{day}</span>
+                <span className={`cal__mark cal__mark--${status}`} aria-hidden="true">{MARK[status] || ''}</span>
+              </Cell>
+            );
+          })}
+        </div>
+      )}
+      <div className="cal__foot">
+        <CalLegend planned={!!meds} />
+        {onMore && <button type="button" className="cal__today-btn" onClick={onMore}>{moreLabel}</button>}
       </div>
     </div>
   );
