@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useApp } from '../context/AppContext.jsx';
 import { Icon } from '../components/Icon.jsx';
 import { GoogleButton } from '../components/GoogleButton.jsx';
@@ -13,8 +13,11 @@ const AGE_CHIPS = [55, 60, 65, 70, 75, 80, 85, 90, 95];
 export default function Onboarding() {
   const { signUp } = useApp();
   const navigate = useNavigate();
+  const [params] = useSearchParams();
   const [step, setStep] = useState(0);
-  const [forWhom, setForWhom] = useState('');     // 'self' | 'other'
+  // "Set up for a parent" on the landing page arrives with ?for=other, so the
+  // caregiver choice is already ticked (they can still switch it).
+  const [forWhom, setForWhom] = useState(params.get('for') === 'other' ? 'other' : '');     // 'self' | 'other'
   const [age, setAge] = useState('');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
