@@ -1,13 +1,23 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Icon } from '../components/Icon.jsx';
 import { InstallButton } from '../components/InstallButton.jsx';
+import { Segmented } from '../components/Segmented.jsx';
+
+// Shown in the trust section and the footer. Reminders are a memory aid;
+// the prescription label and the pharmacist stay in charge.
+const DISCLAIMER = "MyDay helps you remember — it doesn't replace advice from your doctor or pharmacist. Always follow your prescription label.";
 
 export default function Landing() {
   const navigate = useNavigate();
   const start = () => navigate('/get-started');
   const signin = () => navigate('/signin');
   const guardian = () => navigate('/guardian');
+  const forParent = () => navigate('/get-started?for=other');
+  // The person researching MyDay is often the adult child, not the senior, so
+  // the hero speaks to whichever one is reading.
+  const [audience, setAudience] = useState('me');
+  const family = audience === 'family';
 
   // Sections glide in as they scroll into view. Without IntersectionObserver
   // (or with motion turned off in CSS) everything is simply shown.
@@ -29,12 +39,13 @@ export default function Landing() {
           <nav className="mkt-nav">
             <a href="#features">Features</a>
             <a href="#how">How it works</a>
-            <a href="#trust">Trust</a>
+            <a href="#families">For families</a>
+            <a href="#trust">Privacy</a>
           </nav>
+          {/* One primary action; signing in is a quiet text link beside it. */}
           <div className="mkt-head-cta">
-            <InstallButton className="mkt-btn mkt-btn--ghost mkt-btn--install" label="Download now" style={{ height: 46 }} />
-            <button className="mkt-btn mkt-btn--ghost" style={{ height: 46 }} onClick={signin}>Sign in</button>
-            <button className="mkt-btn mkt-btn--primary" style={{ height: 46 }} onClick={start}>Get started</button>
+            <button className="mkt-btn mkt-btn--link mkt-head-signin" onClick={signin}>Sign in</button>
+            <button className="mkt-btn mkt-btn--primary" style={{ height: 46 }} onClick={start}>Get started free</button>
           </div>
         </div>
       </header>
@@ -43,24 +54,37 @@ export default function Landing() {
       <section className="mkt-hero">
         <div className="mkt-wrap mkt-hero__grid">
           <div>
-            <span className="mkt-pill"><Icon name="shield" size={16} /> Trusted by families</span>
-            <h1>Never miss a dose. <span className="grad">Stay close to the ones you love.</span></h1>
-            <p className="mkt-hero__sub">MyDay keeps medications, appointments, health notes, and brain games in one calm, simple place — and alerts your family if a dose is missed.</p>
-            <div className="mkt-hero__cta">
-              <button className="mkt-btn mkt-btn--primary mkt-btn--lg" onClick={start}>Get started free <Icon name="chevron" size={20} /></button>
-              <button className="mkt-btn mkt-btn--ghost mkt-btn--lg" onClick={signin}>Sign in</button>
-            </div>
-            <button className="mkt-helper" onClick={guardian}>
-              <span className="mkt-helper__ic"><Icon name="bell" size={20} /></span>
-              <span className="mkt-helper__main">
-                <b>I'm a guardian and I have a code</b>
-                <small>Connect to a family member and get their missed-dose alerts.</small>
-              </span>
-              <Icon name="chevron" size={20} />
-            </button>
+            <Segmented label="Who is MyDay for?" value={audience} onChange={setAudience} className="mkt-seg--hero"
+              options={[{ value: 'me', label: 'For me' }, { value: 'family', label: 'For my family' }]} />
+            {family ? (
+              <>
+                <h1>Know Mom or Dad took their pills. <span className="grad">Without calling to check.</span></h1>
+                <p className="mkt-hero__sub">Set MyDay up on your parent's phone. If a dose isn't taken within an hour, you get an alert on yours — free, and ready in minutes.</p>
+                <div className="mkt-hero__cta">
+                  <button className="mkt-btn mkt-btn--primary mkt-btn--lg" onClick={forParent}>Set up for a parent <Icon name="chevron" size={20} /></button>
+                  <button className="mkt-btn mkt-btn--ghost mkt-btn--lg" onClick={guardian}>I have a guardian code</button>
+                </div>
+              </>
+            ) : (
+              <>
+                <h1>Never miss a dose. <span className="grad">Stay close to the ones you love.</span></h1>
+                <p className="mkt-hero__sub">Your medicines, appointments, and a few minutes of brain games — one calm daily routine. If a dose is missed, your family knows.</p>
+                <div className="mkt-hero__cta">
+                  <button className="mkt-btn mkt-btn--primary mkt-btn--lg" onClick={start}>Get started free <Icon name="chevron" size={20} /></button>
+                </div>
+                <button className="mkt-helper" onClick={guardian}>
+                  <span className="mkt-helper__ic"><Icon name="bell" size={20} /></span>
+                  <span className="mkt-helper__main">
+                    <b>I'm a guardian and I have a code</b>
+                    <small>Connect to a family member and get their missed-dose alerts.</small>
+                  </span>
+                  <Icon name="chevron" size={20} />
+                </button>
+              </>
+            )}
             <div className="mkt-trustrow">
               <span><Icon name="check" size={18} /> Free to start</span>
-              <span><Icon name="check" size={18} /> Private &amp; secure</span>
+              <span><Icon name="check" size={18} /> Encrypted &amp; private</span>
               <span><Icon name="check" size={18} /> Made for seniors</span>
             </div>
           </div>
@@ -76,9 +100,9 @@ export default function Landing() {
           <p className="mkt-lede" data-reveal>Simple, large, and clear — designed so it's easy to use every single day.</p>
           <div className="feat-grid">
             <Feature i={0} ic="blue" icon="pill" title="Medication reminders" text="Add any medicine or vitamin with its times. Tap one big button when you take it — pending, taken, and missed are tracked for you." />
-            <Feature i={1} ic="green" icon="calendar" title="Calendar &amp; history" text="A clear month calendar shows exactly which doses were taken, so you can look back over the whole month at a glance." />
-            <Feature i={2} ic="red" icon="bell" title="Family alerts" text="If a dose isn't taken within an hour, a notification goes to a family member's phone — quietly keeping everyone in the loop." />
-            <Feature i={0} ic="purple" icon="brain" title="Brain games" text="Match-the-pairs, word puzzles, number patterns, and gentle daily questions — across seven friendly difficulty levels." />
+            <Feature i={1} ic="red" icon="bell" title="Family alerts" text="If a dose isn't taken within an hour, a notification goes to a family member's phone — quietly keeping everyone in the loop." />
+            <Feature i={2} ic="green" icon="calendar" title="Calendar &amp; history" text="A clear month calendar shows exactly which doses were taken, so you can look back over the whole month at a glance." />
+            <Feature i={0} ic="purple" icon="brain" title="Keep your mind sharp" text="A few minutes of gentle games fit right into your daily check-in, next to your morning pills — word puzzles, pairs, and number patterns at seven friendly levels." />
             <Feature i={1} ic="orange" icon="notes" title="Health diary" text="Jot down symptoms, health events, and anything worth remembering, all on a simple timeline you can show your doctor." />
             <Feature i={2} ic="teal" icon="phone" title="Contacts &amp; profile" text="Keep your pharmacy, doctors, clinic, and insurance in one tap-to-call place, alongside your personal health profile." />
           </div>
@@ -98,37 +122,58 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* phone showcase */}
-      <section className="mkt-section mkt-section--tint">
+      {/* for families */}
+      <section className="mkt-section mkt-section--tint" id="families">
         <div className="mkt-wrap">
-          <p className="mkt-eyebrow" data-reveal>In your pocket</p>
-          <h2 className="mkt-h2" data-reveal>Lovely on your phone, too</h2>
-          <p className="mkt-lede" data-reveal>Add MyDay to your home screen and it works just like an app.</p>
-          <div className="show-grid">
-            <Phone i={0} src="/shots/home.png" title="Your day at a glance" sub="Today's medicines &amp; reminders" />
-            <Phone i={1} src="/shots/calendar.png" title="A clear calendar" sub="See every dose you've taken" />
-            <Phone i={2} src="/shots/game.png" title="Keep your mind sharp" sub="Games with seven levels" />
+          <p className="mkt-eyebrow" data-reveal>For families &amp; caregivers</p>
+          <h2 className="mkt-h2" data-reveal>Peace of mind from anywhere</h2>
+          <p className="mkt-lede" data-reveal>You don't need to live nearby or call every morning. MyDay tells you when something needs your attention — and stays quiet when it doesn't.</p>
+          <div className="steps">
+            <Step i={0} n="1" title="They get MyDay" text="Create their account on their phone — or set it up together. It takes a few minutes." />
+            <Step i={1} n="2" title="They invite you" text="In their Profile, they tap Invite a guardian. Their phone shows a 6-digit code." />
+            <Step i={2} n="3" title="You get alerts" text="Type the code on your phone. If a dose is missed, you'll know within the hour." />
+          </div>
+          <div className="quote quote--inline" data-reveal>
+            <Icon name="star" size={28} />
+            <p>"My dad finally takes his pills on time, and I get a little nudge on my phone if he forgets. It gave our whole family peace of mind."</p>
+            <div className="quote__who">— Sarah, daughter &amp; caregiver</div>
+          </div>
+          <div className="mkt-center-cta" data-reveal>
+            <button className="mkt-btn mkt-btn--primary mkt-btn--lg" onClick={forParent}>Set up for a parent <Icon name="chevron" size={20} /></button>
+            <button className="mkt-btn mkt-btn--ghost mkt-btn--lg" onClick={guardian}>I have a guardian code</button>
           </div>
         </div>
       </section>
 
-      {/* testimonial */}
+      {/* phone showcase */}
       <section className="mkt-section">
-        <div className="mkt-wrap quote" data-reveal>
-          <Icon name="star" size={28} className="" />
-          <p>"My dad finally takes his pills on time, and I get a little nudge on my phone if he forgets. It gave our whole family peace of mind."</p>
-          <div className="quote__who">— Sarah, daughter &amp; caregiver</div>
+        <div className="mkt-wrap">
+          <p className="mkt-eyebrow" data-reveal>In your pocket</p>
+          <h2 className="mkt-h2" data-reveal>Lovely on your phone, too</h2>
+          <p className="mkt-lede" data-reveal>Add MyDay to your home screen and it works just like an app.</p>
+          <div className="mkt-center-cta mkt-center-cta--tight" data-reveal>
+            <InstallButton className="mkt-btn mkt-btn--ghost mkt-btn--install" label="Add MyDay to your phone" />
+          </div>
+          <div className="show-grid">
+            <Phone i={0} src="/shots/home.png" title="Your day at a glance" sub="Today's medicines &amp; reminders" />
+            <Phone i={1} src="/shots/calendar.png" title="A clear calendar" sub="See every dose you've taken" />
+            <Phone i={2} src="/shots/game.png" title="Keep your mind sharp" sub="Part of your daily routine" />
+          </div>
         </div>
       </section>
 
       {/* trust */}
       <section className="mkt-section mkt-section--tint" id="trust">
         <div className="mkt-wrap">
-          <div className="trust-grid">
-            <Trust i={0} ic="blue" icon="clock" title="Here to help" text="Simple, friendly, and made to be used every day — with large text and big buttons." />
-            <Trust i={1} ic="green" icon="shield" title="Secure &amp; private" text="Your health information is protected and only ever visible to you and those you choose." />
-            <Trust i={2} ic="pink" icon="pulse" title="Caring by design" text="Built for older adults and the families who look after them." />
+          <p className="mkt-eyebrow" data-reveal>Privacy &amp; safety</p>
+          <h2 className="mkt-h2" data-reveal>Your health information stays yours</h2>
+          <div className="trust-grid trust-grid--4">
+            <Trust i={0} ic="green" icon="shield" title="Encrypted" text="Protected with HTTPS/TLS on the way to our servers and AES-256 encryption once it's stored." />
+            <Trust i={1} ic="blue" icon="user" title="Only who you choose" text="Access rules on every record mean only you — and the guardians you invite — can see your information." />
+            <Trust i={2} ic="pink" icon="heart" title="We never sell your data" text="No ads, no data brokers. Your health information is never sold or shared for marketing." />
+            <Trust i={3} ic="orange" icon="clock" title="Easy every day" text="Large text, big buttons, and simple screens — made for older adults and the families who help them." />
           </div>
+          <p className="mkt-disclaimer" data-reveal><Icon name="info" size={18} /> {DISCLAIMER}</p>
         </div>
       </section>
 
@@ -148,6 +193,7 @@ export default function Landing() {
           <div className="mkt-brand" style={{ fontSize: 20 }}><span className="mkt-brand__mark" style={{ width: 32, height: 32 }}><Icon name="pulse" size={18} /></span>MyDay</div>
           <span>© {new Date().getFullYear()} MyDay. Made with care.</span>
         </div>
+        <p className="mkt-wrap mkt-footer__note">{DISCLAIMER}</p>
       </footer>
     </div>
   );

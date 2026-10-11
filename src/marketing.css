@@ -11,6 +11,8 @@
   --m-ink: #0f2747;
   --m-soft: #5b6b85;
   --m-line: #e3ebf6;
+  /* Form borders need 3:1 against white to be visible to older eyes. */
+  --m-line-strong: #8a9bb4;
   --m-primary: #2563eb;
   --m-primary-d: #1d4ed8;
   --m-blue-bg: #e6effd;
@@ -48,10 +50,11 @@
 /* A row of nowrap buttons totalled 466px at a 390px viewport, which forced the
    whole landing page to scroll sideways on a phone. It wraps now, and the
    buttons give up their horizontal padding before the layout gives up. */
-.mkt-head-cta { display: flex; align-items: center; justify-content: flex-end; gap: 12px; flex-wrap: wrap; min-width: 0; }
+.mkt-head-cta { display: flex; align-items: center; justify-content: flex-end; gap: 18px; flex-wrap: wrap; min-width: 0; }
+.mkt-head-signin { height: 46px; padding: 0 4px; font-size: 17px; }
 @media (max-width: 560px) {
-  .mkt-head-cta { gap: 8px; }
-  .mkt-head-cta .mkt-btn { padding: 0 14px; font-size: 16px; }
+  .mkt-head-cta { gap: 12px; }
+  .mkt-head-cta .mkt-btn--primary { padding: 0 14px; font-size: 16px; }
 }
 @media (max-width: 860px) { .mkt-nav { display: none; } }
 
@@ -145,6 +148,7 @@
 
 /* trust */
 .trust-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+.trust-grid--4 { grid-template-columns: repeat(2, 1fr); margin-top: 32px; }
 .trust { display: flex; gap: 14px; align-items: flex-start; background: var(--m-surface); border: 1px solid var(--m-line); border-radius: var(--m-radius); padding: 22px; box-shadow: var(--m-shadow); }
 .trust h3 { margin: 0 0 4px; font-size: 18px; }
 .trust p { margin: 0; color: var(--m-soft); font-size: 15px; }
@@ -154,6 +158,8 @@
 .quote { max-width: 820px; margin: 0 auto; text-align: center; }
 .quote p { font-size: 26px; line-height: 1.4; font-weight: 600; letter-spacing: -0.01em; }
 .quote__who { color: var(--m-soft); font-weight: 600; margin-top: 14px; }
+.quote--inline { margin-top: 48px; }
+.quote--inline p { font-size: 22px; }
 
 /* CTA band */
 .cta-band { background: linear-gradient(140deg, #2563eb, #1d4ed8); border-radius: 28px; padding: 48px; text-align: center; color: #fff; box-shadow: var(--m-shadow-lg); }
@@ -165,6 +171,7 @@
 /* footer */
 .mkt-footer { border-top: 1px solid var(--m-line); padding: 32px 0; color: var(--m-soft); }
 .mkt-footer__in { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; font-size: 15px; }
+.mkt-footer__note { margin-top: 16px; margin-bottom: 0; font-size: 14px; line-height: 1.5; }
 
 /* ---------- onboarding wizard + sign in ---------- */
 .ob { min-height: 100vh; display: flex; flex-direction: column; }
@@ -183,14 +190,17 @@
 .ob-choice small { display: block; font-weight: 500; color: var(--m-soft); font-size: 14px; margin-top: 2px; }
 .ob-choice__r { margin-left: auto; }
 .ob-field { margin-bottom: 16px; }
-.ob-field label { display: block; font-weight: 700; font-size: 15px; margin-bottom: 7px; }
-.ob-input { width: 100%; height: 56px; padding: 0 16px; font-size: 19px; border: 2px solid var(--m-line); border-radius: 13px; background: #fff; color: var(--m-ink); font-family: inherit; }
+.ob-field label { display: block; font-weight: 700; font-size: 17px; margin-bottom: 8px; color: var(--m-ink); }
+.ob-input { width: 100%; height: 58px; padding: 0 16px; font-size: 19px; border: 2px solid var(--m-line-strong); border-radius: 13px; background: #fff; color: var(--m-ink); font-family: inherit; }
+.ob-input::placeholder { color: #6b7a90; opacity: 1; }
 .ob-input:focus { outline: 3px solid #bcd2fb; border-color: var(--m-primary); }
+.ob-input[aria-invalid="true"] { border-color: var(--m-red); }
+.ob__lead { color: var(--m-soft); font-size: 17px; line-height: 1.5; margin: 0 0 20px; }
 .ob-input--area { height: auto; padding: 12px 16px; }
 .ob-ages { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 12px; }
 .ob-age { height: 52px; border: 2px solid var(--m-line); border-radius: 12px; background: #fff; font-weight: 700; font-size: 16px; cursor: pointer; color: var(--m-ink); }
 .ob-age.is-active { border-color: var(--m-primary); background: var(--m-blue-bg); color: var(--m-primary-d); }
-.ob__err { background: var(--m-red-bg); color: var(--m-red); padding: 12px 14px; border-radius: 12px; font-weight: 600; margin-bottom: 14px; }
+.ob__err { background: var(--m-red-bg); color: #b91c1c; padding: 12px 14px; border-radius: 12px; font-weight: 600; margin-bottom: 14px; }
 .ob__actions { display: flex; gap: 12px; margin-top: 22px; }
 .ob__actions .mkt-btn { flex: 1; }
 .ob-passwrap { position: relative; }
@@ -253,3 +263,22 @@
 }
 .google-btn:active { transform: scale(0.98); }
 .google-btn:disabled { opacity: 0.7; cursor: default; }
+
+/* Segmented switch: "For me / For my family" in the hero and the sign-in
+   "I use MyDay / I'm a family caregiver" choice. Big, obvious targets. */
+.mkt-seg { display: inline-flex; gap: 4px; padding: 4px; border-radius: 14px; background: var(--m-surface); border: 1.5px solid var(--m-line-strong); max-width: 100%; }
+.mkt-seg__opt { flex: 1; min-height: 48px; padding: 0 18px; border: 0; border-radius: 10px; background: transparent; color: var(--m-ink); font: inherit; font-size: 17px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+.mkt-seg__opt:hover { background: var(--m-blue-bg); }
+.mkt-seg__opt.is-on { background: var(--m-primary); color: #fff; box-shadow: 0 6px 14px rgba(37, 99, 235, 0.3); }
+.mkt-seg__opt:focus-visible { outline: 3px solid #bcd2fb; outline-offset: 2px; }
+.mkt-seg--block { display: flex; width: 100%; margin-bottom: 22px; }
+.mkt-seg--block .mkt-seg__opt { white-space: normal; padding: 8px 10px; line-height: 1.2; }
+@media (max-width: 400px) { .mkt-seg__opt { padding: 0 12px; font-size: 16px; } }
+
+/* Centered button row under a section (families, install). */
+.mkt-center-cta { display: flex; justify-content: center; gap: 14px; flex-wrap: wrap; margin-top: 36px; }
+.mkt-center-cta--tight { margin: -16px 0 36px; }
+
+/* Medical disclaimer under the privacy cards. */
+.mkt-disclaimer { display: flex; align-items: flex-start; justify-content: center; gap: 10px; max-width: 70ch; margin: 28px auto 0; color: var(--m-soft); font-size: 15px; line-height: 1.5; text-align: center; }
+.mkt-disclaimer svg { flex: none; margin-top: 2px; }

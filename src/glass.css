@@ -827,8 +827,11 @@ html[data-motion='calm'] .mkt [data-reveal] { opacity: 1; transform: none; }
 .ob-choice { border-width: 1.5px; border-radius: 18px; padding: 15px 16px; font-size: 16px; background: rgba(255, 255, 255, 0.7); transition: transform 0.3s var(--ease-spring), border-color 0.2s ease, background-color 0.2s ease; }
 .ob-choice:active { transform: scale(0.98); }
 .ob-choice.is-active { background: rgba(10, 108, 255, 0.08); }
-.ob-input { height: 50px; font-size: 16px; border-width: 1px; border-color: #dfe4ee; border-radius: 13px; background: rgba(255, 255, 255, 0.85); transition: border-color 0.2s ease, box-shadow 0.2s ease; }
+/* Inputs keep a visible 2px border and large text: a faint 1px line was hard
+   to find for older eyes, and 18px stops iOS zooming on focus too. */
+.ob-input { height: 56px; font-size: 18px; border-width: 2px; border-color: var(--m-line-strong); border-radius: 13px; background: rgba(255, 255, 255, 0.92); transition: border-color 0.2s ease, box-shadow 0.2s ease; }
 .ob-input:focus { outline: none; border-color: var(--m-primary); box-shadow: 0 0 0 4px rgba(10, 108, 255, 0.16); }
+.ob-input[aria-invalid="true"] { border-color: var(--m-red); }
 .ob-age { border-width: 1.5px; border-radius: 12px; background: rgba(255, 255, 255, 0.7); }
 
 /* =====================================================================
