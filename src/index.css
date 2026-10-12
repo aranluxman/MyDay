@@ -2473,3 +2473,7 @@ iframe.skiptranslate, .goog-te-banner-frame, #goog-gt-tt, .goog-te-balloon-frame
 .gnudge__ic { width: 48px; height: 48px; flex: none; border-radius: 14px; display: grid; place-items: center; color: #fff; background: linear-gradient(160deg, #4fe0b0, #1fb58b); }
 .gnudge__t { font-size: 19px; font-weight: 800; }
 .gnudge__d { margin: 4px 0 0; color: var(--ink-soft); font-size: 16px; }
+
+/* Profile › Guardians: invite or become a guardian */
+.guardian-choice { display: flex; flex-direction: column; gap: 10px; }
+@media (min-width: 600px) { .guardian-choice { flex-direction: row; } .guardian-choice .btn { flex: 1; } }

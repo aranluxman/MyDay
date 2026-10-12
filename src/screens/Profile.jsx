@@ -243,7 +243,16 @@ export default function Profile() {
           taken your medicines, and gets an alert if you miss one. Tap <b>Show code</b> and read them the
           6-digit code — it works for 15 minutes and once only. They don't need an account.
         </p>
-        <Button icon="plus" onClick={() => setInviteOpen(true)}>Invite a guardian</Button>
+        {/* Two ways in, side by side: someone can watch over you, or you can
+            watch over someone who invited you. */}
+        <p style={{ margin: '0 0 10px', fontWeight: 700 }}>You can invite a guardian, or become a guardian for someone else.</p>
+        <div className="guardian-choice">
+          <Button icon="plus" onClick={() => setInviteOpen(true)}>Invite a guardian</Button>
+          <Button variant="ghost" icon="user" onClick={() => navigate('/guardian')}>Become a guardian</Button>
+        </div>
+        <p className="muted" style={{ margin: '8px 0 0' }}>
+          <b>Become a guardian</b> if a family member gave you their 6-digit code, so you can check on their medicines.
+        </p>
         <p className="muted" style={{ margin: '12px 0' }}>
           They can only <b>look</b>. A guardian can never change your medicines or appointments, and can never
           mark a dose as taken. A guardian is not an emergency service: nobody is called or alerted for you
