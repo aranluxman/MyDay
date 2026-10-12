@@ -252,7 +252,7 @@ h3.subsection { font-size: 21px; margin: 8px 0 0; }
 .g-account-list { display: flex; flex-direction: column; gap: 10px; }
 .g-account-person { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
 .g-account-person div { display: flex; flex-direction: column; gap: 3px; }
-.g-account-person span { color: var(--ink-soft); }
+.g-account-person > div > span { color: var(--ink-soft); }
 .g-account-person .btn { font-size: 16px; }
 .g-account-remove { min-height: 44px; margin-top: 8px; border: 0; background: none; color: var(--bad-ink); font: inherit; font-weight: 700; cursor: pointer; }
 .g-account-join h2 { margin: 0 0 6px; }
@@ -455,7 +455,7 @@ h3.subsection { font-size: 21px; margin: 8px 0 0; }
 }
 [data-theme='ocean'] {
   --bg: #eaf3fb; --surface: #ffffff; --surface-2: #e0eefb; --ink: #0f2747; --ink-soft: #4a6080; --line: #cce0f2;
-  --primary: #2060eb; --primary-2: #1e6ff5; --on-primary: #fff;
+  --primary: #1a52cc; --primary-2: #1e6ff5; --on-primary: #fff;
 }
 [data-theme='rose'] {
   --bg: #fbeef4; --surface: #ffffff; --surface-2: #f6e0eb; --ink: #3a1f2e; --ink-soft: #6b4a5a; --line: #ecccdb;
@@ -1567,9 +1567,10 @@ html[data-motion='calm'] .wiz__disclose svg { transition: none !important; }
   background: var(--surface-2); color: var(--ink-soft); font-size: 14px; font-weight: 700;
 }
 .medrow__off {
-  display: flex; align-items: center; gap: 5px; margin-top: 6px;
-  font-size: 14px; font-weight: 700; color: var(--warn-ink);
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px;
+  font-size: 16px; font-weight: 700; color: var(--warn-ink);
 }
+.medrow__off > span { display: inline-flex; align-items: center; gap: 6px; }
 .dose__when { margin-top: 4px; font-size: 15px; font-weight: 700; color: var(--good-ink); }
 /* The same line on a skipped dose must not be green: "not today" is neither a
    success nor a failure, and green here reads as "taken". */
@@ -2472,3 +2473,7 @@ iframe.skiptranslate, .goog-te-banner-frame, #goog-gt-tt, .goog-te-balloon-frame
 .gnudge__ic { width: 48px; height: 48px; flex: none; border-radius: 14px; display: grid; place-items: center; color: #fff; background: linear-gradient(160deg, #4fe0b0, #1fb58b); }
 .gnudge__t { font-size: 19px; font-weight: 800; }
 .gnudge__d { margin: 4px 0 0; color: var(--ink-soft); font-size: 16px; }
+
+/* Profile › Guardians: invite or become a guardian */
+.guardian-choice { display: flex; flex-direction: column; gap: 10px; }
+@media (min-width: 600px) { .guardian-choice { flex-direction: row; } .guardian-choice .btn { flex: 1; } }

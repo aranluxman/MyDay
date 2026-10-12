@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useDoseActions } from '../hooks/useDoseActions.js';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext.jsx';
@@ -8,8 +8,7 @@ import { useAsync } from '../hooks/useAsync.js';
 import { Card, Button, Avatar, Skeleton, SkeletonCard } from '../components/ui.jsx';
 import { Icon } from '../components/Icon.jsx';
 import { MedCalendar, WeekStrip } from '../components/MedCalendar.jsx';
-import { useSettings } from '../context/SettingsContext.jsx';
-import { todaysDoses, upcomingAppointments, playedTodayCount, listGuardians, listMedications } from '../lib/db.js';
+import { todaysDoses, upcomingAppointments, playedTodayCount, listGuardians, listMedications, listContacts } from '../lib/db.js';
 import { prettyTime, prettyDate, localDateStr } from '../lib/format.js';
 import { profileCompleteness } from '../lib/appearance.js';
 import { summarise, sortForDisplay, doseState, STATE_UI } from '../lib/doseState.js';
@@ -17,31 +16,39 @@ import { deliveryStatus } from '../lib/notifications.js';
 import { pushSupported } from '../lib/push.js';
 import { platformTag } from '../lib/guardian.js';
 import { listAccountGuardians } from '../lib/guardianAccount.js';
+import { playAlarmOnce } from '../lib/alarm.js';
 import { useInstallPrompt } from '../hooks/useInstallPrompt.js';
 
 export default function Home() {
   const { profile } = useApp();
   const ui = useUI();
   const { installed } = useInstallPrompt();
-  const { settings } = useSettings();
   const navigate = useNavigate();
   const [fullMonth, setFullMonth] = useState(false);
   const reminderProblem = useReminderProblem(installed);
   const { data, loading, error, reload } = useAsync(async () => {
     // Guardians are a nudge, not the day: if they fail to load, show nothing.
-    const [doses, appts, games, guardians, watching, meds] = await Promise.all([
+    const [doses, appts, games, guardians, watching, meds, contacts] = await Promise.all([
       todaysDoses(), upcomingAppointments(), playedTodayCount(), listGuardians().catch(() => null),
-      listAccountGuardians().catch(() => []), listMedications().catch(() => []),
+      listAccountGuardians().catch(() => []), listMedications().catch(() => []), listContacts().catch(() => null),
     ]);
-    return { doses, appts, games, guardians, watching, meds };
+    return { doses, appts, games, guardians, watching, meds, contacts };
   });
   useDayRefresh(reload);
   const actions = useDoseActions(reload);
+  // Opening MyDay with a dose that has just been missed sounds the loud alarm
+  // for it, once. Doses missed on earlier days do not.
+  useEffect(() => {
+    if (!data?.doses) return;
+    const windowMinutes = profile?.alert_window_minutes ?? 60;
+    const fresh = data.doses.find((d) => doseState(d, { windowMinutes }) === 'missed');
+    if (fresh) playAlarmOnce(fresh.id);
+  }, [data, profile?.alert_window_minutes]);
 
   if (loading) return <HomeSkeleton />;
   if (error) return <Card className="center"><p className="lead">We could not load your information.</p><Button onClick={reload}>Try again</Button></Card>;
 
-  const { doses, appts, games, guardians, watching, meds } = data;
+  const { doses, appts, games, guardians, watching, meds, contacts } = data;
   // Every number on this screen now comes from one place, so the header, the
   // counters, the glance chip and the calendar cannot drift apart. They used
   // to be computed separately here, which is how "0 of 3 taken" ended up
@@ -76,22 +83,9 @@ export default function Home() {
       {/* One urgent banner at a time: while reminders are broken, the guardian
           nudge shrinks to a single quiet line instead of stacking a second
           full card of things to do on arrival. */}
-      <GuardianNudge guardians={guardians} quiet={!!reminderProblem.status} />
+      <ContactsNudge contacts={contacts} />
 
-      <section className="home-watching" aria-label="People I watch">
-          <h3 className="subsection">People I watch</h3>
-          {!watching.length && <p className="muted">Helping someone with their medicines? Enter their guardian code to check on them here.</p>}
-          {watching.map((person) => (
-            <button key={person.id} type="button" className="home-watching__person"
-              onClick={() => navigate('/guardian', { state: { linkId: person.id } })}>
-              <span><b>Check on {person.name}</b><small>See their medicine updates</small></span>
-              <Icon name="chevron" size={22} />
-            </button>
-          ))}
-          <button type="button" className="home-watching__all" onClick={() => navigate('/guardian')}>
-            {watching.length ? 'Manage guardian connections' : 'Enter a guardian code'}
-          </button>
-      </section>
+      <GuardianNudge guardians={guardians} quiet={!!reminderProblem.status} />
 
       {completeness.pct < 100 && (
         <Card onClick={() => navigate('/profile')} role="button" tabIndex={0} aria-label={`Profile progress ${completeness.pct} percent — open profile`}
@@ -167,6 +161,21 @@ export default function Home() {
         </Card>
       )}
 
+      <section className="home-watching" aria-label="People I watch">
+          <h3 className="subsection">People I watch</h3>
+          {!watching.length && <p className="muted">Helping someone with their medicines? Enter their guardian code to check on them here.</p>}
+          {watching.map((person) => (
+            <button key={person.id} type="button" className="home-watching__person"
+              onClick={() => navigate('/guardian', { state: { linkId: person.id } })}>
+              <span><b>Check on {person.name}</b><small>See their medicine updates</small></span>
+              <Icon name="chevron" size={22} />
+            </button>
+          ))}
+          <button type="button" className="home-watching__all" onClick={() => navigate('/guardian')}>
+            {watching.length ? 'Manage guardian connections' : 'Enter a guardian code'}
+          </button>
+      </section>
+
       {/* From 768px the glance chips and the calendar sit side by side rather
           than stacking into a long scroll on a wide screen. */}
       <div className="two-col">
@@ -193,7 +202,7 @@ export default function Home() {
 
       {/* This week by default: seven days answer "how am I doing?" at a glance,
           and the full month is one tap away for anyone who wants it. */}
-      {settings.homeCalendar && (
+      {(
         <section aria-label={fullMonth ? 'Medicine calendar for this month' : 'Medicines this week'}>
           <h3 className="subsection" style={{ margin: '0 0 8px' }}>{fullMonth ? 'Calendar' : 'This week'}</h3>
           {fullMonth ? (
@@ -211,7 +220,7 @@ export default function Home() {
 
       </div>
 
-      {settings.homeGames && games === 0 && (
+      {games === 0 && (
         <Card className="nudge" onClick={() => navigate('/games')}>
           <Icon name="brain" size={28} />
           <span>You have not played a brain game today. A quick game keeps the mind sharp.</span>
@@ -312,6 +321,36 @@ function GuardianNudge({ guardians, quiet }) {
         <Button size="sm" icon="plus" onClick={open}>
           {waiting ? 'Show code' : 'Set it up'}
         </Button>
+      </div>
+    </Card>
+  );
+}
+
+// No one to call yet: a pharmacy, doctor or family number should be one tap
+// away before it is needed. Shown until any contact is saved; "Not now" quiets
+// it for a week.
+const CONTACTS_NUDGE_KEY = 'myday_contacts_nudge_hidden_until';
+function ContactsNudge({ contacts }) {
+  const navigate = useNavigate();
+  const [hidden, setHidden] = useState(() => {
+    try { return Number(localStorage.getItem(CONTACTS_NUDGE_KEY) || 0) > Date.now(); } catch { return false; }
+  });
+  if (!contacts || contacts.length || hidden) return null;
+  return (
+    <Card className="gnudge">
+      <div className="gnudge__head">
+        <span className="gnudge__ic"><Icon name="phone" size={24} /></span>
+        <div>
+          <div className="gnudge__t">Add someone to call</div>
+          <p className="gnudge__d">Save a family member, your doctor or your pharmacy so help is one tap away.</p>
+        </div>
+      </div>
+      <div className="btn-row">
+        <Button variant="ghost" size="sm" onClick={() => {
+          setHidden(true);
+          try { localStorage.setItem(CONTACTS_NUDGE_KEY, String(Date.now() + 7 * 86400000)); } catch {}
+        }}>Not now</Button>
+        <Button size="sm" icon="plus" onClick={() => navigate('/profile', { state: { add: 'contact' } })}>Add a contact</Button>
       </div>
     </Card>
   );

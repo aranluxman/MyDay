@@ -13,7 +13,7 @@ import { MedicineInsights } from '../components/MedicineInsights.jsx';
 import { useApp } from '../context/AppContext.jsx';
 import {
   listMedications, deleteMedication, restoreMedication, copyOfMedication,
-  todaysDoses, dosesForDate, dosesInRange, medPhotoUrl, listContacts, recordRefill,
+  todaysDoses, dosesForDate, dosesInRange, medPhotoUrl, listContacts, recordRefill, setMedicationReminders,
 } from '../lib/db.js';
 import { prettyTime, prettyClock, prettyDate, localDateStr } from '../lib/format.js';
 import { doseState, sortForDisplay, summarise, adherence, canMarkTaken, unlocksAt, STATE_UI } from '../lib/doseState.js';
@@ -464,7 +464,7 @@ function MedicinesView({ state, onAdd, onEdit, onRemove, onDuplicate, onChanged 
       {!meds.length && (
         <HeroEmpty icon="pill" title="No medicines yet"
           action={<Button icon="plus" onClick={onAdd}>Add medicines</Button>}>
-          Type a medicine or scan its label. Review one or several before saving.
+          Type each medicine, check the list, then save them together.
         </HeroEmpty>
       )}
       {!!meds.length && (
@@ -500,6 +500,7 @@ function MedicinesView({ state, onAdd, onEdit, onRemove, onDuplicate, onChanged 
 const capitalise = (t) => t.charAt(0).toUpperCase() + t.slice(1);
 
 function MedicineRow({ med: m, contacts, onEdit, onRemove, onDuplicate, onChanged }) {
+  const ui = useUI();
   const [photo, setPhoto] = useState(null);
   const [expanded, setExpanded] = useState(false);
   const [refilling, setRefilling] = useState(false);
@@ -556,8 +557,16 @@ function MedicineRow({ med: m, contacts, onEdit, onRemove, onDuplicate, onChange
           {m.instructions && <div className="card__meta">{m.instructions}</div>}
           {m.note && <div className="card__meta">{m.note}</div>}
           {supply && <div className={`medrow__supply${low ? ' is-low' : ''}`}><Icon name={low ? 'alert' : 'pill'} size={16} /> {supply}</div>}
-          {!m.reminders_enabled && (
-            <div className="medrow__off"><Icon name="bell" size={15} /> Reminders off for this one</div>
+          {/* The per-medicine switch left Settings; turning a silenced medicine
+              back on lives here, next to the medicine itself. */}
+          {!m.reminders_enabled && !asNeeded && (
+            <div className="medrow__off">
+              <span><Icon name="bell" size={16} /> Reminders are off for this medicine</span>
+              <Button size="sm" full={false} icon="bell" onClick={async () => {
+                try { await setMedicationReminders(m.id, { enabled: true }); ui.toast(`Reminders on for ${m.name}.`); onChanged?.(); }
+                catch { ui.toast('Could not save.', 'bad'); }
+              }}>Turn reminders on</Button>
+            </div>
           )}
           {(pharmacy || prescriber) && (
             <div className="medrow__contacts">

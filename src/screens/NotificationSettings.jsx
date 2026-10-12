@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Icon } from '../components/Icon.jsx';
-import { medIcon } from '../lib/medIcon.js';
 import { InstallCard, detectDevice } from '../components/InstallCard.jsx';
 import { Card, Button, Toggle, SegmentedControl, SkeletonCard, Collapsible } from '../components/ui.jsx';
 import { useUI } from '../context/UIContext.jsx';
@@ -12,13 +11,14 @@ import { pushSupported, enablePush } from '../lib/push.js';
 import { supabase } from '../lib/supabase.js';
 import {
   getNotificationPrefs, saveNotificationPrefs, listNotificationDevices,
-  forgetNotificationDevice, registerThisDevice, listMedications, setMedicationReminders,
+  forgetNotificationDevice, registerThisDevice, listMedications,
 } from '../lib/db.js';
 import {
   NOTIFICATION_TYPES, APPOINTMENT_LEADS, SNOOZE_CHOICES, REPEAT_EVERY_CHOICES,
   REPEAT_TIMES_CHOICES, deliveryStatus,
 } from '../lib/notifications.js';
 import { deviceLabel, platformTag } from '../lib/guardian.js';
+import { setAlarmEnabled } from '../lib/alarm.js';
 import { prettyClock, prettyTime, shortDate } from '../lib/format.js';
 import { readinessChecklist, describeDevice } from '../lib/readiness.js';
 
@@ -45,6 +45,8 @@ export default function NotificationSettings() {
 
   const [prefs, setPrefs] = useState(null);
   const [saving, setSaving] = useState(false);
+  // The in-app missed-dose alarm follows the Sound and All notifications switches.
+  useEffect(() => { if (prefs) setAlarmEnabled(prefs.sound !== false && prefs.master !== false); }, [prefs?.sound, prefs?.master]);
   const [permission, setPermission] = useState(
     () => (typeof Notification !== 'undefined' ? Notification.permission : 'default')
   );
@@ -334,49 +336,12 @@ export default function NotificationSettings() {
       {/* ---- sound and feel ---- */}
       <Collapsible id="ns-sound" icon="bell" title="Sound and vibration"
         summary={[prefs.sound ? 'Sound on' : 'Sound off', prefs.vibrate ? 'vibration on' : 'vibration off'].join(' · ')}>
-        <Row id="ns-sound-on" title="Sound" desc="Where your device allows it.">
+        <Row id="ns-sound-on" title="Sound" desc="A loud alarm plays once if you miss a dose while MyDay is open.">
           <Toggle checked={!!prefs.sound} onChange={(v) => update({ sound: v })} labelledBy="ns-sound-on-t" describedBy="ns-sound-on-d" />
         </Row>
-        <Row id="ns-vibrate" title="Vibration" desc="A long-short-long buzz for a missed dose.">
+        <Row id="ns-vibrate" title="Vibration" desc="A strong, long buzz for a missed dose.">
           <Toggle checked={!!prefs.vibrate} onChange={(v) => update({ vibrate: v })} labelledBy="ns-vibrate-t" describedBy="ns-vibrate-d" />
         </Row>
-      </Collapsible>
-
-      {/* ---- per medicine ---- */}
-      <Collapsible id="ns-meds" icon="pill" title="Individual medicines"
-        summary={meds.data ? `${meds.data.filter((m) => m.reminders_enabled !== false && m.frequency !== 'as_needed').length} of ${meds.data.filter((m) => m.frequency !== 'as_needed').length} with reminders` : ''}>
-        <p className="muted" style={{ margin: '0 0 10px' }}>
-          Turn reminders off for one medicine without changing the rest.
-        </p>
-        {meds.loading ? <SkeletonCard lines={2} /> : !meds.data?.length ? (
-          <p className="muted" style={{ margin: 0 }}>You have not added any medicines yet.</p>
-        ) : (
-          <ul className="ns-meds">
-            {meds.data.map((m) => (
-              <li key={m.id} className="ns-med">
-                <span className="dose__chip" style={{ background: m.color || 'var(--primary)' }} aria-hidden="true">
-                  <Icon name={medIcon(m)} size={18} />
-                </span>
-                <div className="ns-med__main">
-                  <div className="ns-med__name" translate="no">{m.name}</div>
-                  <div className="ns-med__meta">
-                    {m.frequency === 'as_needed'
-                      ? 'Only when needed — never reminded'
-                      : (m.times || []).map(prettyTime).join(', ')}
-                  </div>
-                </div>
-                {m.frequency !== 'as_needed' && (
-                  <Toggle checked={m.reminders_enabled !== false}
-                    label={`Reminders for ${m.name}`}
-                    onChange={async (v) => {
-                      try { await setMedicationReminders(m.id, { enabled: v }); meds.reload(); }
-                      catch { ui.toast('Could not save.', 'bad'); }
-                    }} />
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
       </Collapsible>
 
       {/* ---- devices ---- */}
@@ -424,9 +389,6 @@ export default function NotificationSettings() {
             })}
           </ul>
         )}
-        <p className="muted" style={{ margin: '12px 0 0', fontSize: 15 }}>
-          Guardian devices are listed separately under <b>Guardians</b> in Profile.
-        </p>
       </Collapsible>
 
       {saving && <span className="sr-only" role="status">Saving…</span>}
