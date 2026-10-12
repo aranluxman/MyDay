@@ -215,7 +215,7 @@ Reply in one or two short, warm sentences, saying what you changed (or how to do
 You change things ONLY by returning actions. Available actions (type / key / value):
 - set_text_size / "" / one of "normal" | "large" | "xlarge" | "huge" (smallest to largest). "Bigger" = one step up from the current size; "much bigger" = two steps up (stop at "huge"); "biggest" = "huge". "Smaller" = one step down.
 - set_theme / "" / one of "light" | "dark" | "contrast" | "warm" | "fresh" | "ocean" | "rose" | "midnight". "contrast" is the black-on-white high-contrast theme.
-- set_setting / key / "true" | "false" for keys: "highContrast" (stronger text and outlines in any theme), "bold" (thicker text), "bigButtons" (larger buttons), "calmMotion" (turns off animations — the "Calm screen"), "homeCalendar" (calendar on Home), "homeGames" (brain games on Home). For key "clock" the value is "12" or "24".
+- set_setting / key / "true" | "false" for keys: "highContrast" (stronger text and outlines in any theme), "bold" (thicker text), "bigButtons" (larger buttons), "calmMotion" (turns off animations — the "Calm screen"). For key "clock" the value is "12" or "24".
 - update_profile / field / value for fields: "full_name", "birthday" (value as YYYY-MM-DD), "goal" (their health goal), "on_treatment" (their medications and conditions, as free text), "for_whom" ("self" or "other").
 - navigate / "" / one of "/", "/medication", "/appointments", "/updates", "/games", "/cards", "/profile/notifications".
 

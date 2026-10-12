@@ -11,8 +11,8 @@ const TOPICS = [
     id: 'bar', icon: 'home', title: 'Getting around',
     like: 'The bar at the bottom is like the rooms in a house — tap one to walk into it.',
     steps: [
-      'Look at the bottom of the screen. There are six buttons.',
-      'Home shows your day. Updates is your health diary. Medicine is your pill list. Visits are your appointments. Games are brain games. Profile is your settings.',
+      'Look at the bottom of the screen. There are five buttons.',
+      'Home shows your day. Medicine is your pill list. Updates is your health diary. Games are brain games. More opens Visits (your appointments), Profile (your settings), My cards and Alerts.',
       'The button that is lit up blue is the room you are in now.',
     ],
     go: '/',
@@ -32,7 +32,7 @@ const TOPICS = [
     id: 'add', icon: 'plus', title: 'Adding a medicine',
     like: 'The blue + button is like a “new” drawer — everything you can add is inside.',
     steps: [
-      'Tap the round blue + button near the bottom right.',
+      'Tap the blue “Add” button near the bottom right.',
       'A small menu opens. Tap “Add a medicine”.',
       'Answer one question at a time: its name, how much, what time, how often.',
       'Tip: on the Medicine page you can tap “Add from a photo” and take up to 3 pictures of the box (front, back and the pharmacy label) — MyDay reads them all and fills it in for you to check.',
@@ -56,7 +56,7 @@ const TOPICS = [
     id: 'visits', icon: 'calendar', title: 'Doctor visits',
     like: 'Like the calendar on your fridge, but it reminds you before you need to leave.',
     steps: [
-      'Tap the + button, then “Add a visit” — or open Visits at the bottom.',
+      'Tap the + button, then “Add a visit” — or tap More at the bottom, then Visits.',
       'Type who you are seeing, the day and the time.',
       'MyDay reminds you before the visit.',
     ],

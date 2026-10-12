@@ -10,13 +10,13 @@ import { Modal } from './ui.jsx';
 const ITEMS = [
   { to: '/', icon: 'home', label: 'Home', end: true, phone: true },
   { to: '/medication', icon: 'pill', label: 'Medicine', phone: true },
-  { to: '/appointments', icon: 'calendar', label: 'Visits', phone: true },
-  { to: '/updates', icon: 'pulse', label: 'Updates' },
+  { to: '/updates', icon: 'pulse', label: 'Updates', phone: true },
+  { to: '/appointments', icon: 'calendar', label: 'Visits' },
   { to: '/games', icon: 'brain', label: 'Games', phone: true },
   { to: '/profile', icon: 'user', label: 'Profile' },
 ];
 const MORE = [
-  { to: '/updates', icon: 'pulse', label: 'Updates', desc: 'Your health notes' },
+  { to: '/appointments', icon: 'calendar', label: 'Visits', desc: 'Doctor and clinic appointments' },
   { to: '/profile', icon: 'user', label: 'Profile', desc: 'Your details and preferences' },
   { to: '/cards', icon: 'cross', label: 'My cards', desc: 'Health and insurance cards' },
   { to: '/help', icon: 'info', label: 'How to use MyDay', desc: 'A step-by-step guide' },

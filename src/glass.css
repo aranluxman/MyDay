@@ -21,9 +21,9 @@
   --surface: #ffffff;
   --surface-2: #f1f3f8;
   --ink: #111217;
-  --ink-soft: #6b6f7b;
+  --ink-soft: #565a66;
   --line: #e2e5ee;
-  --primary: #0a6cff;
+  --primary: #0059d6;
   --primary-2: #3d8bff;
   --on-primary: #ffffff;
   --good: #1a9442; --good-bg: #e3f6e8; --good-ink: #17813a;
@@ -41,6 +41,9 @@
   --line: #2c2e39;
   --primary: #3d8bff;
   --primary-2: #68a5ff;
+  /* Bright blue reads well as link text on dark, but white on it is only
+     3.4:1, so filled buttons use a deeper blue (5.3:1 with white). */
+  --primary-fill: #1a66da;
   --on-primary: #ffffff;
   --good: #34c759; --good-bg: rgba(52, 199, 89, 0.16); --good-ink: #4cd872;
   --warn: #ff9f0a; --warn-bg: rgba(255, 159, 10, 0.16); --warn-ink: #ffb340;
@@ -267,7 +270,7 @@ h3.subsection { font-size: 18px; }
 /* ---------- FAB ---------- */
 .fab {
   width: 56px; height: 56px; right: 18px;
-  background: linear-gradient(160deg, var(--primary-2), var(--primary));
+  background: var(--primary-fill, var(--primary));
   box-shadow: 0 10px 30px color-mix(in srgb, var(--primary) 45%, transparent), 0 1px 0 rgba(255, 255, 255, 0.35) inset;
   transition: transform 0.4s var(--ease-spring), box-shadow 0.3s ease;
   animation: fab-in 0.6s var(--ease-spring) 0.2s both;
@@ -275,15 +278,21 @@ h3.subsection { font-size: 18px; }
 .fab svg { width: 26px; height: 26px; transition: transform 0.45s var(--ease-spring); }
 .fab.is-open svg { transform: rotate(135deg); }
 .fab:active { transform: scale(0.9); }
-.fab--labeled { height: 52px; padding: 0 20px 0 16px; display: inline-flex; align-items: center; }
-.fab__label { font-size: 16px; font-weight: 700; }
+/* The labelled Home button is a pill, not a circle: the 56px round .fab
+   above used to win, squeezing "Add" off-centre and hiding the plus. */
+.fab--labeled {
+  width: auto; min-width: 112px; height: 56px; padding: 0 22px 0 18px; gap: 8px;
+  border-radius: 999px; display: inline-flex; align-items: center; justify-content: center;
+}
+.fab--labeled svg { flex: none; }
+.fab__label { font-size: 18px; font-weight: 800; line-height: 1; color: var(--on-primary); white-space: nowrap; }
 @keyframes fab-in { from { transform: scale(0.4); opacity: 0; } to { transform: none; opacity: 1; } }
 
 /* ---------- buttons ---------- */
 .btn {
   min-height: var(--tap); padding: 11px 18px; gap: 8px;
   font-size: 16px; font-weight: 650; border-radius: 14px;
-  background: var(--primary);
+  background: var(--primary-fill, var(--primary));
   box-shadow: 0 6px 18px color-mix(in srgb, var(--primary) 28%, transparent), 0 1px 0 rgba(255, 255, 255, 0.25) inset;
   transition: transform 0.35s var(--ease-spring), box-shadow 0.25s ease, filter 0.2s ease, opacity 0.2s ease;
 }
@@ -586,7 +595,7 @@ html[data-motion='calm'] .add-menu, html[data-motion='calm'] .add-menu__item, ht
 .cal { padding: 14px 12px 12px; border-radius: var(--radius); }
 .cal__title { font-size: 17px; font-weight: 750; }
 .cal__nav { width: 36px; height: 36px; border-radius: 50%; border: 0; background: color-mix(in srgb, var(--ink-soft) 12%, transparent); }
-.cal__weekdays span { font-size: 11px; font-weight: 700; }
+.cal__weekdays span { font-size: 13px; font-weight: 700; }
 .cal__cell { min-height: 38px; border-radius: 50%; border-width: 1.5px; }
 .cal__day { font-size: 15px; font-weight: 600; }
 .cal__mark { font-size: 10px; }
@@ -633,7 +642,7 @@ html[data-motion='calm'] .add-menu, html[data-motion='calm'] .add-menu__item, ht
 /* ---------- appointments ---------- */
 .appt__date { width: 52px; border-radius: 14px; background: color-mix(in srgb, var(--primary) 12%, transparent); }
 .appt__d { font-size: 21px; }
-.appt__m { font-size: 11px; font-weight: 700; }
+.appt__m { font-size: 13px; font-weight: 700; }
 .appt__act {
   min-height: 40px; min-width: 96px; padding: 8px 12px; border-radius: 999px; border: 0;
   background: color-mix(in srgb, var(--primary) 10%, transparent); font-size: 14px; font-weight: 650;

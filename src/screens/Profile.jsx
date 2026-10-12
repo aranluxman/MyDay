@@ -6,13 +6,8 @@ import { useAsync } from '../hooks/useAsync.js';
 import { Card, Button, Spinner, Modal, Field, Input, Textarea, EmptyState, SegmentedControl, Avatar, Toggle, Collapsible } from '../components/ui.jsx';
 import { useSettings } from '../context/SettingsContext.jsx';
 import { Icon } from '../components/Icon.jsx';
-import { listContacts, saveContact, deleteContact, listFamilyDevices, saveFamilyDevice, uploadAvatar,
+import { listContacts, saveContact, deleteContact, uploadAvatar,
   createGuardianInvite, listGuardians, deleteGuardian, formatGuardianCode, issueGuardianCode, revokeGuardianDevice, setGuardianShareDiary } from '../lib/db.js';
-import { supabase } from '../lib/supabase.js';
-import { deviceLabel } from '../lib/guardian.js';
-import { pushSupported, enablePush } from '../lib/push.js';
-import { useInstallPrompt } from '../hooks/useInstallPrompt.js';
-import { InstallButton } from '../components/InstallButton.jsx';
 import { LANGUAGES, MORE_LANGUAGES, currentLanguage, setLanguage } from '../lib/translate.js';
 import { ageFromBirthday, prettyClock, shortDate } from '../lib/format.js';
 import { THEMES, TEXT_SIZES, profileCompleteness } from '../lib/appearance.js';
@@ -41,7 +36,7 @@ function lastSeenWords(iso) {
   return `Opened ${shortDate(d.toISOString().slice(0, 10))}`;
 }
 
-const SECTION_IDS = ['access', 'guardians', 'alerts', 'contacts', 'info', 'health', 'language', 'appearance', 'more', 'explore'];
+const SECTION_IDS = ['access', 'guardians', 'contacts', 'info', 'language', 'appearance'];
 
 const typeMeta = (t) => CONTACT_TYPES.find((x) => x.value === t) || CONTACT_TYPES[5];
 
@@ -54,12 +49,6 @@ const FIELD_LABELS = {
   on_treatment: 'List your medications',
   goal: 'Add a health goal',
 };
-const ALERT_WINDOWS = [
-  { value: 15, label: '15 min' },
-  { value: 30, label: '30 min' },
-  { value: 60, label: '1 hour' },
-  { value: 120, label: '2 hours' },
-];
 
 export default function Profile() {
   const { user, profile, theme, setTheme, textSize, setTextSize, signOut, updateProfile, reloadProfile } = useApp();
@@ -71,9 +60,7 @@ export default function Profile() {
   const [uploading, setUploading] = useState(false);
   const [editProfile, setEditProfile] = useState(false);
   const [editContact, setEditContact] = useState(null);
-  const [savingWindow, setSavingWindow] = useState(false);
   const completeness = profileCompleteness(profile);
-  const alertWindow = profile?.alert_window_minutes ?? 60;
 
   async function onPickPhoto(e) {
     const file = e.target.files?.[0];
@@ -89,7 +76,6 @@ export default function Profile() {
     setUploading(false);
   }
   const contacts = useAsync(() => listContacts(), []);
-  const devices = useAsync(() => (pushSupported() ? listFamilyDevices() : Promise.resolve([])), []);
   const guardians = useAsync(() => listGuardians(), []);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteName, setInviteName] = useState('');
@@ -120,12 +106,6 @@ export default function Profile() {
     else setEditProfile(true);
   }
 
-  async function setAlertWindow(minutes) {
-    setSavingWindow(true);
-    try { await updateProfile({ alert_window_minutes: minutes }); ui.toast('Alert timing saved.'); }
-    catch { ui.toast('Could not save the setting.', 'bad'); }
-    setSavingWindow(false);
-  }
   async function onSignOut() {
     const ok = await ui.confirm({ title: 'Sign out', message: 'Sign out of MyDay on this phone?', confirmLabel: 'Sign out' });
     if (ok) await signOut();
@@ -134,21 +114,6 @@ export default function Profile() {
     const ok = await ui.confirm({ title: 'Remove contact', message: `Remove ${c.name}?`, confirmLabel: 'Remove', danger: true });
     if (!ok) return;
     try { await deleteContact(c.id); ui.toast('Removed.', 'info'); contacts.reload(); } catch { ui.toast('Could not remove.', 'bad'); }
-  }
-  async function enableAlerts() {
-    try {
-      const sub = await enablePush();
-      await saveFamilyDevice(deviceLabel(), sub);
-      ui.toast('Alerts are on for this phone.');
-      devices.reload();
-    } catch (e) { ui.toast(e.message || 'Could not turn on alerts.', 'bad'); }
-  }
-  async function testAlert() {
-    try {
-      const { data, error } = await supabase.functions.invoke('missed-dose-check', { body: { test: true } });
-      if (error || data?.error) throw new Error();
-      ui.toast('Test alert sent.', 'info');
-    } catch { ui.toast('Could not send a test alert.', 'bad'); }
   }
   async function createInvite() {
     if (!inviteName.trim()) { ui.toast('Please enter a name.', 'bad'); return; }
@@ -297,20 +262,6 @@ export default function Profile() {
         ) : null}
       </Collapsible>
 
-      {/* alerts */}
-      <Collapsible id="alerts" icon="bell" title="Alerts and reminders" {...fold}
-        summary={`Missed after ${ALERT_WINDOWS.find((w) => w.value === alertWindow)?.label || `${alertWindow} min`}${devices.data?.length ? ` · ${devices.data.length} device${devices.data.length === 1 ? '' : 's'}` : ''}`}>
-        <MenuRow icon="bell" title="Notification settings"
-          desc="Turn alerts on, choose what you are told about, and set quiet hours"
-          onClick={() => navigate('/profile/notifications')} />
-        <div style={{ height: 10 }} />
-        <p className="muted" id="alert-window-label" style={{ margin: '0 0 6px', fontWeight: 600 }}>Alert me after a dose is late by</p>
-        <SegmentedControl label="Alert me after a dose is late by" value={alertWindow} onChange={savingWindow ? () => {} : setAlertWindow}
-          options={ALERT_WINDOWS.map((w) => ({ value: w.value, label: w.label }))} />
-        <div style={{ height: 14 }} />
-        <AlertsEnabler devices={devices} onEnable={enableAlerts} onTest={testAlert} />
-      </Collapsible>
-
       {/* contacts — vertical list, never scrolls sideways */}
       <Collapsible id="contacts" icon="phone" title="My contacts" {...fold}
         summary={contacts.data?.length ? `${contacts.data.length} saved${contacts.data.some((c) => c.is_emergency) ? ' · emergency contact set' : ''}` : 'None yet'}>
@@ -388,12 +339,6 @@ export default function Profile() {
         </div>
       </Collapsible>
 
-      <Collapsible id="health" icon="pill" title="My health" {...fold} summary="Medicines and cards">
-        <div className="menu-list">
-          <MenuRow icon="pill" title="My medicines" desc="Manage your medicines and times" onClick={() => navigate('/medication', { state: { view: 'medicines' } })} />
-          <MenuRow icon="cross" title="My cards" desc="Health card, insurance and other cards" onClick={() => navigate('/cards')} />
-        </div>
-      </Collapsible>
 
       <h2 className="settings-group">App settings</h2>
       {/* language — first in App settings, with a globe icon that reads in any
@@ -428,26 +373,6 @@ export default function Profile() {
         </div>
       </Collapsible>
 
-      {/* other preferences */}
-      <Collapsible id="more" icon="star" title="More options" {...fold}
-        summary={settings.clock === '24' ? '24-hour clock' : '12-hour clock (AM/PM)'}>
-        <SettingRow icon="clock" title="Time format" desc="How times are shown, like 2:30 PM or 14:30." stacked>
-          <SegmentedControl label="Time format" value={settings.clock} onChange={(v) => setSetting({ clock: v })}
-            options={[{ value: '12', label: '2:30 PM' }, { value: '24', label: '14:30' }]} />
-        </SettingRow>
-        <SettingRow icon="calendar" title="Calendar on Home" desc="Show this month's medicine calendar on the Home screen.">
-          <Toggle checked={settings.homeCalendar} onChange={(v) => setSetting({ homeCalendar: v })} label="Calendar on Home" />
-        </SettingRow>
-        <SettingRow icon="brain" title="Brain game suggestions on Home" desc="Show a reminder to play. Games are always available on Home.">
-          <Toggle checked={settings.homeGames} onChange={(v) => setSetting({ homeGames: v })} label="Brain game suggestions on Home" />
-        </SettingRow>
-      </Collapsible>
-      <Collapsible id="explore" icon="star" title="Explore" {...fold} summary="Guide and brain games">
-        <div className="menu-list">
-          <MenuRow icon="info" title="How to use MyDay" desc="A simple step-by-step guide to every part of the app" onClick={() => navigate('/help')} />
-          <MenuRow icon="brain" title="Brain Games" desc="Play games and see your progress" onClick={() => navigate('/games')} />
-        </div>
-      </Collapsible>
 
       </div>
 
@@ -492,57 +417,6 @@ export default function Profile() {
       {editContact && <ContactForm contact={editContact.id ? editContact : null} onClose={() => setEditContact(null)}
         onSaved={() => { setEditContact(null); contacts.reload(); }} />}
     </div>
-  );
-}
-
-// Turning on alerts, gated on MyDay being installed.
-//
-// This gate is the fix for "don't make it a Chrome notification". A web page's
-// notifications are attributed by the operating system to whatever app owns the
-// page: in a browser tab that is Chrome or Safari, and nothing the page does can
-// change it. Installed to the home screen, the same notification is attributed
-// to MyDay, with the MyDay icon. iPadOS goes further and refuses web push
-// entirely until the app is on the home screen. So installing first is the
-// difference between a proper MyDay alert and no alert at all.
-function AlertsEnabler({ devices, onEnable, onTest }) {
-  const { installed } = useInstallPrompt();
-  const [override, setOverride] = useState(false);
-
-  if (!pushSupported()) {
-    return (
-      <p className="muted">
-        This browser can't show alerts. On an iPad or iPhone, tap the Share button in Safari, choose
-        “Add to Home Screen”, then open MyDay from your home screen.
-      </p>
-    );
-  }
-
-  return (
-    <>
-      {installed ? (
-        <p className="join-ok"><Icon name="check" size={20} /> MyDay is installed — alerts will show as MyDay.</p>
-      ) : (
-        <div className="join-gate">
-          <div className="join-gate__t"><Icon name="download" size={20} /> Add MyDay to this device first</div>
-          <p className="join-gate__d">
-            Until MyDay is on the home screen, your device labels these alerts with the name of your web browser —
-            and an iPad won't send them at all. Adding MyDay takes about ten seconds and fixes both.
-          </p>
-          <InstallButton className="btn btn--primary btn--md btn--full" label="Add MyDay to this device" iconSize={20} />
-          <button type="button" className="join-gate__skip" onClick={() => setOverride(true)}>
-            I can't do this — turn on alerts in the browser anyway
-          </button>
-        </div>
-      )}
-      <div style={{ height: 10 }} />
-      <Button icon="bell" onClick={onEnable} disabled={!installed && !override}>Turn on alerts on this device</Button>
-      {devices.data?.length ? (
-        <div style={{ marginTop: 10 }}>
-          <div className="muted">{devices.data.length} device{devices.data.length === 1 ? '' : 's'} receiving alerts.</div>
-          <Button variant="ghost" size="sm" full={false} onClick={onTest} style={{ marginTop: 8 }}>Send a test alert</Button>
-        </div>
-      ) : null}
-    </>
   );
 }
 

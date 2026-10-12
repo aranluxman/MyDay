@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react';
 import { Button, Modal } from './ui.jsx';
 import { Icon } from './Icon.jsx';
 import { MedicineWizard } from './MedicineWizard.jsx';
-import { MedicinePhotoTray } from './MedicinePhotoScan.jsx';
 import { useUI } from '../context/UIContext.jsx';
 import { saveMedicationsBulk, refreshDoses, deleteMedPhoto } from '../lib/db.js';
 import { readMedicineBatch, writeMedicineBatch, clearMedicineBatch } from '../lib/medicineBatch.js';
@@ -18,7 +17,6 @@ export function MedicineBatch({ userId, onClose, onSaved }) {
   const [items, setItems] = useState(initial.items);
   const [working, setWorking] = useState(initial.working);
   const [showWizard, setShowWizard] = useState(false);
-  const [showPhoto, setShowPhoto] = useState(false);
   const [busy, setBusy] = useState(false);
   const saving = useRef(false);
   const opener = useRef(document.activeElement);
@@ -37,14 +35,6 @@ export function MedicineBatch({ userId, onClose, onSaved }) {
 
   function startHand() {
     setWorking({ form: null, step: 0, scan: null, index: null });
-    setShowWizard(true);
-  }
-
-  function startPhoto() { setShowPhoto(true); }
-
-  function scanned(scan) {
-    setShowPhoto(false);
-    setWorking({ form: scan.form, step: 5, scan, index: null });
     setShowWizard(true);
   }
 
@@ -131,7 +121,7 @@ export function MedicineBatch({ userId, onClose, onSaved }) {
 
   return (
     <>
-      {!showWizard && !showPhoto && <Modal title="Add medicines" onClose={busy ? undefined : onClose} wide footer={
+      {!showWizard && <Modal title="Add medicines" onClose={busy ? undefined : onClose} wide footer={
         <Button size="lg" icon="check" onClick={saveAll} disabled={!items.length || !!working || busy}>
           {busy ? 'Saving medicines…' : `Save all ${items.length || ''} ${items.length === 1 ? 'medicine' : 'medicines'}`}
         </Button>
@@ -173,7 +163,6 @@ export function MedicineBatch({ userId, onClose, onSaved }) {
           ) : (
             <div className="medbatch__add">
               <Button icon="plus" variant="ghost" onClick={startHand} disabled={busy}>Type a medicine</Button>
-              <Button icon="camera" variant="ghost" onClick={startPhoto} disabled={busy}>Scan a label</Button>
             </div>
           )}
           {!!invalidCount && <p className="medbatch__saved" role="status">{invalidCount === 1 ? 'One medicine needs fixing' : `${invalidCount} medicines need fixing`} before you can save.</p>}
@@ -181,7 +170,6 @@ export function MedicineBatch({ userId, onClose, onSaved }) {
           {(!!items.length || !!working) && <Button variant="danger" onClick={discardBatch} disabled={busy}>Discard this review</Button>}
         </div>
       </Modal>}
-      {showPhoto && <MedicinePhotoTray onClose={() => setShowPhoto(false)} onResult={scanned} />}
       {showWizard && working && <MedicineWizard key={working.index ?? 'new'} stageDraft={working}
         prefill={working.scan} onDraftChange={(progress) => setWorking((w) => w ? { ...w, ...progress } : w)}
         onStage={stage} onClose={closeWizard} />}

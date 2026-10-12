@@ -400,7 +400,7 @@ html:not([data-theme]), [data-theme='light'] {
   --bad-ink: #a3170f;
 }
 [data-theme='ocean'], [data-theme='rose'] { --good-fill: #17734a; }
-[data-theme='dark'] { --on-primary: #02122e; }
+/* Dark filled buttons use the deeper --primary-fill (glass.css), so their text stays white. */
 [data-theme='midnight'] { --on-good: #03210c; }
 .btn--ghost, .medrow__dose, .g-badge--prn, .g-badge--due, .ns-back, .linkbtn,
 .chip.is-on, .menu-row.is-current .menu-row__t, .contact__type, .adh__how summary { color: var(--primary-text); }

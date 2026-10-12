@@ -8,17 +8,25 @@ export const SETTINGS_DEFAULTS = {
   bigButtons: false,    // taller tap targets
   calmMotion: false,    // no animations
   highContrast: false,  // stronger text/borders on top of any theme
-  clock: '12',          // '12' | '24' hour times
-  homeCalendar: true,   // show the month calendar on the Home screen
-  homeGames: true,      // show the brain-games reminder on Home
+  clock: deviceClock(), // '12' | '24' hour times; follows the phone unless set by an older build
 };
+
+// The phone already knows whether its owner reads 2:30 PM or 14:30, so MyDay
+// follows it instead of asking in Settings.
+function deviceClock() {
+  try {
+    const opts = new Intl.DateTimeFormat(undefined, { hour: 'numeric' }).resolvedOptions();
+    return opts.hour12 === false || opts.hourCycle === 'h23' || opts.hourCycle === 'h24' ? '24' : '12';
+  } catch { return '12'; }
+}
 
 const KEY = 'myday_settings';
 
 // Settings removed from the app are dropped on read so a value stored by an
 // older build can never come back to life. `weekStart` went this way: calendars
-// are now always Sunday-first.
-const RETIRED_KEYS = ['weekStart'];
+// are now always Sunday-first. The Home calendar and brain-game nudge are now
+// always shown, so their switches went too.
+const RETIRED_KEYS = ['weekStart', 'homeCalendar', 'homeGames'];
 
 function load() {
   let stored = {};

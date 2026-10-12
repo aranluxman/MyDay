@@ -4,6 +4,7 @@ import { BottomNav } from './BottomNav.jsx';
 import { Icon } from './Icon.jsx';
 import { InstallButton } from './InstallButton.jsx';
 import { useApp } from '../context/AppContext.jsx';
+import { playAlarmOnce } from '../lib/alarm.js';
 
 const TITLES = {
   '/': 'MyDay',
@@ -45,6 +46,16 @@ export function AppShell() {
 
   // A meaningful page title for every route (tabs, history, screen readers).
   useEffect(() => { document.title = pathname === '/' ? 'Home · MyDay' : `${title} · MyDay`; }, [pathname, title]);
+
+  // A missed-dose push arriving while MyDay is open sets off the loud alarm,
+  // once per dose — an ordinary notification sound is too easy to miss.
+  useEffect(() => {
+    const sw = navigator.serviceWorker;
+    if (!sw) return undefined;
+    const onMsg = (e) => { if (e.data?.type === 'myday-missed') playAlarmOnce(e.data.doseId || `push-${Date.now()}`); };
+    sw.addEventListener('message', onMsg);
+    return () => sw.removeEventListener('message', onMsg);
+  }, []);
 
   // The large title shrinks into a compact bar once the page moves, the way
   // iOS navigation bars do.

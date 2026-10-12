@@ -36,7 +36,7 @@ test('history date dropdown shows all medicines on only the selected day', async
 });
 
 test('phone navigation opens Games directly and Profile from More', async ({ browser }) => {
-  const { page, context } = await openApp(browser, { settings: { homeGames: false } });
+  const { page, context } = await openApp(browser);
   await expect(page.getByRole('button', { name: /Brain Games/ }).first()).toBeVisible();
   const nav = page.getByRole('navigation', { name: 'Main navigation' });
   await expect(nav.getByRole('link', { name: 'Games', exact: true })).toBeVisible();

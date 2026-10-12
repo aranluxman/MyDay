@@ -73,13 +73,13 @@ export function normaliseScan(raw) {
 
 /* ------------------------------ in-app helper ------------------------------ */
 
-const BOOLEAN_SETTINGS = ['highContrast', 'bold', 'bigButtons', 'calmMotion', 'homeCalendar', 'homeGames'];
+const BOOLEAN_SETTINGS = ['highContrast', 'bold', 'bigButtons', 'calmMotion'];
 const PROFILE_FIELDS = ['full_name', 'birthday', 'goal', 'on_treatment', 'for_whom'];
 export const NAV_PATHS = ['/', '/medication', '/appointments', '/updates', '/games', '/cards', '/profile/notifications'];
 
 const SETTING_LABELS = {
   highContrast: 'More contrast', bold: 'Bold text', bigButtons: 'Bigger buttons',
-  calmMotion: 'Calm screen', homeCalendar: 'Calendar on Home', homeGames: 'Brain games on Home',
+  calmMotion: 'Calm screen',
   clock: 'Time format',
 };
 const PROFILE_LABELS = {
