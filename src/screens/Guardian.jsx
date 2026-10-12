@@ -10,6 +10,7 @@ import {
   enableGuardianPush, disableGuardianPush, setDailySummary, setGuardianAlertTiming, GuardianUnlinked, forgetGuardianMode,
 } from '../lib/guardian.js';
 import { pushSupported, enablePush, isInstalled } from '../lib/push.js';
+import { playAlarm } from '../lib/alarm.js';
 import { doseState, summarise, sortForDisplay, adherence, dayMarkFromCounts, STATE_UI, countsByDay } from '../lib/doseState.js';
 import { prettyTime, prettyClock, prettyDate, shortDate } from '../lib/format.js';
 import { fetchAccountDashboard } from '../lib/guardianAccount.js';
@@ -182,8 +183,14 @@ export function Dashboard({ onUnlinked, accountLinkId = null, accountToken = nul
       {(!accountLinkId || accountToken) && !d.notifications?.push_enabled && (
         <section className="card">
           <p className="lead">Medication alerts are off on this device.</p>
-          <p className="muted">Turn them on to hear when {d.patient?.name} has not taken a medicine.</p>
-          <a className="btn btn--primary btn--sm btn--full" href="#guardian-alerts">Set up medication alerts</a>
+          <p className="muted">Turn them on so this phone buzzes and rings when {d.patient?.name} misses a medicine — even when MyDay is closed.</p>
+          {/* A button, not an href="#…" link: the hash jump looked like a fresh
+              app launch to the router and bounced signed-in people to Home. */}
+          <button type="button" className="btn btn--primary btn--sm btn--full" onClick={() => {
+            const panel = document.getElementById('guardian-alerts');
+            panel?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            panel?.querySelector('button')?.focus({ preventScroll: true });
+          }}>Set up medication alerts</button>
         </section>
       )}
 
@@ -584,6 +591,24 @@ function AlertsPanel({ notifications, patient, token, onChanged }) {
     } catch (e) { setError(e.message || 'Could not turn on alerts.'); }
     finally { setBusy(false); }
   }
+  // A local preview of a missed-dose alert: the notification (stays on screen,
+  // strong buzz) plus the loud in-app alarm. It proves this phone can show and
+  // sound one; it does not go through the server.
+  async function testDevice() {
+    setError('');
+    playAlarm();
+    try {
+      if (Notification.permission !== 'granted') await Notification.requestPermission();
+      const reg = await navigator.serviceWorker?.ready;
+      if (!reg || Notification.permission !== 'granted') throw new Error();
+      await reg.showNotification('MyDay test alert', {
+        body: `This is how a missed medicine for ${patient} will look on this phone.`,
+        icon: '/icons/icon-192.png', badge: '/icons/badge-72.png', tag: 'myday-test',
+        requireInteraction: true, renotify: true, vibrate: [800, 200, 800, 200, 800, 200, 1200],
+        data: { url: '/guardian', kind: 'test' },
+      });
+    } catch { setError('This phone blocked the test notification. Allow notifications for MyDay in your phone settings.'); }
+  }
   async function turnOff() {
     setBusy(true);
     try { await disableGuardianPush(token); onChanged(); }
@@ -653,6 +678,10 @@ function AlertsPanel({ notifications, patient, token, onChanged }) {
               <option value="21:00">Every night at 9:00</option>
             </select>
           </label>
+          <button className="btn btn--primary btn--sm btn--full" disabled={busy} onClick={testDevice}>
+            <Icon name="bell" size={18} /><span>Test the alarm on this device</span>
+          </button>
+          <p className="muted">Shows what a missed-dose alert looks and sounds like on this phone.</p>
           <button className="btn btn--ghost btn--sm btn--full" disabled={busy} onClick={turnOff}>
             Turn off alerts on this device
           </button>

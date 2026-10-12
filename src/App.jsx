@@ -55,7 +55,7 @@ function Root() {
     // of a page load the key 'default'; a tap inside the app never has it.
     // `?from=alert` is a missed-dose alert being tapped, which should open the
     // dashboard it is about.
-    const launched = key === 'default' && !new URLSearchParams(window.location.search).has('from');
+    const launched = key === 'default' && !window.location.hash && !new URLSearchParams(window.location.search).has('from');
     if (user && launched) return <Navigate to="/" replace />;
     return <Suspense fallback={publicFallback}>{user ? <AccountGuardian /> : <Guardian />}</Suspense>;
   }
