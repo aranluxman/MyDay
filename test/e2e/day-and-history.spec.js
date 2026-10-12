@@ -93,3 +93,30 @@ test('guardian can choose every delay, save a set time, and filter history by da
   await expect(page.locator('.g-day .g-list > li')).toHaveCount(mock.db.myday_doses.filter(d => d.dose_date === '2026-10-06').length);
   await context.close();
 });
+
+test('a signed-in guardian tapping "Set up medication alerts" stays on the dashboard', async ({ browser }) => {
+  const { page, mock, context } = await openApp(browser);
+  const userId = mock.db.myday_profiles[0].user_id;
+  await page.evaluate((id) => {
+    localStorage.setItem(`myday_account_guardian_token:${id}:link-1`, 'synthetic-token');
+    localStorage.setItem('myday_guardian_intro_seen', '1');
+  }, userId);
+  await page.route('**/functions/v1/guardian-data', async route => {
+    const body = route.request().postDataJSON();
+    const response = body.action === 'account_list'
+      ? { links: [{ id: 'link-1', name: 'Test patient', device_ids: ['link-1'] }] }
+      : {
+        patient: { name: 'Test patient', timezone: 'America/Toronto', alert_window_minutes: 60 },
+        guardian: { name: 'Sam' }, today: { date: '2026-10-07', doses: [] }, history: [],
+        notifications: { push_enabled: false }, permissions: { read_only: true, can_read: [], can_write: [] },
+      };
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(response) });
+  });
+  await page.goto('http://localhost:4173/guardian');
+  await page.getByRole('button', { name: 'Check on Test patient' }).click();
+  await page.getByRole('button', { name: 'Set up medication alerts' }).click();
+  await page.waitForTimeout(400);
+  await expect(page).toHaveURL(/\/guardian$/);
+  await expect(page.locator('#guardian-alerts')).toBeInViewport();
+  await context.close();
+});
