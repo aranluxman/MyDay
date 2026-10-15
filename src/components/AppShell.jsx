@@ -15,7 +15,6 @@ const TITLES = {
   '/profile/notifications': 'Alerts',
   '/cards': 'My cards',
   '/games': 'Brain Games',
-  '/help': 'Guide',
 };
 
 const ADD_PAGES = new Set(['/', '/medication', '/appointments', '/updates']);

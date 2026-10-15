@@ -19,7 +19,6 @@ const MORE = [
   { to: '/appointments', icon: 'calendar', label: 'Visits', desc: 'Doctor and clinic appointments' },
   { to: '/profile', icon: 'user', label: 'Profile', desc: 'Your details and preferences' },
   { to: '/cards', icon: 'cross', label: 'My cards', desc: 'Health and insurance cards' },
-  { to: '/help', icon: 'info', label: 'How to use MyDay', desc: 'A step-by-step guide' },
   { to: '/profile/notifications', icon: 'bell', label: 'Alerts', desc: 'Reminders and notifications' },
 ];
 

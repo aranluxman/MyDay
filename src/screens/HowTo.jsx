@@ -117,25 +117,21 @@ const TOPICS = [
   },
 ];
 
-export default function HowTo() {
+// Lives at the bottom of Settings (Profile), inside its own fold — it does not
+// need a page of its own. Every topic starts closed; tap one to open it.
+export function HowToGuide() {
   const navigate = useNavigate();
-  const [open, setOpen] = useState('bar');
+  const [open, setOpen] = useState(null);
 
   return (
     <div className="stack">
-      <Card className="howto-hero">
-        <span className="howto-hero__ic"><Icon name="info" size={30} /></span>
-        <div>
-          <h2 className="howto-hero__t">New to MyDay? Start here.</h2>
-          <p className="muted" style={{ margin: 0 }}>Tap any topic to see simple steps. You can’t break anything — every change can be undone.</p>
-        </div>
-      </Card>
+      <p className="muted" style={{ margin: 0 }}>Tap any topic to see simple steps. You can’t break anything — every change can be undone.</p>
 
       {TOPICS.map((t, i) => {
         const isOpen = open === t.id;
         return (
           <Card key={t.id} className={`howto${isOpen ? ' is-open' : ''}`}>
-            <button className="howto__head" aria-expanded={isOpen} onClick={() => setOpen(isOpen ? null : t.id)}>
+            <button type="button" className="howto__head" aria-expanded={isOpen} onClick={() => setOpen(isOpen ? null : t.id)}>
               <span className="howto__n">{i + 1}</span>
               <span className="howto__ic"><Icon name={t.icon} size={24} /></span>
               <span className="howto__t">{t.title}</span>
@@ -154,14 +150,11 @@ export default function HowTo() {
         );
       })}
 
-      <Card>
-        <div className="section-title"><span className="section-title__l"><Icon name="shield" size={22} /> <span>About MyDay</span></span></div>
-        <p className="muted" style={{ margin: 0 }}>
-          MyDay keeps your medicines, visits and health notes in one simple place, reminds you when it
-          is time, and lets the family you choose know if a dose is missed.
-          Stuck? Ask a family member to open this guide with you.
-        </p>
-      </Card>
+      <p className="muted" style={{ margin: 0 }}>
+        MyDay keeps your medicines, visits and health notes in one simple place, reminds you when it
+        is time, and lets the family you choose know if a dose is missed.
+        Stuck? Ask a family member to open this guide with you.
+      </p>
     </div>
   );
 }

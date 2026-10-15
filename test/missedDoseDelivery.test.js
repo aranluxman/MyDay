@@ -157,5 +157,6 @@ test('guardian daily summaries run without any subscribed patient device', async
   device.daily_summary_at = rules.localHHMM(new Date(), 'UTC');
   const result = await s.run();
   assert.equal(result.sent, 1);
-  assert.equal(s.sent[0].payload.kind, 'guardian_alert');
+  // A summary is an ordinary notification, not the insistent missed-dose one.
+  assert.equal(s.sent[0].payload.kind, 'guardian_summary');
 });

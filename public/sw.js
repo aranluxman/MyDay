@@ -1,6 +1,6 @@
 // MyDay service worker: offline app-shell + web-push handling.
 // Vite emits hashed asset filenames, so we cache at runtime rather than precache.
-const CACHE = 'myday-v17';
+const CACHE = 'myday-v18';
 const CARD_CACHE = 'myday-cards-v1';
 // '/guardian' and its manifest are precached too: a guardian's installed app
 // starts there, and it has to open with no signal (they may be in a clinic
@@ -93,7 +93,11 @@ self.addEventListener('push', (e) => {
   const kind = data.kind || 'dose_missed';
   // A missed dose stays on screen until it is dealt with; a due reminder and a
   // summary do not need to be that insistent.
-  const critical = kind === 'dose_missed' || kind === 'guardian_alert';
+  // Only the second notification — the missed dose — is insistent. The first
+  // ("Time for your medicine") and the guardian's daily summary are ordinary
+  // notifications with the phone's normal sound.
+  const summary = kind === 'guardian_summary' || data.tag === 'myday-guardian-summary';
+  const critical = !summary && (kind === 'dose_missed' || kind === 'guardian_alert');
 
   const actions = Array.isArray(data.actions) && data.actions.length
     ? data.actions.slice(0, 2)

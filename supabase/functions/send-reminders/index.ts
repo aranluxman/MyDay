@@ -272,7 +272,9 @@ Deno.serve(async (req) => {
         ? `${taken} of ${list.length} doses taken${missed ? `, ${missed} missed` : ''}.`
         : 'No medicines were scheduled today.',
       url: '/guardian',
-      kind: 'guardian_alert',
+      // Not 'guardian_alert': a summary is an ordinary notification, not the
+      // insistent missed-dose one.
+      kind: 'guardian_summary',
       tag: 'myday-guardian-summary',
     }, vapid, { urgency: 'normal' });
 
