@@ -12,6 +12,7 @@ import { LANGUAGES, MORE_LANGUAGES, currentLanguage, setLanguage } from '../lib/
 import { ageFromBirthday, prettyClock, shortDate } from '../lib/format.js';
 import { THEMES, TEXT_SIZES, profileCompleteness } from '../lib/appearance.js';
 import { CONTACT_TYPES, validPhone, telHref } from '../lib/contacts.js';
+import { HowToGuide } from './HowTo.jsx';
 
 
 // A linking code now lives for 15 minutes, not 14 days, so it is counted in
@@ -36,7 +37,6 @@ function lastSeenWords(iso) {
   return `Opened ${shortDate(d.toISOString().slice(0, 10))}`;
 }
 
-const SECTION_IDS = ['access', 'guardians', 'contacts', 'info', 'language', 'appearance'];
 
 const typeMeta = (t) => CONTACT_TYPES.find((x) => x.value === t) || CONTACT_TYPES[5];
 
@@ -159,24 +159,13 @@ export default function Profile() {
     catch { ui.toast('Could not save.', 'bad'); }
   }
 
-  // Folding: every section below can shrink to one line with a summary. Once
-  // the profile is complete they start folded, and "Minimize all" / "Show
-  // all" folds or opens them in one tap. Each remembers its own state.
-  const setUp = completeness.pct === 100;
-  const [foldKey, setFoldKey] = useState(0);
-  const [allOpen, setAllOpen] = useState(() => {
-    try { return SECTION_IDS.some((id) => localStorage.getItem(`myday_section_${id}`) === '1'); } catch { return !setUp; }
-  });
-  function foldAll(open) {
-    try { SECTION_IDS.forEach((id) => localStorage.setItem(`myday_section_${id}`, open ? '1' : '0')); } catch {}
-    setAllOpen(open);
-    setFoldKey((k) => k + 1);
-  }
+  // Every section below is one line with a summary; tap it to open it, tap
+  // again to close it. Each remembers its own state on this device.
   const themeName = THEMES.find((t) => t.id === theme)?.name || 'Light';
   const sizeName = TEXT_SIZES.find((t) => t.id === textSize)?.name || 'Normal';
   const access = [settings.highContrast && 'More contrast', settings.bold && 'Bold', settings.bigButtons && 'Bigger buttons', settings.calmMotion && 'Calm'].filter(Boolean);
   const connected = (guardians.data || []).filter((g) => g.deviceCount > 0).length;
-  const fold = { defaultOpen: !setUp, onToggle: (open) => open && setAllOpen(true) };
+  const fold = { defaultOpen: false };
 
   return (
     <div className="stack">
@@ -198,14 +187,7 @@ export default function Profile() {
         </div>
       </Card>
 
-      <div className="fold-bar">
-        <span className="fold-bar__t">{allOpen ? 'Settings' : 'Settings — tap a section to open it'}</span>
-        <Button variant="ghost" size="sm" full={false} icon={allOpen ? 'minus' : 'plus'} onClick={() => foldAll(!allOpen)}>
-          {allOpen ? 'Minimize all' : 'Show all'}
-        </Button>
-      </div>
-
-      <div className="stack" key={foldKey}>
+      <div className="stack">
       {/* accessibility first — bigger text and more contrast help with reading
           everything else on this page */}
       <Collapsible id="access" icon="eye" title="Accessibility" {...fold} summary={[`${sizeName} text`, ...access].join(' · ')}>
@@ -382,7 +364,10 @@ export default function Profile() {
         </div>
       </Collapsible>
 
-
+      {/* the guide — at the very bottom, closed until tapped */}
+      <Collapsible id="howto" icon="info" title="How to use MyDay" {...fold} summary="A step-by-step guide">
+        <HowToGuide />
+      </Collapsible>
       </div>
 
       {inviteOpen && (

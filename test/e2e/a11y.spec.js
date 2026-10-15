@@ -105,21 +105,29 @@ test('skip link and meaningful route titles', async ({ browser }) => {
   await context.close();
 });
 
-test('settings fold to one line each, and "Minimize all" / "Show all" works', async ({ browser }) => {
+test('settings fold to one line each and open on tap, with the guide at the bottom', async ({ browser }) => {
   const { page, context } = await openApp(browser, { path: '/profile' });
-  // The synthetic profile is complete, so sections start folded with summaries.
+  // Sections start folded with summaries; there is no "Show all" button.
   const appearance = page.getByRole('button', { name: /^Appearance/ });
   await expect(appearance).toHaveAttribute('aria-expanded', 'false');
   await expect(appearance).toContainText('Light theme');
-  await page.getByRole('button', { name: 'Show all' }).click();
-  await expect(page.getByRole('button', { name: /^Appearance/ })).toHaveAttribute('aria-expanded', 'true');
-  await page.getByRole('button', { name: 'Minimize all' }).click();
-  await expect(page.getByRole('button', { name: /^Appearance/ })).toHaveAttribute('aria-expanded', 'false');
+  await expect(page.getByRole('button', { name: 'Show all' })).toHaveCount(0);
+  await appearance.click();
+  await expect(appearance).toHaveAttribute('aria-expanded', 'true');
+  await appearance.click();
+  await expect(appearance).toHaveAttribute('aria-expanded', 'false');
   // One section opens on tap, and stays open after a reload.
   await page.getByRole('button', { name: /^Accessibility/ }).click();
   await expect(page.getByRole('radiogroup', { name: 'Text size' })).toBeVisible();
   await page.reload();
   await expect(page.getByRole('button', { name: /^Accessibility/ })).toHaveAttribute('aria-expanded', 'true');
+  // "How to use MyDay" is the last section, and its old page sends you here.
+  const guide = page.getByRole('button', { name: /^How to use MyDay/ });
+  await guide.click();
+  await page.getByRole('button', { name: /Taking today/ }).click();
+  await expect(page.getByText('Tap the green button')).toBeVisible();
+  await page.goto('/help');
+  await expect(page).toHaveURL(/\/profile$/);
   await context.close();
 });
 

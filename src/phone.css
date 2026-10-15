@@ -198,8 +198,6 @@ html[data-contrast='1'] .switch__track { outline: 2px solid var(--ink); outline-
 .fold__chev { flex: none; color: var(--ink-soft); transition: transform 0.2s ease; }
 .fold.is-open .fold__chev { transform: rotate(90deg); }
 .fold__body { padding: 0 16px 16px; }
-.fold-bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
-.fold-bar__t { font-size: 15px; font-weight: 700; color: var(--ink-soft); }
 
 /* The "medicines together" card when minimized: one line. */
 .insights-mini {

@@ -14,7 +14,7 @@ Built with **React + Vite (JSX)**, **Supabase** (Auth + Postgres + Edge Function
 - **Accounts** — email + password sign up / sign in / sign out. Each person's data
   is private (per-user Row Level Security). Sign-up is instant (no email-confirmation
   step), which is friendlier for older users.
-- **Bottom navigation** — on phones: Home, Medicine, Visits, Profile and More (Updates, Brain Games, My cards, Guide, Alerts); the desktop side rail shows everything.
+- **Bottom navigation** — on phones: Home, Medicine, Visits, Profile and More (Updates, Brain Games, My cards, Alerts); the desktop side rail shows everything.
 - **Forgot password** — a plain-language email recovery flow (`/forgot` →
   `/reset-password`), linked from the sign-in screen.
 - **Home** — a warm dashboard: greeting, today's medication status with a progress
@@ -51,7 +51,7 @@ Built with **React + Vite (JSX)**, **Supabase** (Auth + Postgres + Edge Function
   "Type it in myself".
 - **Add button (FAB)** — a floating + drops out a menu to add a medication,
   appointment, health note, or contact from anywhere.
-- **How to use MyDay** (`/help`, Profile → Explore) — a step-by-step guide for first-time users.
+- **How to use MyDay** — a step-by-step guide for first-time users, as the last section of Settings (Profile). The old `/help` link opens Settings.
 - **Languages** — Profile → Language shows the whole app in French, Chinese, Tamil,
   Punjabi, Hindi, Urdu, Spanish, Portuguese, Italian and more (Google page translation,
   `src/lib/translate.js`).
