@@ -6,7 +6,7 @@
 // an unknown setting, a made-up unit or a birthday in the future.
 //
 // Pure functions, no browser APIs, so they are unit-tested in test/aiParse.test.js.
-import { safeChatResult } from '../../supabase/functions/_shared/chatSafety.js';
+import { safeChatResult, safeMedicineResult, MEDICINE_DISCLAIMER } from '../../supabase/functions/_shared/chatSafety.js';
 import { UNIT_IDS, amountValue, cleanStrength } from './doseUnits.js';
 import { FREQUENCY_IDS, normaliseTimes } from './schedule.js';
 import { THEME_IDS, TEXT_SIZES } from './appearance.js';
@@ -192,4 +192,19 @@ export function normaliseChatReply(raw) {
   const suggestions = [...new Set((Array.isArray(r.suggestions) ? r.suggestions : [])
     .map((x) => String(x || '').trim()).filter((x) => x && x.length <= 40))].slice(0, 3);
   return { reply, suggestions, urgent: r.urgent === true };
+}
+
+/* --------------------------- medicine questions --------------------------- */
+
+/**
+ * A medicine-question turn made safe to show — checked again here with the
+ * same rules as the server, so an older deployed function can't slip a
+ * dosing instruction through. The disclaimer is always present.
+ */
+export function normaliseMedicineReply(raw) {
+  const r = safeMedicineResult(raw);
+  const reply = String(r.reply || '').trim().slice(0, 1500)
+    || 'Sorry, I did not catch that. Could you ask it another way?';
+  const suggestions = [...new Set(r.suggestions.map((x) => String(x || '').trim()).filter((x) => x && x.length <= 60))].slice(0, 3);
+  return { reply, suggestions, urgent: r.urgent === true, disclaimer: MEDICINE_DISCLAIMER };
 }

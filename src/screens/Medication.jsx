@@ -23,6 +23,7 @@ import { describeSchedule, isDueOn, normaliseTimes } from '../lib/schedule.js';
 import { selectMedicines } from '../lib/medicineList.js';
 import { describeDoseWithStrength, ROUTES, UNITS, parseAmountInput } from '../lib/doseUnits.js';
 import { supplyEstimate, supplyWords } from '../lib/inventory.js';
+import { telHref } from '../lib/contacts.js';
 
 const TABS = 'medtabs';
 
@@ -571,8 +572,8 @@ function MedicineRow({ med: m, contacts, onEdit, onRemove, onDuplicate, onChange
           {(pharmacy || prescriber) && (
             <div className="medrow__contacts">
               {[['Pharmacy', pharmacy], ['Prescriber', prescriber]].filter(([, c]) => c).map(([role, c]) => (
-                c.phone
-                  ? <a key={role} className="btn btn--ghost btn--sm" href={`tel:${c.phone.replace(/[^\d+]/g, '')}`}
+                telHref(c.phone)
+                  ? <a key={role} className="btn btn--ghost btn--sm" href={telHref(c.phone)}
                     aria-label={`Call ${role.toLowerCase()} ${c.name}, ${c.phone}`}>
                     <Icon name="phone" size={18} /> <span>Call {c.name}</span>
                   </a>

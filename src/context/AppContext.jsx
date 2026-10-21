@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, useCallback } from 'rea
 import { supabase, CAME_FROM_RECOVERY_LINK } from '../lib/supabase.js';
 import { ensureProfile, getProfile, saveProfile, ensureDosesFresh, flushPendingGameResults } from '../lib/db.js';
 import { deviceTimezone } from '../lib/format.js';
+import { resolveTheme } from '../lib/appearance.js';
 
 const AppCtx = createContext(null);
 export const useApp = () => useContext(AppCtx);
@@ -17,7 +18,21 @@ export function AppProvider({ children }) {
   const [theme, setThemeState] = useState(() => localStorage.getItem('myday_theme') || 'light');
   const [textSize, setTextSizeState] = useState(() => localStorage.getItem('myday_text') || 'normal');
 
-  useEffect(() => { document.documentElement.setAttribute('data-theme', theme); }, [theme]);
+  // "System" follows the device's light/dark setting live — flipping it in
+  // the computer's settings repaints MyDay without a reload.
+  const darkQuery = () => (typeof window !== 'undefined' && window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null);
+  const [prefersDark, setPrefersDark] = useState(() => !!darkQuery()?.matches);
+  useEffect(() => {
+    const q = darkQuery();
+    if (!q) return undefined;
+    const onChange = (e) => setPrefersDark(e.matches);
+    q.addEventListener?.('change', onChange);
+    // A change between the first render and subscribing would be missed.
+    setPrefersDark(q.matches);
+    return () => q.removeEventListener?.('change', onChange);
+  }, []);
+  const resolvedTheme = resolveTheme(theme, prefersDark);
+  useEffect(() => { document.documentElement.setAttribute('data-theme', resolvedTheme); }, [resolvedTheme]);
   useEffect(() => { document.documentElement.setAttribute('data-text', textSize); }, [textSize]);
 
   const applyProfile = useCallback((p) => {
@@ -116,7 +131,7 @@ export function AppProvider({ children }) {
   async function reloadProfile() { const p = await getProfile(); applyProfile(p); return p; }
 
   const value = {
-    session, user: session?.user || null, profile, loading, theme, textSize,
+    session, user: session?.user || null, profile, loading, theme, resolvedTheme, textSize,
     recovery, endRecovery: () => setRecovery(false),
     signIn, signUp, signOut, setTheme, setTextSize, updateProfile, reloadProfile,
   };

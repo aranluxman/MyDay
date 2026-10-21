@@ -132,27 +132,9 @@ export function NoteChat({ entry, recent = [], onClose, onSaved }) {
           <span><b>{entry.title || 'Your note'}</b>{entry.body ? ` — ${entry.body.slice(0, 120)}${entry.body.length > 120 ? '…' : ''}` : ''}</span>
         </div>
 
-        {urgent && (
-          <div className="nchat__urgent" role="alert">
-            <div className="nchat__urgent-t"><Icon name="alert" size={22} /> This could be serious</div>
-            <p>Please call 911 now, or ask someone near you to call.</p>
-            <a className="btn btn--danger-solid btn--md btn--full" href="tel:911"><Icon name="phone" size={20} /> Call 911</a>
-          </div>
-        )}
+        {urgent && <UrgentCall />}
 
-        <div className="nchat__log" aria-live="polite">
-          {messages.map((m, i) => (
-            <div key={i} className={`nchat__msg nchat__msg--${m.role === 'user' ? 'me' : 'ai'}`}>
-              {m.role !== 'user' && <span className="nchat__av" aria-hidden="true"><Icon name="sparkle" size={16} /></span>}
-              <p>{m.content}</p>
-            </div>
-          ))}
-          {busy && (
-            <div className="nchat__msg nchat__msg--ai">
-              <span className="nchat__av" aria-hidden="true"><Icon name="sparkle" size={16} /></span>
-              <p className="nchat__typing" aria-label="Thinking"><span /><span /><span /></p>
-            </div>
-          )}
+        <ChatLog messages={messages} busy={busy} endRef={endRef}>
           {failed && (
             <div className="nchat__fail" role="alert">
               <p>{failed.error}</p>
@@ -160,26 +142,14 @@ export function NoteChat({ entry, recent = [], onClose, onSaved }) {
               {failed.retryable && <Button variant="ghost" size="sm" full={false} icon="refresh" onClick={() => send(failed.message)}>Retry</Button>}
             </div>
           )}
-          <div ref={endRef} />
-        </div>
+        </ChatLog>
 
-        {!busy && !atLimit && !!suggestions.length && (
-          <div className="chips nchat__chips">
-            {suggestions.map((s) => <button key={s} type="button" className="chip" onClick={() => send(s)}>{s}</button>)}
-          </div>
-        )}
+        {!busy && !atLimit && <ChatChips items={suggestions} onPick={send} />}
 
         {atLimit ? (
           <p className="muted">Great chat — you're doing a wonderful job looking after yourself. If you still feel unwell, call your doctor or pharmacist.</p>
         ) : !failed && (
-          <form className="assist__bar nchat__bar" onSubmit={(e) => { e.preventDefault(); send(); }}>
-            <input className="assist__input" value={text} onChange={(e) => setText(e.target.value)}
-              placeholder="Type a message…" maxLength={500} enterKeyHint="send"
-              aria-label="Your message" disabled={busy} />
-            <button type="submit" className="assist__send" aria-label="Send" disabled={busy || !text.trim()}>
-              <Icon name={busy ? 'clock' : 'chevron'} size={22} />
-            </button>
-          </form>
+          <ChatInput text={text} setText={setText} busy={busy} onSend={() => send()} />
         )}
 
         {entry.id && messages.some((m) => m.role === 'assistant') && (
@@ -190,5 +160,61 @@ export function NoteChat({ entry, recent = [], onClose, onSaved }) {
         <p className="nchat__disclaimer">Generated text is not clinical advice. MyDay cannot diagnose, prescribe, or recommend dose changes. Ask your doctor or pharmacist about symptoms or treatment.</p>
       </div>
     </Modal>
+  );
+}
+
+// ---------- pieces shared with "Ask about your medicines" ----------
+
+export function UrgentCall({ poison }) {
+  return (
+    <div className="nchat__urgent" role="alert">
+      <div className="nchat__urgent-t"><Icon name="alert" size={22} /> This could be serious</div>
+      <p>Please call 911 now, or ask someone near you to call.{poison ? ' If you may have taken too much of a medicine, you can also call Poison Control at 1-844-764-7669.' : ''}</p>
+      <a className="btn btn--danger-solid btn--md btn--full" href="tel:911"><Icon name="phone" size={20} /> Call 911</a>
+    </div>
+  );
+}
+
+/** The conversation: speech bubbles, then "typing" dots while waiting. */
+export function ChatLog({ messages, busy, endRef, children, footnote }) {
+  return (
+    <div className="nchat__log" aria-live="polite">
+      {messages.map((m, i) => (
+        <div key={i} className={`nchat__msg nchat__msg--${m.role === 'user' ? 'me' : 'ai'}`}>
+          {m.role !== 'user' && <span className="nchat__av" aria-hidden="true"><Icon name="sparkle" size={16} /></span>}
+          <p>{m.content}{m.role !== 'user' && footnote && <small className="nchat__foot">{footnote}</small>}</p>
+        </div>
+      ))}
+      {busy && (
+        <div className="nchat__msg nchat__msg--ai">
+          <span className="nchat__av" aria-hidden="true"><Icon name="sparkle" size={16} /></span>
+          <p className="nchat__typing" aria-label="Thinking"><span /><span /><span /></p>
+        </div>
+      )}
+      {children}
+      <div ref={endRef} />
+    </div>
+  );
+}
+
+export function ChatChips({ items, onPick }) {
+  if (!items?.length) return null;
+  return (
+    <div className="chips nchat__chips">
+      {items.map((s) => <button key={s} type="button" className="chip" onClick={() => onPick(s)}>{s}</button>)}
+    </div>
+  );
+}
+
+export function ChatInput({ text, setText, busy, onSend, placeholder = 'Type a message…', label = 'Your message' }) {
+  return (
+    <form className="assist__bar nchat__bar" onSubmit={(e) => { e.preventDefault(); onSend(); }}>
+      <input className="assist__input" value={text} onChange={(e) => setText(e.target.value)}
+        placeholder={placeholder} maxLength={500} enterKeyHint="send"
+        aria-label={label} disabled={busy} />
+      <button type="submit" className="assist__send" aria-label="Send" disabled={busy || !text.trim()}>
+        <Icon name={busy ? 'clock' : 'chevron'} size={22} />
+      </button>
+    </form>
   );
 }

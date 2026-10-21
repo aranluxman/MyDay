@@ -14,11 +14,15 @@ Built with **React + Vite (JSX)**, **Supabase** (Auth + Postgres + Edge Function
 - **Accounts** — email + password sign up / sign in / sign out. Each person's data
   is private (per-user Row Level Security). Sign-up is instant (no email-confirmation
   step), which is friendlier for older users.
-- **Bottom navigation** — on phones: Home, Medicine, Visits, Profile and More (Updates, Brain Games, My cards, Alerts); the desktop side rail shows everything.
+- **Bottom navigation** — on phones: Home, Medicine, Updates, Games and More (Visits, Profile, My cards, Alerts); the desktop side rail shows all eight, including My cards and Alerts.
+- **Liquid Glass controls** — the tab bar / side rail, segmented controls and switches use a Liquid Glass lens (`src/liquid.css`, `src/hooks/useLiquidDrag.js`, physics in `src/lib/liquid.js`): press and slide a finger along the bar and the glass follows it, magnifying the tab under it, then springs to the nearest tab on release (Apple's momentum projection + critically damped springs). Switches turn to glass while held and can be slid. Real refraction in Chromium; frosted elsewhere; solid with Reduce Transparency / High contrast; no springs with Reduce Motion or Calm screen.
 - **Forgot password** — a plain-language email recovery flow (`/forgot` →
   `/reset-password`), linked from the sign-in screen.
-- **Home** — a warm dashboard: greeting, today's medication status with a progress
-  bar, a prominent "due now" reminder with one big Done button, and quick links.
+- **Home** — a warm dashboard: greeting, then widgets the person arranges with
+  **Edit Home** (show/hide + reorder, saved on the device): *How are you feeling
+  today?* (one tap saves a mood note to Updates, with Undo), today's medicines with
+  the due-now Done button, Next visit, People I watch, Today at a glance, This week,
+  Visit history and the brain-game nudge.
 - **Medication** — three views via a segmented control:
   - **Today** — each dose with a big "Done - I took it" tap (pending / taken / missed).
   - **Calendar** — a MediSafe-style month calendar with per-day adherence dots; tap a
@@ -42,6 +46,12 @@ Built with **React + Vite (JSX)**, **Supabase** (Auth + Postgres + Edge Function
   - **How your medicines work together** — on the Medicines tab: what each medicine is
     for, its benefits, how they group around shared goals, and calm "worth asking your
     pharmacist" notes. Cached on the device until the medicine list changes.
+  - **Ask about your medicines** (`/medication/ask`) — "Have a question?" under that
+    explanation opens a follow-up Q&A page (ai-assist `medicine_chat` mode). General
+    information only, with a not-medical-advice banner and a note under every answer;
+    dosing questions ("how much", "can I stop", missed doses) get a fixed pharmacist
+    redirect, and replies that call a combination safe are replaced (checked on the
+    server and again in the browser).
   - **Chat with MyDay** — on any health-diary note (Updates), and offered right after
     saving one: an upbeat, encouraging chat that celebrates good days and, for symptoms,
     asks one gentle question at a time (sleep? water? a missed pill?). Never diagnoses;
@@ -56,7 +66,7 @@ Built with **React + Vite (JSX)**, **Supabase** (Auth + Postgres + Edge Function
   Punjabi, Hindi, Urdu, Spanish, Portuguese, Italian and more (Google page translation,
   `src/lib/translate.js`).
 - **Guardian nudge** — Home asks people with no connected guardian to set one up.
-- **Light & dark themes** — toggle in the top bar or in Profile; remembered per user.
+- **Appearance** — System (follows the device, live), Light or Dark from the top-bar button or Profile → Appearance, plus eight colour themes; remembered per user.
 - **Missed-dose push alerts** — a cron Edge Function flips overdue doses to missed
   and web-pushes the user's family devices, e.g. *"Mary has not taken their 9:00 AM
   medication."*
@@ -76,7 +86,8 @@ public/                                     -> static assets copied as-is
 src/
   main.jsx, App.jsx                         -> entry + routes (auth gate)
   index.css                                 -> design system + light/dark themes
-  glass.css                                 -> Apple-style glass layer (loaded last): palette, frosted surfaces, motion, alerts
+  glass.css                                 -> Apple-style glass layer: palette, frosted surfaces, motion, alerts
+  liquid.css                                -> Liquid Glass for the controls layer (loaded last): nav lens, segmented, switches
   context/AppContext.jsx                    -> session, profile, theme
   context/UIContext.jsx                     -> toasts + confirm dialogs
   components/                               -> Icon, ui primitives, AppShell, BottomNav, MedCalendar

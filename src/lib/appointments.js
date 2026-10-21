@@ -1,5 +1,6 @@
 // Appointment helpers: the countdown wording, grouping past from upcoming,
 // and the .ics export. Pure, so the wording and the escaping are tested.
+import { validPhone } from './contacts.js';
 
 /** Whole days from today to an appointment date, in local time. */
 export function daysUntil(isoDate, now = new Date()) {
@@ -57,10 +58,31 @@ export function directionsUrl(location) {
   return `https://maps.google.com/?q=${encodeURIComponent(q)}`;
 }
 
-/** Digits only, so a number written "(555) 123-4567" still dials. */
-export function telHref(phone) {
-  const cleaned = String(phone || '').replace(/[^\d+]/g, '');
-  return cleaned ? `tel:${cleaned}` : null;
+/**
+ * A tel: link only for a number someone could actually dial. A stray "467"
+ * or an extension typed on its own used to become `tel:467`.
+ */
+export { telHref } from './contacts.js';
+
+/**
+ * The saved contact whose name matches the visit's doctor, so "Call" has a
+ * number to dial. Loose on purpose ("Dr. Patel" finds "Dr Patel"), but a
+ * visit with no doctor name matches nobody — it used to match every contact,
+ * because `'anything'.includes('')` is always true.
+ */
+export function contactForAppointment(appt, contacts) {
+  const key = (s) => String(s || '').toLowerCase().replace(/^(dr|doctor)\b\.?/, '').replace(/[^a-z]/g, '');
+  const doctor = key(appt?.doctor_name);
+  if (doctor.length < 3) return null;
+  return (contacts || []).find((c) => {
+    const name = key(c?.name);
+    if (name.length < 3 || !validDialable(c?.phone)) return false;
+    return name === doctor || doctor.includes(name) || name.includes(doctor);
+  }) || null;
+}
+
+function validDialable(phone) {
+  return String(phone || '').trim() !== '' && validPhone(phone);
 }
 
 // ---------- calendar export (.ics) ----------

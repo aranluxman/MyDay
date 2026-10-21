@@ -7,6 +7,7 @@ import './index.css';
 import './marketing.css';
 import './glass.css';
 import './phone.css';
+import './liquid.css';
 
 initLanguage();
 

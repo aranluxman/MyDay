@@ -80,3 +80,23 @@ export async function chatAboutNote({ entry, recent = [], doses = [], history = 
     message,
   });
 }
+
+/**
+ * One follow-up question about the person's own medicines, after "How your
+ * medicines work together". `insights` is the cached summary they read.
+ * Returns the raw { reply, suggestions, urgent, disclaimer } — pass it
+ * through normaliseMedicineReply.
+ */
+export async function askAboutMedicines({ meds, insights, history = [], message }) {
+  return call({
+    mode: 'medicine_chat',
+    meds: meds.map((m) => ({ name: m.name, dose: m.dose, schedule: describeSchedule(m, { prettyTime }) })),
+    insights: insights ? {
+      overview: insights.overview,
+      together: insights.together?.summary,
+      ask_pharmacist: insights.ask_pharmacist,
+    } : null,
+    history,
+    message,
+  });
+}

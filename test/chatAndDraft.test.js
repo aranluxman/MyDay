@@ -65,3 +65,28 @@ test('relative device nicknames never claim this browser without an endpoint mat
     assert.equal(device.name, 'Android device');
   }
 });
+
+import { dosingRequest, safeMedicineResult, MEDICINE_BOUNDARY, MEDICINE_DISCLAIMER } from '../supabase/functions/_shared/chatSafety.js';
+import { normaliseMedicineReply } from '../src/lib/aiParse.js';
+
+test('medicine questions: understanding is allowed, dosing decisions are redirected', () => {
+  for (const q of ['Should I take my metformin twice?', 'How many tablets should I take?', 'I forgot my dose, what now?', 'Can I stop the vitamin D?']) {
+    assert.equal(dosingRequest(q), true, q);
+  }
+  for (const q of ['What is each one for?', 'Do any of these work together?', 'Why take some with food?', 'What should I ask my pharmacist?']) {
+    assert.equal(dosingRequest(q), false, q);
+  }
+});
+
+test('a medicine reply never says a combination is safe or gives a dose instruction', () => {
+  const ok = safeMedicineResult({ reply: 'Metformin helps lower blood sugar. Many people take it with meals.', suggestions: ['Why with food?', 'Should I double it?'] });
+  assert.match(ok.reply, /blood sugar/);
+  assert.deepEqual(ok.suggestions, ['Why with food?']);
+  assert.equal(ok.disclaimer, MEDICINE_DISCLAIMER);
+  for (const bad of ['It is safe to take these together.', 'There are no interactions between them.', 'You should stop the vitamin D.']) {
+    assert.equal(safeMedicineResult({ reply: bad }).reply, MEDICINE_BOUNDARY, bad);
+  }
+  const shown = normaliseMedicineReply({ reply: 'You should take an extra dose.', suggestions: [] });
+  assert.equal(shown.reply, MEDICINE_BOUNDARY);
+  assert.equal(normaliseMedicineReply(null).disclaimer, MEDICINE_DISCLAIMER);
+});

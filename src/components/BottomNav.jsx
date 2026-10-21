@@ -1,19 +1,24 @@
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { Icon } from './Icon.jsx';
 import { Modal } from './ui.jsx';
+import { useLiquidSlider } from '../hooks/useLiquidDrag.js';
 
 // Destinations. On a phone, six tabs only fit by shrinking their labels to
 // about 9px — unreadable — and at the largest text size they overlapped. So a
 // phone shows four tabs plus a clearly labelled "More", and the side rail on a
-// large screen shows everything. The visible label is the accessible name.
+// large screen shows everything — including My cards and Alerts, which used
+// to live only behind More, so a laptop had no way to reach them at all.
+// The visible label is the accessible name.
 const ITEMS = [
   { to: '/', icon: 'home', label: 'Home', end: true, phone: true },
   { to: '/medication', icon: 'pill', label: 'Medicine', phone: true },
   { to: '/updates', icon: 'pulse', label: 'Updates', phone: true },
   { to: '/appointments', icon: 'calendar', label: 'Visits' },
   { to: '/games', icon: 'brain', label: 'Games', phone: true },
-  { to: '/profile', icon: 'user', label: 'Profile' },
+  { to: '/cards', icon: 'cross', label: 'My cards' },
+  { to: '/profile/notifications', icon: 'bell', label: 'Alerts' },
+  { to: '/profile', icon: 'user', label: 'Profile', end: true },
 ];
 const MORE = [
   { to: '/appointments', icon: 'calendar', label: 'Visits', desc: 'Doctor and clinic appointments' },
@@ -24,36 +29,33 @@ const MORE = [
 
 export function BottomNav() {
   const ref = useRef(null);
+  const lensRef = useRef(null);
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const [moreOpen, setMoreOpen] = useState(false);
   const inMore = MORE.some((m) => pathname === m.to);
 
-  // One highlight that glides to the active tab instead of each tab lighting
-  // up separately. Measured, so it works for the bottom bar and the side rail.
-  useLayoutEffect(() => {
-    const nav = ref.current;
-    if (!nav) return undefined;
-    const place = () => {
-      const a = [...nav.querySelectorAll('.bottom-nav__item.is-active')].find((el) => el.offsetParent !== null);
-      if (!a) { nav.style.setProperty('--ind-o', '0'); return; }
-      nav.style.setProperty('--ind-x', `${a.offsetLeft}px`);
-      nav.style.setProperty('--ind-y', `${a.offsetTop}px`);
-      nav.style.setProperty('--ind-w', `${a.offsetWidth}px`);
-      nav.style.setProperty('--ind-h', `${a.offsetHeight}px`);
-      nav.style.setProperty('--ind-o', '1');
-    };
-    place();
-    window.addEventListener('resize', place);
-    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(place) : null;
-    ro?.observe(nav);
-    return () => { window.removeEventListener('resize', place); ro?.disconnect(); };
-  }, [pathname]);
+  // One glass lens that glides to the active tab — and that you can grab and
+  // slide along the bar (or down the side rail) to pick a tab. Letting go
+  // over an item "taps" it, so links navigate and More opens as usual.
+  const [rail, setRail] = useState(() => typeof window !== 'undefined' && window.matchMedia?.('(min-width: 1024px)').matches);
+  useEffect(() => {
+    const q = window.matchMedia?.('(min-width: 1024px)');
+    if (!q) return undefined;
+    const on = (e) => setRail(e.matches);
+    q.addEventListener?.('change', on);
+    return () => q.removeEventListener?.('change', on);
+  }, []);
+  useLiquidSlider({
+    containerRef: ref, lensRef, itemSelector: '.bottom-nav__item', axis: rail ? 'y' : 'x',
+    activeKey: `${pathname}|${rail}|${moreOpen}`,
+    onCommit: (_, el) => el.click(),
+  });
 
   return (
     <>
       <nav className="bottom-nav" aria-label="Main navigation" ref={ref}>
-        <span className="bottom-nav__ind" aria-hidden="true" />
+        <span className="bottom-nav__ind lg-lens" ref={lensRef} aria-hidden="true" />
         {ITEMS.map((it) => (
           <NavLink key={it.to} to={it.to} end={it.end}
             className={({ isActive }) => `bottom-nav__item${it.phone ? '' : ' bottom-nav__item--wide'}${isActive ? ' is-active' : ''}`}>
@@ -91,3 +93,4 @@ export function BottomNav() {
     </>
   );
 }
+

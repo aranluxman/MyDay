@@ -1,0 +1,185 @@
+/* =====================================================================
+   liquid.css — loaded last. Liquid Glass for the controls layer only:
+   the tab bar / side rail, segmented controls and switches. Content
+   (cards, lists, text) stays solid, the way Apple uses the material.
+
+   The lens is moved by JavaScript (hooks/useLiquidDrag.js) with springs
+   that start from the on-screen value, so it can be grabbed mid-flight.
+   Its transform and size are set inline; everything else is here.
+   ===================================================================== */
+
+:root {
+  --lg-tint: color-mix(in srgb, var(--primary) 13%, transparent);
+  --lg-fill: linear-gradient(180deg, rgba(255, 255, 255, 0.66) 0%, rgba(255, 255, 255, 0.26) 55%, rgba(255, 255, 255, 0.4) 100%);
+  --lg-rim: inset 0 1px 0.5px rgba(255, 255, 255, 0.95), inset 0 -1px 1px rgba(255, 255, 255, 0.45),
+    inset 0 0 0 0.5px rgba(255, 255, 255, 0.55);
+  --lg-drop: 0 6px 18px rgba(20, 30, 60, 0.14), 0 1px 3px rgba(20, 30, 60, 0.1);
+  --lg-blur: blur(8px) saturate(190%) brightness(1.06);
+}
+[data-theme='dark'], [data-theme='midnight'] {
+  --lg-tint: color-mix(in srgb, var(--primary) 22%, transparent);
+  --lg-fill: linear-gradient(180deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0.06) 60%, rgba(255, 255, 255, 0.12) 100%);
+  --lg-rim: inset 0 1px 0.5px rgba(255, 255, 255, 0.35), inset 0 -1px 1px rgba(255, 255, 255, 0.08),
+    inset 0 0 0 0.5px rgba(255, 255, 255, 0.18);
+  --lg-drop: 0 8px 22px rgba(0, 0, 0, 0.45), 0 1px 3px rgba(0, 0, 0, 0.35);
+  --lg-blur: blur(8px) saturate(170%) brightness(1.15);
+}
+
+/* ---------- the lens ---------- */
+.lg-lens {
+  position: absolute; left: 0; top: 0; z-index: 0;
+  width: 0; height: 0; opacity: 0;
+  pointer-events: none; transform-origin: center;
+  background: var(--lg-fill), var(--lg-tint);
+  -webkit-backdrop-filter: var(--lg-blur); backdrop-filter: var(--lg-blur);
+  box-shadow: var(--lg-rim), var(--lg-drop);
+  transition: opacity 0.2s ease, box-shadow 0.25s ease, background 0.25s ease;
+  will-change: transform, width, height;
+}
+/* Specular highlight: light catching the top-left of the droplet. */
+.lg-lens::before {
+  content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  background: radial-gradient(120% 90% at 28% 0%, rgba(255, 255, 255, 0.75), transparent 52%);
+  opacity: 0.55; mix-blend-mode: soft-light;
+}
+/* Pressed or dragged, the glass lifts ABOVE the icons and turns clear, so
+   you see them through it, magnified — the glass is the thing you hold. */
+.is-dragging > .lg-lens, .is-pressed > .lg-lens {
+  z-index: 3;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0.06) 60%, rgba(255, 255, 255, 0.18)),
+    color-mix(in srgb, var(--primary) 6%, transparent);
+  -webkit-backdrop-filter: blur(0.5px) saturate(210%) brightness(1.08); backdrop-filter: blur(0.5px) saturate(210%) brightness(1.08);
+  box-shadow: var(--lg-rim), 0 0 0 0.5px rgba(255, 255, 255, 0.4), 0 12px 32px rgba(20, 30, 60, 0.22), 0 2px 6px rgba(20, 30, 60, 0.12);
+}
+[data-theme='dark'] .is-dragging > .lg-lens, [data-theme='midnight'] .is-dragging > .lg-lens,
+[data-theme='dark'] .is-pressed > .lg-lens, [data-theme='midnight'] .is-pressed > .lg-lens {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.02) 60%, rgba(255, 255, 255, 0.08));
+  box-shadow: var(--lg-rim), 0 14px 36px rgba(0, 0, 0, 0.55);
+}
+.is-dragging > .lg-lens::before { opacity: 0.9; }
+/* Real refraction where the browser can draw it (set from JS: Chromium). */
+html.lg-refract .is-dragging > .lg-lens {
+  -webkit-backdrop-filter: url(#lg-refract) blur(1px) saturate(210%) brightness(1.08);
+  backdrop-filter: url(#lg-refract) blur(1px) saturate(210%) brightness(1.08);
+}
+
+/* ---------- tab bar + side rail ---------- */
+.bottom-nav { touch-action: pan-y; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+.bottom-nav__ind { border-radius: 999px; transition: opacity 0.2s ease, box-shadow 0.25s ease, background 0.25s ease; }
+.bottom-nav__item { position: relative; z-index: 1; -webkit-tap-highlight-color: transparent; -webkit-user-drag: none; }
+.bottom-nav__item.is-active { color: var(--primary); }
+.bottom-nav__ic, .bottom-nav__label { transition: transform 0.35s var(--ease-spring), color 0.2s ease; }
+/* Icons under the moving glass swell a little, like seen through a lens. */
+.bottom-nav.is-dragging .bottom-nav__item.is-under .bottom-nav__ic { transform: scale(1.2); color: var(--primary); }
+.bottom-nav.is-dragging .bottom-nav__item.is-under .bottom-nav__label { transform: scale(1.06); color: var(--primary); }
+.bottom-nav.is-dragging .bottom-nav__item:active { transform: none; }
+@media (max-width: 1023px) {
+  /* The droplet may bulge past the bar while held. */
+  .bottom-nav {
+    overflow: visible;
+    box-shadow: 0 10px 40px rgba(20, 30, 60, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.7), inset 0 -1px 0 rgba(255, 255, 255, 0.25);
+  }
+  .bottom-nav::after {
+    content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.35), transparent 45%);
+    opacity: 0.5; mix-blend-mode: soft-light;
+  }
+}
+@media (min-width: 1024px) {
+  .bottom-nav { touch-action: pan-x; }
+  .bottom-nav__ind { border-radius: 16px; }
+  /* Every destination fits the rail now (8 of them), and the rail scrolls
+     on its own if a short laptop screen can't show them all. */
+  .bottom-nav__item { min-height: 52px; }
+  .bottom-nav { box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.4), 8px 0 30px rgba(20, 30, 60, 0.06); }
+  /* Text-size zoom applies to the page; the rail is chrome and would
+     otherwise grow past a laptop's height and width. */
+  html[data-text='large'] .bottom-nav { zoom: 0.9; }
+  html[data-text='xlarge'] .bottom-nav { zoom: 0.82; }
+  html[data-text='huge'] .bottom-nav { zoom: 0.74; }
+}
+@media (min-width: 1024px) and (max-height: 720px) {
+  .bottom-nav { gap: 2px; padding-top: 12px; }
+  .bottom-nav__item { min-height: 46px; padding-top: 6px; padding-bottom: 6px; }
+}
+
+/* ---------- segmented controls ---------- */
+.segmented { position: relative; touch-action: pan-y; user-select: none; -webkit-user-select: none; }
+.segmented__thumb { display: block; border-radius: 10px; }
+.segmented.is-wrapped .segmented__thumb { display: none; }
+/* On one row the glass marks the choice, so the button itself is clear. */
+.segmented.has-lens .segmented__item.is-active {
+  background: transparent; box-shadow: none; color: var(--ink); font-weight: 800; animation: none;
+}
+.segmented.has-lens .segmented__item { position: relative; z-index: 1; background: transparent; transition: transform 0.3s var(--ease-spring); }
+.segmented .segmented__thumb {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0.72)), var(--lg-tint);
+  box-shadow: var(--lg-rim), 0 3px 10px rgba(20, 30, 60, 0.12), 0 0 0 2px color-mix(in srgb, var(--primary) 40%, transparent);
+}
+[data-theme='dark'] .segmented .segmented__thumb, [data-theme='midnight'] .segmented .segmented__thumb {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.1)), var(--lg-tint);
+  box-shadow: var(--lg-rim), 0 4px 12px rgba(0, 0, 0, 0.4), 0 0 0 2px color-mix(in srgb, var(--primary) 50%, transparent);
+}
+.segmented.is-dragging .segmented__item.is-under { transform: scale(1.06); }
+
+/* ---------- switches ---------- */
+.switch { touch-action: pan-y; -webkit-tap-highlight-color: transparent; }
+.switch__track { overflow: visible; }
+.switch__track::after {
+  transition: transform 0.38s var(--ease-spring), width 0.28s var(--ease-spring), scale 0.28s var(--ease-spring),
+    background-color 0.2s ease, box-shadow 0.2s ease;
+}
+/* Held: the white knob turns to glass, widens and lifts — the track's
+   colour shows through it. It slides left by what it gained, so it never
+   pokes out of the track. */
+.switch.is-pressed .switch__track::after {
+  width: 38px; scale: 1.12 1.2;
+  background: rgba(255, 255, 255, 0.42);
+  -webkit-backdrop-filter: blur(2px) saturate(200%); backdrop-filter: blur(2px) saturate(200%);
+  box-shadow: inset 0 1px 0.5px rgba(255, 255, 255, 0.95), inset 0 -1px 1px rgba(255, 255, 255, 0.5),
+    inset 0 0 0 0.5px rgba(255, 255, 255, 0.7), 0 4px 14px rgba(0, 0, 0, 0.22);
+}
+.switch.is-pressed[aria-checked='true'] .switch__track::after { transform: translateX(12px); }
+/* Being slid: glued to the finger (no transition on the position), and the
+   track previews the colour it will land on. */
+.switch.is-dragging .switch__track::after {
+  transform: translateX(calc(var(--knob-x, 0px) * 0.5455));
+  transition: width 0.28s var(--ease-spring), scale 0.28s var(--ease-spring), background-color 0.2s ease;
+}
+.switch.is-dragging.is-past .switch__track { background: var(--good-fill, var(--good)); }
+.switch.is-dragging:not(.is-past) .switch__track { background: color-mix(in srgb, var(--ink-soft) 45%, transparent); }
+
+/* ---------- sheets materialise rather than just slide ---------- */
+.sheet { animation-name: lg-sheet-up; }
+@keyframes lg-sheet-up {
+  from { transform: translateY(40%) scale(0.96); opacity: 0; filter: blur(10px); }
+  60% { filter: blur(0); opacity: 1; }
+  to { transform: none; opacity: 1; filter: none; }
+}
+
+/* ---------- accessibility: frost, solidify, or stay still ---------- */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .lg-lens { background: color-mix(in srgb, var(--primary) 16%, var(--surface)); }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .lg-lens, .is-dragging > .lg-lens, .is-pressed > .lg-lens, html.lg-refract .is-dragging > .lg-lens {
+    background: color-mix(in srgb, var(--primary) 16%, var(--surface)); -webkit-backdrop-filter: none; backdrop-filter: none;
+  }
+  .lg-lens::before, .bottom-nav::after { display: none; }
+  .is-dragging > .lg-lens, .is-pressed > .lg-lens { z-index: 0; }
+  .switch.is-pressed .switch__track::after { background: #fff; -webkit-backdrop-filter: none; backdrop-filter: none; }
+}
+html[data-contrast='1'] .lg-lens, [data-theme='contrast'] .lg-lens {
+  background: var(--surface); -webkit-backdrop-filter: none; backdrop-filter: none;
+  box-shadow: 0 0 0 2px var(--ink);
+}
+html[data-contrast='1'] .lg-lens::before, [data-theme='contrast'] .lg-lens::before,
+html[data-contrast='1'] .bottom-nav::after, [data-theme='contrast'] .bottom-nav::after { display: none; }
+html[data-contrast='1'] .is-dragging > .lg-lens, [data-theme='contrast'] .is-dragging > .lg-lens,
+html[data-contrast='1'] .is-pressed > .lg-lens, [data-theme='contrast'] .is-pressed > .lg-lens { z-index: 0; }
+html[data-contrast='1'] .switch.is-pressed .switch__track::after { background: #fff; }
+@media (prefers-reduced-motion: reduce) {
+  .sheet { animation: none; }
+  .switch.is-pressed .switch__track::after { scale: none; }
+}
+html[data-motion='calm'] .switch.is-pressed .switch__track::after { scale: none; }

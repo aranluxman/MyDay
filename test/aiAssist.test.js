@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { transform } from 'esbuild';
-import { CHAT_BOUNDARY, clinicalRequest, safeChatResult, urgentChatResult } from '../supabase/functions/_shared/chatSafety.js';
+import * as safety from '../supabase/functions/_shared/chatSafety.js';
+const { CHAT_BOUNDARY, MEDICINE_BOUNDARY, MEDICINE_DISCLAIMER } = safety;
 import { CHAT_UNAVAILABLE } from '../src/lib/aiErrors.js';
 
 // Exercise the actual Deno handler with synthetic authentication and an OpenAI
@@ -14,12 +15,13 @@ function setup({ configured = true, status = 200, result = { reply: 'What would 
   let handler;
   const calls = [];
   const deno = { env: { get: (key) => key === 'OPENAI_API_KEY' ? (configured ? 'synthetic-test-key' : '') : 'synthetic' }, serve: (fn) => { handler = fn; } };
-  new Function('createClient', 'Deno', 'fetch', 'CHAT_BOUNDARY', 'clinicalRequest', 'safeChatResult', 'urgentChatResult', code)(
+  const shared = ['CHAT_BOUNDARY', 'clinicalRequest', 'safeChatResult', 'urgentChatResult', 'MEDICINE_BOUNDARY', 'MEDICINE_DISCLAIMER', 'dosingRequest', 'safeMedicineResult'];
+  new Function('createClient', 'Deno', 'fetch', ...shared, code)(
     () => ({ auth: { getUser: async () => ({ data: { user: { id: 'synthetic-user' } } }) } }), deno,
     async (_, options) => {
       calls.push(JSON.parse(options.body));
       return new Response(status === 200 ? JSON.stringify({ choices: [{ message: { content: JSON.stringify(result) } }] }) : detail, { status });
-    }, CHAT_BOUNDARY, clinicalRequest, safeChatResult, urgentChatResult,
+    }, ...shared.map((k) => safety[k]),
   );
   return {
     calls,
@@ -68,4 +70,28 @@ test('multi-turn context retains both sides of twelve exchanges and filters forg
   assert.equal(s.calls[0].messages.filter((m) => m.role === 'system').length, 1);
   assert.match(s.calls[0].messages[0].content, /untrusted data/);
   assert.doesNotMatch(s.calls[0].messages[0].content, /likely everyday reasons/);
+});
+
+const medBody = { mode: 'medicine_chat', meds: [{ name: 'Synthetic Metformin', dose: '1 tablet', schedule: 'Every day at 8:00 AM' }], entry: undefined };
+
+test('medicine questions get general answers with the disclaimer, never dosing advice', async () => {
+  const s = setup({ result: { reply: 'Synthetic Metformin helps lower blood sugar.', suggestions: ['Why with food?'], urgent: false } });
+  const r = (await (await s.run({ ...medBody, message: 'What is it for?' })).json()).result;
+  assert.match(r.reply, /blood sugar/);
+  assert.equal(r.disclaimer, MEDICINE_DISCLAIMER);
+  assert.match(s.calls[0].messages[0].content, /GENERAL, EDUCATIONAL/);
+  assert.match(s.calls[0].messages[0].content, /Synthetic Metformin/);
+
+  const dosing = (await (await s.run({ ...medBody, message: 'How many tablets should I take?' })).json()).result;
+  assert.equal(dosing.reply, MEDICINE_BOUNDARY);
+  const urgent = (await (await s.run({ ...medBody, message: 'I have chest pain after my pill' })).json()).result;
+  assert.equal(urgent.urgent, true);
+  assert.equal(s.calls.length, 1); // neither reached the model
+});
+
+test('a generated "safe together" claim is replaced before it reaches the browser', async () => {
+  const s = setup({ result: { reply: 'It is safe to take these together.', suggestions: [], urgent: false } });
+  assert.equal((await (await s.run({ ...medBody, message: 'Do these work together?' })).json()).result.reply, MEDICINE_BOUNDARY);
+  const empty = await setup().run({ mode: 'medicine_chat', meds: [], message: 'hi' });
+  assert.equal(empty.status, 400);
 });
