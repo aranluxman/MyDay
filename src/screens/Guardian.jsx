@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { GuardianCodeEntry as CodeEntry } from '../components/GuardianCodeEntry.jsx';
 import { Icon } from '../components/Icon.jsx';
 import { medIcon } from '../lib/medIcon.js';
+import { telHref } from '../lib/contacts.js';
 import { InstallCard } from '../components/InstallCard.jsx';
 import { MedCalendar } from '../components/MedCalendar.jsx';
 import { SegmentedControl, Skeleton, SkeletonCard, Pill, Modal } from '../components/ui.jsx';
@@ -540,14 +541,16 @@ function DiaryPanel({ entries }) {
 function CallPanel({ patient, contacts }) {
   // Whoever is most useful in an emergency first: the person themselves, then
   // their doctor or pharmacy.
-  const ordered = [...contacts].sort((a, b) => rankContact(a) - rankContact(b));
+  // Only numbers that can actually be dialled; an empty or 3-digit phone
+  // would otherwise become a Call button that rings nobody.
+  const ordered = contacts.filter((c) => telHref(c.phone)).sort((a, b) => rankContact(a) - rankContact(b));
   if (!ordered.length) return null;
   return (
     <section className="card">
       <h3 className="g-section">Call for help</h3>
       <div className="g-calls">
         {ordered.slice(0, 4).map((c) => (
-          <a key={c.id} className="g-call" href={`tel:${c.phone.replace(/[^\d+]/g, '')}`}>
+          <a key={c.id} className="g-call" href={telHref(c.phone)}>
             <span className="g-call__ic"><Icon name="phone" size={20} /></span>
             <span className="g-call__main">
               <span className="g-call__name">{c.name}</span>

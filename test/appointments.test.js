@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  daysUntil, countdownLabel, groupAppointments, directionsUrl, telHref,
+  daysUntil, countdownLabel, groupAppointments, directionsUrl, telHref, contactForAppointment,
   icsEscape, buildIcs, icsFilename,
 } from '../src/lib/appointments.js';
 
@@ -59,6 +59,24 @@ test('directions and dialling handle messy input', () => {
   assert.equal(telHref('+1 555 123 4567'), 'tel:+15551234567');
   assert.equal(telHref('no digits here'), null);
   assert.equal(telHref(''), null);
+  // A number too short to be a phone line must not become a Call button.
+  assert.equal(telHref('467'), null);
+});
+
+test('Call only matches the contact for this visit’s doctor', () => {
+  const contacts = [
+    { id: 'short', name: 'Mom', phone: '467' },
+    { id: 'patel', name: 'Dr Patel', phone: '(905) 555-0101' },
+    { id: 'pharm', name: 'Shoppers', phone: '905 555 0199' },
+  ];
+  // No doctor name used to match the first contact with any phone at all.
+  assert.equal(contactForAppointment({ doctor_name: '' }, contacts), null);
+  assert.equal(contactForAppointment({ doctor_name: null, reason: 'Checkup' }, contacts), null);
+  assert.equal(contactForAppointment({ doctor_name: 'Dr. Patel' }, contacts)?.id, 'patel');
+  assert.equal(contactForAppointment({ doctor_name: 'Patel' }, contacts)?.id, 'patel');
+  assert.equal(contactForAppointment({ doctor_name: 'Dr. Smith' }, contacts), null);
+  // A contact whose number can't be dialled is never matched.
+  assert.equal(contactForAppointment({ doctor_name: 'Mom' }, contacts), null);
 });
 
 test('ics escaping protects the characters that break the format', () => {

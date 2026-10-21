@@ -4,10 +4,10 @@ import { useUI } from '../context/UIContext.jsx';
 import { useAsync } from '../hooks/useAsync.js';
 import { Card, Button, Modal, Field, Input, HeroEmpty, SkeletonCard } from '../components/ui.jsx';
 import { Icon } from '../components/Icon.jsx';
-import { upcomingAppointments, saveAppointment, deleteAppointment, listContacts } from '../lib/db.js';
+import { upcomingAppointments, pastAppointments, saveAppointment, deleteAppointment, listContacts } from '../lib/db.js';
 import { prettyDate, prettyTime, localDateStr } from '../lib/format.js';
 import {
-  countdownLabel, daysUntil, groupAppointments, directionsUrl, telHref, buildIcs, icsFilename,
+  countdownLabel, daysUntil, groupAppointments, directionsUrl, telHref, contactForAppointment, buildIcs, icsFilename,
 } from '../lib/appointments.js';
 
 export default function Appointments() {
@@ -15,7 +15,10 @@ export default function Appointments() {
   const location = useLocation();
   const [editing, setEditing] = useState(null);
   const [showPast, setShowPast] = useState(false);
-  const { data, loading, error, reload } = useAsync(() => upcomingAppointments(), []);
+  const { data, loading, error, reload } = useAsync(async () => {
+    const [next, before] = await Promise.all([upcomingAppointments(), pastAppointments().catch(() => [])]);
+    return [...next, ...before];
+  }, []);
   // Saved contacts give the doctor's number for tap-to-call, matched by name.
   const contacts = useAsync(() => listContacts(), []);
   const { upcoming, past } = groupAppointments(data || []);
@@ -125,14 +128,8 @@ function ApptCard({ appt: a, contacts, index, past, onEdit, onRemove }) {
   const days = daysUntil(a.appt_date);
   const soon = days != null && days >= 0 && days <= 2;
 
-  // Match the doctor to a saved contact so "Call" has a number to dial.
-  // Loose matching on purpose: "Dr. Patel" should find "Dr Patel".
-  const key = (s) => String(s || '').toLowerCase().replace(/[^a-z]/g, '');
-  const contact = contacts.find((c) => c.phone && key(c.name) && (
-    key(c.name) === key(a.doctor_name)
-    || key(a.doctor_name).includes(key(c.name))
-    || key(c.name).includes(key(a.doctor_name || '\u0000'))));
-  const tel = telHref(contact?.phone);
+  // No entered number for this doctor means no Call button at all.
+  const tel = telHref(contactForAppointment(a, contacts)?.phone);
   const maps = directionsUrl(a.location);
 
   function addToCalendar() {

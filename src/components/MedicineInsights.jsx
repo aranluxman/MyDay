@@ -1,4 +1,5 @@
 import { useId, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, Button, SkeletonCard } from './ui.jsx';
 import { Icon } from './Icon.jsx';
 import { useApp } from '../context/AppContext.jsx';
@@ -26,7 +27,8 @@ function loadOpen(hasResult) {
   return !hasResult;
 }
 
-function loadCache(userId) {
+/** The saved explanation for this person, if there is one. */
+export function loadCache(userId) {
   try {
     const c = JSON.parse(localStorage.getItem(KEY) || 'null');
     return c?.userId === userId ? c : null;
@@ -36,6 +38,7 @@ function loadCache(userId) {
 export function MedicineInsights({ meds }) {
   const { user, profile } = useApp();
   const ui = useUI();
+  const navigate = useNavigate();
   const [cache, setCache] = useState(() => loadCache(user?.id));
   const [busy, setBusy] = useState(false);
   const [openMed, setOpenMed] = useState(null);
@@ -182,6 +185,16 @@ export function MedicineInsights({ meds }) {
           <p className="insights__disclaimer">
             {result.disclaimer || 'This is general information, not medical advice. Always check with your doctor or pharmacist before changing how you take any medicine.'}
           </p>
+          {/* Follow-up questions get a page of their own, with the same
+              not-medical-advice line at the top. */}
+          <button type="button" className="insights__ask-btn" onClick={() => navigate('/medication/ask')}>
+            <span className="insights__ask-ic" aria-hidden="true"><Icon name="chat" size={22} /></span>
+            <span className="insights__ask-main">
+              <span className="insights__ask-t">Have a question?</span>
+              <span className="insights__ask-d">Ask about how your medicines work together</span>
+            </span>
+            <Icon name="chevron" size={22} />
+          </button>
           {!stale && (
             <Button variant="ghost" size="sm" icon="refresh" onClick={run}>Explain again</Button>
           )}

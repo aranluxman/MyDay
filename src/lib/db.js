@@ -460,6 +460,15 @@ export async function upcomingAppointments(tz = deviceTimezone()) {
   if (error) throw error;
   return data || [];
 }
+// Visits before today, most recent first — the "visit history". Upcoming
+// visits only ever fetched today onwards, so past ones never showed.
+export async function pastAppointments(limit = 20, tz = deviceTimezone()) {
+  const { data, error } = await supabase.from('myday_appointments').select('*')
+    .lt('appt_date', localDateStr(tz)).order('appt_date', { ascending: false })
+    .order('appt_time', { ascending: false, nullsFirst: false }).limit(limit);
+  if (error) throw error;
+  return data || [];
+}
 export async function saveAppointment(a) {
   const row = { appt_date: a.appt_date, appt_time: a.appt_time || null, doctor_name: a.doctor_name || null, location: a.location || null, reason: a.reason || null };
   if (a.id) { const { error } = await supabase.from('myday_appointments').update(row).eq('id', a.id); if (error) throw error; }

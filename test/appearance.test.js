@@ -25,3 +25,26 @@ test('all extras but a missing name stays under 100 and lists the name', () => {
   assert.equal(r.pct, 99);
   assert.ok(r.missing.includes('full_name'));
 });
+
+import { resolveTheme, modeOf, themeForMode, nextMode, MODES } from '../src/lib/appearance.js';
+
+test('System follows the device; other themes paint as themselves', () => {
+  assert.equal(resolveTheme('system', true), 'dark');
+  assert.equal(resolveTheme('system', false), 'light');
+  assert.equal(resolveTheme('ocean', true), 'ocean');
+  assert.equal(resolveTheme('bogus', false), 'light');
+});
+
+test('mode of a theme, and picking a mode keeps a colour that fits', () => {
+  assert.deepEqual(MODES.map((m) => m.id), ['system', 'light', 'dark']);
+  assert.equal(modeOf('midnight'), 'dark');
+  assert.equal(modeOf('rose'), 'light');
+  assert.equal(modeOf('system'), 'system');
+  assert.equal(themeForMode('light', 'ocean'), 'ocean');
+  assert.equal(themeForMode('dark', 'ocean'), 'dark');
+  assert.equal(themeForMode('dark', 'midnight'), 'midnight');
+  assert.equal(themeForMode('system', 'warm'), 'system');
+  assert.equal(nextMode('system'), 'light');
+  assert.equal(nextMode('warm'), 'dark');
+  assert.equal(nextMode('midnight'), 'system');
+});

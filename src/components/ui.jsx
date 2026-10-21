@@ -1,7 +1,8 @@
-import { useState, useCallback, useRef, useId } from 'react';
+import { useState, useCallback, useEffect, useLayoutEffect, useRef, useId } from 'react';
 import { createPortal } from 'react-dom';
 import { Icon } from './Icon.jsx';
 import { useDialog } from '../hooks/useDialog.js';
+import { useLiquidSlider, useLiquidSwitch } from '../hooks/useLiquidDrag.js';
 
 export function Button({ children, onClick, variant = 'primary', size = 'md', icon, disabled, type = 'button', full = true, className = '', ...rest }) {
   const cls = `btn btn--${variant} btn--${size}${full ? ' btn--full' : ''} ${className}`;
@@ -113,13 +114,15 @@ export function Avatar({ name, color = '#2563a8', size = 44, src }) {
   );
 }
 
-// Large on/off switch with an On/Off word inside, so state is readable
-// without relying on colour alone.
-// The visible track sits inside a 48px-tall button, so the target is
-// comfortable without needing the "Bigger buttons" preference.
+// Large on/off switch. The visible track sits inside a 48px-tall button, so
+// the target is comfortable without needing the "Bigger buttons" preference.
+// Liquid Glass: pressing turns the knob to glass and widens it; it can also
+// be slid. A tap or Space/Enter flips it exactly as before.
 export function Toggle({ checked, onChange, label, labelledBy, describedBy, disabled }) {
+  const ref = useRef(null);
+  useLiquidSwitch({ ref, checked: !!checked, onChange, disabled });
   return (
-    <button type="button" role="switch" aria-checked={!!checked}
+    <button ref={ref} type="button" role="switch" aria-checked={!!checked}
       aria-label={labelledBy ? undefined : label} aria-labelledby={labelledBy} aria-describedby={describedBy}
       disabled={disabled} className="switch" onClick={() => onChange(!checked)}>
       <span className="switch__track" aria-hidden="true">
@@ -137,12 +140,33 @@ export function Toggle({ checked, onChange, label, labelledBy, describedBy, disa
 //   * kind="tabs": switches between panels (Today / History / Medicines).
 //     Proper tabs: ids, aria-controls, roving tabindex, Arrow/Home/End.
 // Options wrap onto a second row at large text sizes instead of overflowing.
+// On one row, a Liquid Glass lens slides between options and can be dragged
+// across them; once wrapped, the selected option carries its own style.
 export function SegmentedControl({ options, value, onChange, kind = 'radio', label, idBase }) {
   const autoId = useId();
   const base = idBase || `seg${autoId.replace(/:/g, '')}`;
   const idx = Math.max(0, options.findIndex((o) => o.value === value));
   const tabs = kind === 'tabs';
   const refs = useRef([]);
+  const wrapRef = useRef(null);
+  const lensRef = useRef(null);
+  const [wrapped, setWrapped] = useState(false);
+  useLayoutEffect(() => {
+    const el = wrapRef.current;
+    if (!el) return undefined;
+    const check = () => {
+      const tops = refs.current.filter(Boolean).map((b) => b.offsetTop);
+      setWrapped(tops.length > 1 && Math.max(...tops) - Math.min(...tops) > 4);
+    };
+    check();
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(check) : null;
+    ro?.observe(el);
+    return () => ro?.disconnect();
+  }, [options.length]);
+  useLiquidSlider({
+    containerRef: wrapRef, lensRef, itemSelector: '.segmented__item', activeKey: value, disabled: wrapped,
+    onCommit: (i) => { onChange(options[i].value); refs.current[i]?.focus({ preventScroll: true }); },
+  });
 
   function onKeyDown(e) {
     const n = options.length;
@@ -158,9 +182,9 @@ export function SegmentedControl({ options, value, onChange, kind = 'radio', lab
   }
 
   return (
-    <div className="segmented" role={tabs ? 'tablist' : 'radiogroup'} aria-label={label}
-      style={{ '--seg-n': options.length, '--seg-i': idx }} onKeyDown={onKeyDown}>
-      <span className="segmented__thumb" aria-hidden="true" />
+    <div ref={wrapRef} className={`segmented${wrapped ? ' is-wrapped' : ' has-lens'}`} role={tabs ? 'tablist' : 'radiogroup'} aria-label={label}
+      onKeyDown={onKeyDown}>
+      <span className="segmented__thumb lg-lens" ref={lensRef} aria-hidden="true" />
       {options.map((o, i) => {
         const on = value === o.value;
         return (
@@ -231,8 +255,12 @@ export function Modal({ title, children, onClose, wide, footer }) {
 // whole header is one big button. Open/closed is remembered per section.
 // `attention` outlines the card and tints its summary for a section that
 // needs setting up — used for Guardians while nobody is connected.
-export function Collapsible({ id, icon, title, summary, children, defaultOpen = true, forceOpen, onToggle, attention }) {
+//
+// `reveal` opens and scrolls to the section from elsewhere (the "Show me"
+// buttons in How to use MyDay): pass a new number each time to trigger it.
+export function Collapsible({ id, icon, title, summary, children, defaultOpen = true, forceOpen, onToggle, attention, reveal }) {
   const key = `myday_section_${id}`;
+  const sectionRef = useRef(null);
   const [open, setOpen] = useState(() => {
     try {
       const v = localStorage.getItem(key);
@@ -241,6 +269,17 @@ export function Collapsible({ id, icon, title, summary, children, defaultOpen = 
   });
   const isOpen = forceOpen ?? open;
   const bodyId = useId();
+  useEffect(() => {
+    if (!reveal) return;
+    setOpen(true);
+    try { localStorage.setItem(key, '1'); } catch {}
+    const calm = document.documentElement.dataset.motion === 'calm'
+      || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    requestAnimationFrame(() => {
+      sectionRef.current?.scrollIntoView({ behavior: calm ? 'auto' : 'smooth', block: 'start' });
+      sectionRef.current?.querySelector('.fold__btn')?.focus({ preventScroll: true });
+    });
+  }, [reveal]);
   function toggle() {
     const next = !isOpen;
     setOpen(next);
@@ -248,7 +287,7 @@ export function Collapsible({ id, icon, title, summary, children, defaultOpen = 
     onToggle?.(next);
   }
   return (
-    <section className={`card fold${isOpen ? ' is-open' : ''}${attention ? ' fold--attention' : ''}`} aria-labelledby={`${bodyId}-h`}>
+    <section ref={sectionRef} id={id ? `fold-${id}` : undefined} className={`card fold${isOpen ? ' is-open' : ''}${attention ? ' fold--attention' : ''}`} aria-labelledby={`${bodyId}-h`}>
       <h2 className="fold__h" id={`${bodyId}-h`}>
         <button type="button" className="fold__btn" aria-expanded={isOpen} aria-controls={bodyId} onClick={toggle}>
           {icon && <span className="fold__ic" aria-hidden="true"><Icon name={icon} size={22} /></span>}

@@ -10,7 +10,7 @@ import { listContacts, saveContact, deleteContact, uploadAvatar,
   createGuardianInvite, listGuardians, deleteGuardian, formatGuardianCode, issueGuardianCode, revokeGuardianDevice, setGuardianShareDiary } from '../lib/db.js';
 import { LANGUAGES, MORE_LANGUAGES, currentLanguage, setLanguage } from '../lib/translate.js';
 import { ageFromBirthday, prettyClock, shortDate } from '../lib/format.js';
-import { THEMES, TEXT_SIZES, profileCompleteness } from '../lib/appearance.js';
+import { THEMES, TEXT_SIZES, MODES, modeOf, themeForMode, profileCompleteness } from '../lib/appearance.js';
 import { CONTACT_TYPES, validPhone, telHref } from '../lib/contacts.js';
 import { HowToGuide } from './HowTo.jsx';
 
@@ -51,7 +51,7 @@ const FIELD_LABELS = {
 };
 
 export default function Profile() {
-  const { user, profile, theme, setTheme, textSize, setTextSize, signOut, updateProfile, reloadProfile } = useApp();
+  const { user, profile, theme, resolvedTheme, setTheme, textSize, setTextSize, signOut, updateProfile, reloadProfile } = useApp();
   const { settings, set: setSetting } = useSettings();
   const ui = useUI();
   const location = useLocation();
@@ -82,6 +82,11 @@ export default function Profile() {
   const [createdInvite, setCreatedInvite] = useState(null);
   const [busyInvite, setBusyInvite] = useState(false);
 
+  const [reveal, setReveal] = useState(null);
+  useEffect(() => {
+    const open = location.state?.open;
+    if (open) { setReveal((r) => ({ id: open, n: (r?.n || 0) + 1 })); window.history.replaceState({}, ''); }
+  }, [location.key]);
   useEffect(() => {
     if (location.state?.add === 'contact') { setEditContact({}); window.history.replaceState({}, ''); }
     if (location.state?.add === 'guardian' && !location.state.guardianId) { setInviteOpen(true); window.history.replaceState({}, ''); }
@@ -161,11 +166,16 @@ export default function Profile() {
 
   // Every section below is one line with a summary; tap it to open it, tap
   // again to close it. Each remembers its own state on this device.
-  const themeName = THEMES.find((t) => t.id === theme)?.name || 'Light';
+  const mode = modeOf(theme);
+  const themeName = theme === 'system'
+    ? `System (${resolvedTheme === 'dark' ? 'Dark' : 'Light'})`
+    : THEMES.find((t) => t.id === theme)?.name || 'Light';
   const sizeName = TEXT_SIZES.find((t) => t.id === textSize)?.name || 'Normal';
   const access = [settings.highContrast && 'More contrast', settings.bold && 'Bold', settings.bigButtons && 'Bigger buttons', settings.calmMotion && 'Calm'].filter(Boolean);
   const connected = (guardians.data || []).filter((g) => g.deviceCount > 0).length;
-  const fold = { defaultOpen: false };
+  // "Show me" in How to use MyDay lands here with { open: 'guardians' } and
+  // opens + scrolls to that section, even when Profile is already on screen.
+  const fold = (id) => ({ defaultOpen: false, reveal: reveal?.id === id ? reveal.n : null });
 
   return (
     <div className="stack">
@@ -190,7 +200,7 @@ export default function Profile() {
       <div className="stack">
       {/* accessibility first — bigger text and more contrast help with reading
           everything else on this page */}
-      <Collapsible id="access" icon="eye" title="Accessibility" {...fold} summary={[`${sizeName} text`, ...access].join(' · ')}>
+      <Collapsible id="access" icon="eye" title="Accessibility" {...fold('access')} summary={[`${sizeName} text`, ...access].join(' · ')}>
         <p className="muted" style={{ margin: '0 0 4px' }}>Make MyDay easier to see and use — changes apply straight away.</p>
         <SettingRow icon="notes" title="Text size" desc="Make everything on screen bigger." stacked>
           <SegmentedControl label="Text size" value={textSize} onChange={setTextSize} options={TEXT_SIZES.map((s) => ({ value: s.id, label: s.name }))} />
@@ -213,7 +223,7 @@ export default function Profile() {
       <h2 className="settings-group">Safety &amp; care</h2>
       {/* guardians — the family link is what keeps someone safe, so with nobody
           connected the card is outlined and says what it is for */}
-      <Collapsible id="guardians" icon="user" title="Guardians" {...fold}
+      <Collapsible id="guardians" icon="user" title="Guardians" {...fold('guardians')}
         attention={guardians.data && !connected}
         summary={!guardians.data ? '' : !connected ? 'Add a family guardian to enable safety alerts'
           : `${guardians.data.length} added · ${connected} connected`}>
@@ -254,7 +264,7 @@ export default function Profile() {
       </Collapsible>
 
       {/* contacts — vertical list, never scrolls sideways */}
-      <Collapsible id="contacts" icon="phone" title="My contacts" {...fold}
+      <Collapsible id="contacts" icon="phone" title="My contacts" {...fold('contacts')}
         summary={contacts.data?.length ? `${contacts.data.length} saved${contacts.data.some((c) => c.is_emergency) ? ' · emergency contact set' : ''}` : 'None yet'}>
         <Button variant="ghost" icon="plus" onClick={() => setEditContact({})}>Add a contact</Button>
         <div style={{ height: 10 }} />
@@ -322,7 +332,7 @@ export default function Profile() {
         </Card>
       )}
 
-      <Collapsible id="info" icon="user" title="My information" {...fold} summary="Name, birthday, health and goals">
+      <Collapsible id="info" icon="user" title="My information" {...fold('info')} summary="Name, birthday, health and goals">
         <div className="menu-list">
           <MenuRow icon="user" title="Personal information" desc="Your name, birthday and more" onClick={() => setEditProfile(true)} />
           <MenuRow icon="cross" title="Health information" desc="Medications, supplements and conditions" onClick={() => setEditProfile(true)} />
@@ -334,7 +344,7 @@ export default function Profile() {
       <h2 className="settings-group">App settings</h2>
       {/* language — first in App settings, with a globe icon that reads in any
           language, for someone who can't read English */}
-      <Collapsible id="language" icon="globe" title="Language" {...fold}
+      <Collapsible id="language" icon="globe" title="Language" {...fold('language')}
         summary={(LANGUAGES.concat(MORE_LANGUAGES).find((l) => l.code === currentLanguage())?.name) || 'English'}>
         <label className="muted" htmlFor="lang-select" style={{ display: 'block', margin: '0 0 10px' }}>Show MyDay in your language. The page reloads once.</label>
         <select id="lang-select" className="lang-select notranslate input input--select" translate="no" value={currentLanguage()}
@@ -347,8 +357,12 @@ export default function Profile() {
       </Collapsible>
 
       {/* appearance */}
-      <Collapsible id="appearance" icon="sun" title="Appearance" {...fold} summary={`${themeName} theme`}>
-        <p className="muted" id="theme-label" style={{ margin: '0 0 12px' }}>Pick a look that's comfortable for you.</p>
+      <Collapsible id="appearance" icon="sun" title="Appearance" {...fold('appearance')} summary={`${themeName} theme`}>
+        <SettingRow icon="monitor" title="Light or dark" desc="System matches your phone or computer, day and night." stacked>
+          <SegmentedControl label="Light or dark" value={mode} onChange={(m) => setTheme(themeForMode(m, theme))}
+            options={MODES.map((m) => ({ value: m.id, label: m.name }))} />
+        </SettingRow>
+        <p className="muted" id="theme-label" style={{ margin: '14px 0 12px' }}>Or pick a colour theme that's comfortable for you.</p>
         <div className="theme-grid" role="radiogroup" aria-labelledby="theme-label">
           {THEMES.map((t) => (
             <button key={t.id} type="button" role="radio" aria-checked={theme === t.id}
@@ -364,8 +378,16 @@ export default function Profile() {
         </div>
       </Collapsible>
 
+      {/* Alerts used to be reachable only from the phone's More menu, so a
+          laptop had no way in at all. */}
+      <Card className="menu-card">
+        <div className="menu-list">
+          <MenuRow icon="bell" title="Alerts & reminders" desc="Medicine reminders, sounds and guardian alerts" onClick={() => navigate('/profile/notifications')} />
+        </div>
+      </Card>
+
       {/* the guide — at the very bottom, closed until tapped */}
-      <Collapsible id="howto" icon="info" title="How to use MyDay" {...fold} summary="A step-by-step guide">
+      <Collapsible id="howto" icon="info" title="How to use MyDay" {...fold('howto')} summary="A step-by-step guide">
         <HowToGuide />
       </Collapsible>
       </div>

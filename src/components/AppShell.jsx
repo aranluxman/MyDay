@@ -5,6 +5,9 @@ import { Icon } from './Icon.jsx';
 import { InstallButton } from './InstallButton.jsx';
 import { useApp } from '../context/AppContext.jsx';
 import { playAlarmOnce } from '../lib/alarm.js';
+import { modeOf, nextMode, themeForMode } from '../lib/appearance.js';
+
+const MODE_WORDS = { system: 'match my device', light: 'light mode', dark: 'dark mode' };
 
 const TITLES = {
   '/': 'MyDay',
@@ -15,6 +18,7 @@ const TITLES = {
   '/profile/notifications': 'Alerts',
   '/cards': 'My cards',
   '/games': 'Brain Games',
+  '/medication/ask': 'Ask about medicines',
 };
 
 const ADD_PAGES = new Set(['/', '/medication', '/appointments', '/updates']);
@@ -27,13 +31,15 @@ const ADD_ACTIONS = [
 ];
 
 export function AppShell() {
-  const { theme, setTheme } = useApp();
+  const { theme, resolvedTheme, setTheme } = useApp();
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const [addOpen, setAddOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const title = TITLES[pathname] || 'MyDay';
-  const isDark = theme === 'dark' || theme === 'midnight';
+  const mode = modeOf(theme);
+  const next = nextMode(theme);
+  const modeIcon = mode === 'system' ? 'monitor' : mode === 'dark' ? 'moon' : 'sun';
   const isHome = pathname === '/';
   // The floating + belongs where adding things is the job. On settings,
   // games, cards and the guide it only covers controls — at 320px it sat
@@ -93,9 +99,10 @@ export function AppShell() {
         <h1 className="topbar__title" id="page-title">{title}</h1>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <InstallButton />
-          <button className="topbar__btn" aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
-            title={isDark ? 'Light mode' : 'Dark mode'} onClick={() => setTheme(isDark ? 'light' : 'dark')}>
-            <Icon name={isDark ? 'sun' : 'moon'} size={24} />
+          <button className="topbar__btn" data-mode={mode}
+            aria-label={`Switch to ${MODE_WORDS[next]} (now ${MODE_WORDS[mode]}${mode === 'system' ? `, ${resolvedTheme === 'dark' ? 'dark' : 'light'}` : ''})`}
+            title={`Now ${MODE_WORDS[mode]} — tap for ${MODE_WORDS[next]}`} onClick={() => setTheme(themeForMode(next, theme))}>
+            <Icon name={modeIcon} size={24} />
           </button>
         </div>
       </header>

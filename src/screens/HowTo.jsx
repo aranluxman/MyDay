@@ -11,11 +11,11 @@ const TOPICS = [
     id: 'bar', icon: 'home', title: 'Getting around',
     like: 'The bar at the bottom is like the rooms in a house — tap one to walk into it.',
     steps: [
-      'Look at the bottom of the screen. There are five buttons.',
-      'Home shows your day. Medicine is your pill list. Updates is your health diary. Games are brain games. More opens Visits (your appointments), Profile (your settings), My cards and Alerts.',
-      'The button that is lit up blue is the room you are in now.',
+      'On a phone, look at the bottom of the screen. There are five buttons. On a computer or tablet, the buttons are down the left side.',
+      'Home shows your day. Medicine is your pill list. Updates is your health diary. Games are brain games. On a phone, More opens Visits (your appointments), Profile (your settings), My cards and Alerts. On a computer they are all in the side bar.',
+      'The glass bubble shows the room you are in now. You can tap a button, or slide your finger along the bar and let go on the one you want.',
     ],
-    go: '/',
+    go: '/', goLabel: 'Go to Home',
   },
   {
     id: 'dose', icon: 'check', title: 'Taking today’s medicine',
@@ -26,7 +26,7 @@ const TOPICS = [
       'Tap the green button “Done – I took it”. That’s it.',
       'If you forget, MyDay can remind you, and let your family know.',
     ],
-    go: '/',
+    go: '/', goLabel: 'Go to Home',
   },
   {
     id: 'add', icon: 'plus', title: 'Adding a medicine',
@@ -38,7 +38,7 @@ const TOPICS = [
       'Tip: on the Medicine page you can tap “Add from a photo” and take up to 3 pictures of the box (front, back and the pharmacy label) — MyDay reads them all and fills it in for you to check.',
       'Tap Save on the last step.',
     ],
-    go: '/medication',
+    go: '/medication', state: { add: 'med' }, goLabel: 'Add a medicine now',
   },
   {
     id: 'notes', icon: 'pulse', title: 'Writing how you feel',
@@ -50,7 +50,7 @@ const TOPICS = [
       'Tap “Chat with MyDay” on any note. A friendly helper cheers you on and asks a few simple questions to help you understand how you feel.',
       'The helper is not a doctor. Something feels serious? Don’t write it down first — call 911.',
     ],
-    go: '/updates',
+    go: '/updates', state: { add: 'diary' }, goLabel: 'Write a note now',
   },
   {
     id: 'visits', icon: 'calendar', title: 'Doctor visits',
@@ -60,50 +60,50 @@ const TOPICS = [
       'Type who you are seeing, the day and the time.',
       'MyDay reminds you before the visit.',
     ],
-    go: '/appointments',
+    go: '/appointments', state: { add: 'appt' }, goLabel: 'Add a visit now',
   },
   {
     id: 'guardian', icon: 'user', title: 'Letting family keep an eye out',
     like: 'A guardian is like a neighbour who checks your porch light is on — they can look, but never touch.',
     steps: [
-      'Open Profile. “Guardians” is near the top.',
+      'Open Profile. “Guardians” is the first part under “Safety & care”.',
       'Tap “Invite a guardian” and type their name.',
       'Read them the 6-digit code. On their phone they open myday-1rn.pages.dev/guardian and type it in.',
       'They will see if you took your medicines and get an alert if you miss one. They can never change anything.',
     ],
-    go: '/profile',
+    go: '/profile', state: { open: 'guardians' }, goLabel: 'Open Guardians',
   },
   {
     id: 'alerts', icon: 'bell', title: 'Turning on reminders',
     like: 'Like setting an alarm clock — MyDay rings when it is time for a pill.',
     steps: [
-      'Open Profile, then “Notification settings”.',
+      'Open Profile and tap “Alerts & reminders” — or tap Alerts in More (on a phone) or in the side bar (on a computer).',
       'First add MyDay to your home screen when it asks — then the alerts show as MyDay.',
       'Tap “Turn on alerts on this device”, then “Allow”.',
       'Tap “Send a test alert” to check it works.',
     ],
-    go: '/profile/notifications',
+    go: '/profile/notifications', goLabel: 'Open Alerts',
   },
   {
     id: 'lang', icon: 'globe', title: 'Changing the language',
     like: 'Like switching the TV to a channel in your language.',
     steps: [
       'Open Profile.',
-      'Find “Language” near the top and tap the box.',
+      'Under “App settings”, tap “Language”, then tap the box.',
       'Pick your language. The screen reloads once and everything is in your language.',
     ],
-    go: '/profile',
+    go: '/profile', state: { open: 'language' }, goLabel: 'Open Language',
   },
   {
     id: 'see', icon: 'eye', title: 'Making it easier to see',
     like: 'Like putting on reading glasses — bigger words, clearer lines.',
     steps: [
-      'Open Profile and scroll down to “Accessibility”.',
+      'Open Profile. “Accessibility” is the first section, right under your name.',
       'Under “Text size” tap a bigger size.',
       'Turn on “More contrast”, “Bold text” or “Bigger buttons” if they help.',
-      'The moon button at the top right switches to a dark screen for night-time.',
+      'The button at the top right switches between System (matches your device), Light and Dark. More colours are in Profile → Appearance.',
     ],
-    go: '/profile',
+    go: '/profile', state: { open: 'access' }, goLabel: 'Open Accessibility',
   },
   {
     id: 'games', icon: 'brain', title: 'Brain games',
@@ -113,7 +113,7 @@ const TOPICS = [
       'Pick any game and follow the words on screen.',
       'Try one a day. Your progress is saved.',
     ],
-    go: '/games',
+    go: '/games', goLabel: 'Open Brain Games',
   },
 ];
 
@@ -143,7 +143,7 @@ export function HowToGuide() {
                 <ol className="howto__steps">
                   {t.steps.map((s) => <li key={s}>{s}</li>)}
                 </ol>
-                <Button icon="chevron" onClick={() => navigate(t.go)}>Show me</Button>
+                <Button icon="chevron" onClick={() => navigate(t.go, t.state ? { state: t.state } : undefined)}>{t.goLabel || 'Show me'}</Button>
               </div>
             )}
           </Card>
