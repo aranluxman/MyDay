@@ -9,12 +9,15 @@ for (const [width, height] of LAPTOPS) {
   test(`every page is reachable from the side rail at ${width}x${height}`, async ({ browser }) => {
     const { page, context } = await openApp(browser, { width, height, mobile: false });
     const rail = page.getByRole('navigation', { name: 'Main navigation' });
-    for (const label of ['Home', 'Medicine', 'Updates', 'Visits', 'Games', 'My cards', 'Alerts', 'Profile']) {
+    for (const label of ['Home', 'Medicine', 'Updates', 'Visits', 'Games', 'Profile']) {
       await expect(rail.getByRole('link', { name: label, exact: true })).toBeVisible();
     }
-    await rail.getByRole('link', { name: 'Alerts', exact: true }).click();
-    await expect(page).toHaveURL(/\/profile\/notifications$/);
-    await expect(page.getByRole('switch').first()).toBeVisible();
+    // My cards is gone, and Alerts is a section of Profile rather than a page.
+    await expect(rail.getByRole('link', { name: 'My cards' })).toHaveCount(0);
+    await expect(rail.getByRole('link', { name: 'Alerts' })).toHaveCount(0);
+    await rail.getByRole('link', { name: 'Profile', exact: true }).click();
+    await expect(page).toHaveURL(/\/profile$/);
+    await expect(page.getByRole('switch', { name: 'All notifications' })).toBeVisible();
     await page.waitForLoadState('networkidle');
     // The last thing on the page can be scrolled into view and is not under the rail.
     const last = page.locator('main .stack > *').last();
@@ -23,7 +26,7 @@ for (const [width, height] of LAPTOPS) {
     const box = await last.boundingBox();
     const railBox = await rail.boundingBox();
     expect(box.x).toBeGreaterThanOrEqual(railBox.x + railBox.width - 1);
-    const sw = page.getByRole('switch').first();
+    const sw = page.getByRole('switch', { name: 'All notifications' });
     const before = await sw.getAttribute('aria-checked');
     await sw.click();
     await expect(sw).not.toHaveAttribute('aria-checked', before);
@@ -100,13 +103,16 @@ test('the guide’s "Open Guardians" opens and scrolls to Guardians', async ({ b
 test('Home can be rearranged, and a mood tap is saved with Undo', async ({ browser }) => {
   const { page, mock, context } = await openApp(browser);
   await page.getByRole('button', { name: 'Edit Home' }).click();
+  await page.getByRole('switch', { name: 'Quick calls' }).click();
   await page.getByRole('switch', { name: 'This week' }).click();
   await page.getByRole('button', { name: 'Move Next visit up' }).click();
   await page.getByRole('button', { name: 'Done' }).click();
-  await expect(page.getByRole('region', { name: 'Medicines this week' })).toHaveCount(0);
+  await expect(page.getByRole('region', { name: 'Quick calls' })).toHaveCount(0);
+  await expect(page.getByRole('region', { name: 'Medicines this week' })).toBeVisible();
   await page.reload();
   await page.waitForSelector('.home-grid');
-  await expect(page.getByRole('region', { name: 'Medicines this week' })).toHaveCount(0);
+  await expect(page.getByRole('region', { name: 'Quick calls' })).toHaveCount(0);
+  await expect(page.getByRole('region', { name: 'Medicines this week' })).toBeVisible();
   const order = await page.locator('.home-w').evaluateAll((els) => els.map((e) => e.className.match(/home-w--(\w+)/)[1]));
   expect(order.indexOf('nextVisit')).toBeLessThan(order.indexOf('today'));
 
@@ -139,5 +145,56 @@ test('asking about medicines says it is not medical advice', async ({ browser })
   await page.getByRole('button', { name: 'What is each one for?' }).click();
   // Even if a server slipped one through, the app refuses to show a dose instruction.
   await expect(page.locator('.nchat__log').getByText(/can't tell you how much to take/)).toBeVisible();
+  await context.close();
+});
+
+test('quick calls dial saved contacts, offer to add a missing one, and 911 asks first', async ({ browser }) => {
+  const { page, mock, context } = await openApp(browser);
+  const uid = mock.db.myday_profiles[0].user_id;
+  mock.db.myday_contacts.push({ id: 'c-doc', user_id: uid, name: 'Dr. Synthetic', type: 'provider', phone: '(555) 123-4567' });
+  await page.reload();
+  const quick = page.getByRole('region', { name: 'Quick calls' });
+  await expect(quick.getByRole('link', { name: /^Call Doctor: Dr\. Synthetic/ })).toHaveAttribute('href', 'tel:5551234567');
+  // Nothing dials 911 on a single tap.
+  await expect(page.locator('a[href="tel:911"]')).toHaveCount(0);
+  await quick.getByRole('button', { name: 'Emergency' }).click();
+  const sos = page.getByRole('dialog', { name: 'Call 911?' });
+  await expect(sos.getByRole('link', { name: 'Call 911 now' })).toHaveAttribute('href', 'tel:911');
+  await sos.getByRole('button', { name: 'Cancel' }).click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  // No family number saved: the tile opens the contact form with that kind picked.
+  await quick.getByRole('button', { name: /^Call Family: no number saved/ }).click();
+  await expect(page).toHaveURL(/\/profile$/);
+  await expect(page.getByRole('radio', { name: 'Family or other' })).toHaveAttribute('aria-checked', 'true');
+  await context.close();
+});
+
+test('the Medicine page marks a dose with Take, and the reminders switch saves', async ({ browser }) => {
+  const { page, mock, context } = await openApp(browser, { path: '/medication' });
+  await page.getByRole('button', { name: 'Take Synthetic Vitamin D, 9:00 AM dose' }).click();
+  const row = page.locator('.drow', { hasText: 'Synthetic Vitamin D' });
+  await expect(row.locator('.drow__done')).toHaveText('Taken');
+  // A later dose cannot be marked yet; its outline button says when it can.
+  const later = page.locator('.drow', { hasText: 'Synthetic Metformin' }).filter({ hasText: '8:00 PM' });
+  await later.getByRole('button', { name: /not due yet/ }).click();
+  await expect(later.getByRole('status')).toContainText('Available at 7:30 PM');
+  const sw = page.getByRole('switch', { name: 'Reminders' });
+  await expect(sw).toHaveAttribute('aria-checked', 'true');
+  await sw.click();
+  await expect(sw).toHaveAttribute('aria-checked', 'false');
+  await expect.poll(() => mock.calls.some((c) => c.path === '/rest/v1/myday_notification_prefs' && JSON.stringify(c.body).includes('"dose_due":false'))).toBe(true);
+  await context.close();
+});
+
+test('Updates: a feeling tile starts a note and the general chat saves nothing', async ({ browser }) => {
+  const { page, mock, context } = await openApp(browser, { path: '/updates' });
+  await page.getByRole('group', { name: 'How are you feeling now?' }).getByRole('button', { name: 'Headache' }).click();
+  await expect(page.getByRole('dialog', { name: 'Add a health note' }).getByRole('textbox').first()).toHaveValue('Headache');
+  await page.keyboard.press('Escape');
+  await page.route('**/functions/v1/ai-assist', (r) => r.fulfill({ json: { result: { reply: 'Hello! How are you feeling?', suggestions: [], urgent: false } } }));
+  await page.getByRole('button', { name: /^Chat with MyDay Talk about/ }).click();
+  await expect(page.locator('.nchat__msg--ai')).toContainText('Hello!');
+  await expect(page.getByRole('button', { name: 'Save this to my note' })).toHaveCount(0);
+  expect(mock.db.myday_diary).toHaveLength(0);
   await context.close();
 });

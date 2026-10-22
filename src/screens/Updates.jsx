@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useUI } from '../context/UIContext.jsx';
 import { useAsync } from '../hooks/useAsync.js';
-import { Card, Button, Modal, Field, Input, Textarea, EmptyState, SegmentedControl, SkeletonCard } from '../components/ui.jsx';
+import { Card, Button, Modal, Field, Input, Textarea, SegmentedControl, SkeletonCard } from '../components/ui.jsx';
 import { Icon } from '../components/Icon.jsx';
 import { NoteChat } from '../components/NoteChat.jsx';
 import { listDiary, saveDiary, deleteDiary } from '../lib/db.js';
@@ -13,10 +13,39 @@ import { prettyClock, prettyDate, localDateStr } from '../lib/format.js';
 // The stored values stay the same, so older entries keep their category.
 const CATS = {
   symptom: { label: 'How I felt', icon: 'pulse', cls: 'warm' },
-  event: { label: 'Health moment', icon: 'cross', cls: 'primary' },
-  note: { label: 'Journal entry', icon: 'notes', cls: 'good' },
-  other: { label: 'Mood log', icon: 'star', cls: 'violet' },
+  event: { label: 'Health moment', icon: 'stethoscope', cls: 'violet' },
+  note: { label: 'Journal entry', icon: 'notes', cls: 'primary' },
+  other: { label: 'Mood log', icon: 'smile', cls: 'good' },
 };
+
+// One-tap starters, as coloured tiles. Each opens the note form pre-filled,
+// so a note takes a single tap. Titles the Home check-in writes are matched
+// too, so those notes get the same face and tag in the diary.
+const FEELINGS = [
+  { label: 'Good day', category: 'note', title: 'Good day', icon: 'smile', cls: 'good', tag: 'Mood log' },
+  { label: 'Okay', category: 'other', title: 'Feeling okay', icon: 'smile', cls: 'primary', tag: 'Mood log' },
+  { label: 'Tired', category: 'symptom', title: 'Feeling tired', icon: 'frown', cls: 'warm', tag: 'Mood log' },
+  { label: 'Pain', category: 'symptom', title: 'Pain', icon: 'bolt', cls: 'bad', tag: 'Pain note' },
+  { label: 'Headache', category: 'symptom', title: 'Headache', icon: 'headache', cls: 'violet', tag: 'Pain note' },
+  { label: 'Doctor visit', category: 'event', title: 'Doctor visit', icon: 'stethoscope', cls: 'violet', tag: 'Doctor visit' },
+];
+const LOOKS = {
+  'feeling great': { icon: 'smile', cls: 'good', tag: 'Mood log' },
+  'feeling good': { icon: 'smile', cls: 'good', tag: 'Mood log' },
+  'not feeling well': { icon: 'frown', cls: 'warm', tag: 'How I felt' },
+  'in pain': { icon: 'bolt', cls: 'bad', tag: 'Pain note' },
+  dizziness: { icon: 'pulse', cls: 'warm', tag: 'How I felt' },
+};
+for (const f of FEELINGS) LOOKS[f.title.toLowerCase()] = f;
+function lookOf(e) {
+  const c = CATS[e.category] || CATS.note;
+  const f = LOOKS[String(e.title || '').trim().toLowerCase()];
+  return f ? { icon: f.icon, cls: f.cls, label: f.tag } : c;
+}
+
+// A general chat, not about one note: the helper needs something to start
+// from, so it gets a gentle opener. Nothing is saved to the diary from it.
+const CHECK_IN = { category: 'note', title: 'Checking in', body: 'I would like to talk about how I am feeling today.' };
 
 // Replies saved from "Chat with MyDay" are appended to the note's text with
 // this prefix. Split them back out so the helper's words show as its own
@@ -84,108 +113,113 @@ export default function Updates() {
   return (
     <div className="stack">
       <div className="updates-head">
-        <div>
-          <h2 className="section">Health diary</h2>
-          <p className="muted">Write how you feel — then tap <b>Chat with MyDay</b> to talk it over.</p>
-        </div>
+        <h2 className="updates-head__t">Your health diary</h2>
+        <p className="updates-head__d">Track how you feel each day and chat with MyDay for support.</p>
       </div>
 
-      {/* The warm version only makes sense once. After that the same one-tap
-          starters stay available as a compact row: they were the fastest way
-          to write a note, and hiding them after the first entry meant every
-          note from then on had to be typed. */}
-      {!data.length
-        ? <FeelingPrompt onPick={(draft) => setEditing(draft)} />
-        : <QuickAdd onPick={(draft) => setEditing(draft)} />}
+      <FeelingTiles onPick={(draft) => setEditing(draft)} />
 
-      {groupByDay(data).map((g) => (
+      <button type="button" className="chatbar" onClick={() => setChatting(CHECK_IN)}>
+        <span className="chatbar__ic" aria-hidden="true"><Icon name="sparkle" size={26} /></span>
+        <span className="chatbar__main">
+          <span className="chatbar__t">Chat with MyDay</span>
+          <span className="chatbar__d">Talk about how you're feeling or ask a question.</span>
+        </span>
+        <Icon name="chevron" size={22} />
+      </button>
+
+      {!data.length && (
+        <p className="muted updates-empty">Your notes will show here, day by day. Tap a feeling above to write your first one.</p>
+      )}
+
+      {groupByDay(data).map((g, gi) => (
         <section key={g.day} className="tl-day" aria-label={dayHeading(g.day)}>
-          <h3 className="tl-day__h">{dayHeading(g.day)}</h3>
-          <div className="timeline">
-            {g.rows.map((e) => {
-              const c = CATS[e.category] || CATS.note;
-              const { text, replies } = splitChat(e.body);
-              return (
-                <div key={e.id} className="tl">
-                  <span className={`tl__dot tl__dot--${c.cls}`}><Icon name={c.icon} size={18} /></span>
-                  <Card className="tl__card">
-                    <div className="tl__top">
-                      <span className={`tl__cat tl__cat--${c.cls}`}>{c.label}</span>
-                      <span className="tl__time">{prettyClock(new Date(e.entry_at))}</span>
-                    </div>
-                    {e.title && <div className="card__title">{e.title}</div>}
-                    {text && <div className="tl__body">{text}</div>}
-                    {!!replies.length && (
-                      <details className="tl__chat">
-                        <summary>
-                          <span className="nchat__av" aria-hidden="true"><Icon name="sparkle" size={14} /></span>
-                          {replies.length === 1 ? 'MyDay replied' : `MyDay replied ${replies.length} times`}
-                        </summary>
-                        {replies.map((r, i) => <p key={i} className="tl__bubble">{r}</p>)}
-                      </details>
-                    )}
-                    <Button variant="ghost" size="sm" icon="chat" className="tl__talk" onClick={() => setChatting(e)}>Chat with MyDay</Button>
-                    <div className="btn-row">
-                      <Button variant="ghost" size="sm" icon="edit" onClick={() => setEditing(e)}>Edit</Button>
-                      <Button variant="danger" size="sm" icon="trash" onClick={() => remove(e)}>Delete</Button>
-                    </div>
-                  </Card>
-                </div>
-              );
-            })}
+          <div className="tl-day__head">
+            <h3 className="tl-day__h">{dayHeading(g.day)}</h3>
+            <span className="tl-day__date"><Icon name="calendar" size={18} /> {shortDay(g.day)}</span>
           </div>
+          <ol className="timeline">
+            {g.rows.map((e, i) => (
+              <DiaryItem key={e.id} entry={e} first={gi === 0 && i === 0}
+                onChat={() => setChatting(e)} onEdit={() => setEditing(e)} onDelete={() => remove(e)} />
+            ))}
+          </ol>
         </section>
       ))}
 
-      <Button icon="plus" onClick={() => setEditing({})}>Add a health note</Button>
+      {!!data.length && <Button variant="ghost" icon="plus" onClick={() => setEditing({})}>Add a health note</Button>}
       {editing && <DiaryForm entry={editing.id ? editing : null} draft={editing.id ? null : editing} onClose={() => setEditing(null)}
         onSaved={(row, isNew) => { setEditing(null); reload(); if (isNew && row) offerChat(row); }} />}
-      {chatting && <NoteChat entry={chatting} recent={data} onClose={() => setChatting(null)} onSaved={reload} />}
+      {chatting && <NoteChat entry={chatting} general={chatting === CHECK_IN} recent={data} onClose={() => setChatting(null)} onSaved={reload} />}
     </div>
   );
 }
 
-// Friendly empty state: a warm question plus one-tap starters that open the
-// note form pre-filled, so the first entry takes a single tap.
-const FEELINGS = [
-  { label: 'Good day', category: 'note', title: 'Good day' },
-  { label: 'Headache', category: 'symptom', title: 'Headache' },
-  { label: 'Tired', category: 'symptom', title: 'Feeling tired' },
-  { label: 'Dizzy', category: 'symptom', title: 'Dizziness' },
-  { label: 'Pain', category: 'symptom', title: 'Pain' },
-  { label: 'Doctor visit', category: 'event', title: 'Doctor visit' },
-];
-function FeelingPrompt({ onPick }) {
+const shortDay = (iso) => new Date(`${iso}T12:00:00`).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
+
+// One note on the timeline: its face and time on the left, the note on the
+// right. Edit and Delete sit behind "…" (open on the newest note), so the
+// diary reads as a diary rather than a wall of buttons.
+function DiaryItem({ entry: e, first, onChat, onEdit, onDelete }) {
+  const [tools, setTools] = useState(first);
+  const look = lookOf(e);
+  const { text, replies } = splitChat(e.body);
+  const toolsId = `note-tools-${e.id}`;
+  const name = e.title || look.label;
   return (
-    <Card className="feeling">
-      <div className="feeling__ic"><Icon name="pulse" size={30} /></div>
-      <h3 className="feeling__q">How are you feeling today?</h3>
-      <p className="muted">Tap one to start a note, or add your own below.</p>
-      <div className="feeling__tags">
+    <li className="tl">
+      <div className="tl__side">
+        <span className={`tl__dot tl__dot--${look.cls}`} aria-hidden="true"><Icon name={look.icon} size={22} /></span>
+        <span className="tl__time">{prettyClock(new Date(e.entry_at))}</span>
+      </div>
+      <Card className="tl__card">
+        <div className="tl__top">
+          <span className={`tl__cat tl__cat--${look.cls}`}>{look.label}</span>
+          <button type="button" className="tl__menu" aria-expanded={tools} aria-controls={toolsId}
+            aria-label={`Edit or delete: ${name}`} onClick={() => setTools((v) => !v)}>
+            <Icon name="dots" size={24} stroke={3} className="tl__dots" />
+          </button>
+        </div>
+        {e.title && <div className="card__title">{e.title}</div>}
+        {text && <div className="tl__body">{text}</div>}
+        {!!replies.length && (
+          <details className="tl__chat">
+            <summary>
+              <span className="nchat__av" aria-hidden="true"><Icon name="sparkle" size={14} /></span>
+              {replies.length === 1 ? 'MyDay replied' : `MyDay replied ${replies.length} times`}
+            </summary>
+            {replies.map((r, i) => <p key={i} className="tl__bubble">{r}</p>)}
+          </details>
+        )}
+        <button type="button" className="tl__talk" onClick={onChat}>
+          <Icon name="chat" size={22} /> Chat with MyDay
+        </button>
+        {tools && (
+          <div className="btn-row tl__tools" id={toolsId}>
+            <Button variant="ghost" size="sm" icon="edit" onClick={onEdit}>Edit</Button>
+            <Button variant="danger" size="sm" icon="trash" onClick={onDelete}>Delete</Button>
+          </div>
+        )}
+      </Card>
+    </li>
+  );
+}
+
+function FeelingTiles({ onPick }) {
+  return (
+    <Card className="feel">
+      <h3 className="feel__q" id="feel-q">How are you feeling now?</h3>
+      <p className="feel__d">Tap a feeling to add it to your diary.</p>
+      <div className="feel__grid" role="group" aria-labelledby="feel-q">
         {FEELINGS.map((f) => (
-          <button key={f.label} className="feeling__tag" onClick={() => onPick({ category: f.category, title: f.title })}>
-            {f.label}
+          <button key={f.label} type="button" className={`feel__tile feel__tile--${f.cls}`}
+            onClick={() => onPick({ category: f.category, title: f.title })}>
+            <span className="feel__ic" aria-hidden="true"><Icon name={f.icon} size={30} /></span>
+            <span className="feel__l">{f.label}</span>
           </button>
         ))}
       </div>
     </Card>
-  );
-}
-
-// The same starters, compact, for a diary that already has entries.
-function QuickAdd({ onPick }) {
-  return (
-    <section className="quickadd" aria-labelledby="quickadd-h">
-      <h3 className="quickadd__h" id="quickadd-h">Quick add</h3>
-      <div className="feeling__tags quickadd__tags">
-        {FEELINGS.map((f) => (
-          <button key={f.label} type="button" className="feeling__tag"
-            onClick={() => onPick({ category: f.category, title: f.title })}>
-            {f.label}
-          </button>
-        ))}
-      </div>
-    </section>
   );
 }
 

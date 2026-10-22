@@ -3,7 +3,7 @@ import { openApp } from './harness.js';
 
 test('a morning completion survives reopening and evening has its own dose', async ({ browser }) => {
   const { page, mock, context } = await openApp(browser, { path: '/medication' });
-  const morning = page.getByRole('button', { name: 'Done - I took it: Synthetic Metformin, 8:00 AM dose' });
+  const morning = page.getByRole('button', { name: 'Take Synthetic Metformin, 8:00 AM dose' });
   await morning.click();
   await expect(page.locator('.toast').first()).toContainText('Recorded: Synthetic Metformin');
   const recorded = mock.db.myday_doses.find((d) => d.medication_id === 'm-met' && d.dose_date === '2026-10-07' && d.scheduled_time === '08:00');
@@ -11,7 +11,7 @@ test('a morning completion survives reopening and evening has its own dose', asy
   await page.clock.fastForward(10 * 3600_000);
   await page.evaluate(() => window.dispatchEvent(new Event('focus')));
   await expect(morning).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Done - I took it: Synthetic Metformin, 8:00 PM dose' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Take Synthetic Metformin, 8:00 PM dose' })).toBeVisible();
   await page.reload();
   await expect(morning).toHaveCount(0);
   expect(recorded.status).toBe('taken');
@@ -21,7 +21,7 @@ test('a morning completion survives reopening and evening has its own dose', asy
 
 test('history date dropdown shows all medicines on only the selected day', async ({ browser }) => {
   const { page, mock, context } = await openApp(browser, { path: '/medication' });
-  await page.getByRole('tab', { name: 'History', exact: true }).click();
+  await page.getByRole('button', { name: 'Open your calendar and history' }).click();
   const date = page.getByLabel('Medication history date');
   await expect(date).toBeVisible();
   await page.getByRole('button', { name: 'Taken', exact: true }).click();
@@ -37,7 +37,7 @@ test('history date dropdown shows all medicines on only the selected day', async
 
 test('phone navigation opens Games directly and Profile from More', async ({ browser }) => {
   const { page, context } = await openApp(browser);
-  await expect(page.getByRole('button', { name: /Brain Games/ }).first()).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Quick calls' })).toBeVisible();
   const nav = page.getByRole('navigation', { name: 'Main navigation' });
   await expect(nav.getByRole('link', { name: 'Games', exact: true })).toBeVisible();
   await expect(nav.getByRole('link', { name: 'Profile', exact: true })).toBeHidden();

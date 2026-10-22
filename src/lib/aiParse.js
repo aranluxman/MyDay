@@ -75,7 +75,7 @@ export function normaliseScan(raw) {
 
 const BOOLEAN_SETTINGS = ['highContrast', 'bold', 'bigButtons', 'calmMotion'];
 const PROFILE_FIELDS = ['full_name', 'birthday', 'goal', 'on_treatment', 'for_whom'];
-export const NAV_PATHS = ['/', '/medication', '/appointments', '/updates', '/games', '/cards', '/profile/notifications'];
+export const NAV_PATHS = ['/', '/medication', '/appointments', '/updates', '/games', '/profile/notifications'];
 
 const SETTING_LABELS = {
   highContrast: 'More contrast', bold: 'Bold text', bigButtons: 'Bigger buttons',
@@ -88,7 +88,7 @@ const PROFILE_LABELS = {
 };
 const NAV_LABELS = {
   '/': 'Home', '/medication': 'Medicine', '/appointments': 'Visits', '/updates': 'Updates',
-  '/games': 'Brain Games', '/cards': 'My cards', '/profile/notifications': 'Notification settings',
+  '/games': 'Brain Games', '/profile/notifications': 'Alerts & reminders',
 };
 
 /** A real calendar date, YYYY-MM-DD, not after `today`. */

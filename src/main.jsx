@@ -8,6 +8,7 @@ import './marketing.css';
 import './glass.css';
 import './phone.css';
 import './liquid.css';
+import './screens.css';
 
 initLanguage();
 
