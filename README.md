@@ -29,8 +29,11 @@ Built with **React + Vite (JSX)**, **Supabase** (Auth + Postgres + Edge Function
   switched on.
 - **Medicine** — *Today* with this week's day strip, a "1 of 3 doses taken" ring, and
   one row per dose with a **Take** button (tap the medicine for "I took it earlier",
-  "Not today" and instructions). From there: **History** (list or a month calendar
-  with per-day adherence; the calendar button, the ring or any day in the strip),
+  "Not today" and instructions). Every dose shows *Scheduled* and *Taken* times
+  with an **On time** / **Late by …** tag. Tapping another day in the strip shows
+  that day in place (the plan for later days; yesterday's missed doses can still
+  be marked with the real time; older days are read-only). From there: **History**
+  (list or a month calendar with per-day adherence, via the calendar button),
   **Manage medicines** (add / edit / copy / refill / remove), and a **Reminders**
   switch for dose reminders. "+ Add" sits in the top bar.
 - **Appointments** — date, time, doctor, location, reason; soonest first.

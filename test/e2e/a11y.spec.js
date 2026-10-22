@@ -19,9 +19,6 @@ test('Medicine: History and Manage medicines open from Today and come back', asy
   await expect(page.getByRole('button', { name: 'Add medicines' }).first()).toBeVisible();
   await page.getByRole('button', { name: 'Today', exact: true }).click();
   await expect(page.locator('.ring-card')).toBeVisible();
-  // A later day in the strip opens that day's plan in History.
-  await page.getByRole('button', { name: 'Friday, October 9' }).click();
-  await expect(page.getByRole('heading', { name: 'Friday, October 9' })).toBeVisible();
   await context.close();
 });
 

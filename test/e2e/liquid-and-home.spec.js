@@ -250,3 +250,43 @@ test('dragging the edit wizard down still asks before discarding changes', async
   await expect(page.locator('#wiz-name')).toHaveValue('Synthetic Vitamin D3');
   await context.close();
 });
+
+test('Medicine: tapping a day shows it right there, with scheduled and taken times', async ({ browser }) => {
+  const { page, mock, context } = await openApp(browser, { path: '/medication' });
+  const strip = page.getByRole('group', { name: 'Pick a day this week' });
+  await expect(strip.getByRole('button', { name: /^Today, Wednesday, October 7/ })).toHaveAttribute('aria-pressed', 'true');
+
+  // Yesterday: the record, in place — no trip to another page.
+  await strip.getByRole('button', { name: 'Tuesday, October 6' }).click();
+  await expect(page).toHaveURL(/\/medication$/);
+  await expect(page.getByRole('heading', { name: 'Yesterday' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'History' })).toHaveCount(0);
+  const taken = page.locator('.drow', { hasText: 'Synthetic Vitamin D' });
+  await expect(taken).toContainText('Scheduled 9:00 AM');
+  await expect(taken).toContainText('Taken 9:00 AM');
+  await expect(taken.locator('.drow__flag--ontime')).toHaveText('On time');
+
+  // Forgot to tap yesterday: mark it with the real time, and it reads as late.
+  const missed = page.locator('.drow', { hasText: 'Synthetic Metformin' }).filter({ hasText: '8:00 PM' });
+  await missed.getByRole('button', { name: 'Mark as taken: Synthetic Metformin, 8:00 PM dose' }).click();
+  await page.getByLabel('Type a time').fill('23:30');
+  await page.getByRole('button', { name: 'Use 11:30 PM' }).click();
+  await expect(page.locator('.toast').first()).toContainText('taken at 11:30');
+  await expect(missed.locator('.drow__flag--late')).toHaveText('Late by 3h 30m');
+  const row = mock.db.myday_doses.find((d) => d.medication_id === 'm-met' && d.dose_date === '2026-10-06' && d.scheduled_time === '20:00');
+  expect(row.status).toBe('taken');
+
+  // Older days are a read-only record.
+  await strip.getByRole('button', { name: 'Monday, October 5' }).click();
+  await expect(page.getByRole('heading', { name: 'Monday' })).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Mark as taken/ })).toHaveCount(0);
+
+  // A later day is the plan; "Back to today" returns to the live list.
+  await strip.getByRole('button', { name: 'Friday, October 9' }).click();
+  await expect(page.getByRole('heading', { name: 'Friday' })).toBeVisible();
+  await expect(page.locator('.ring-card')).toContainText('doses planned');
+  await page.getByRole('button', { name: 'Back to today' }).click();
+  await expect(page.getByRole('heading', { name: 'Today', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Take Synthetic Vitamin D, 9:00 AM dose' })).toBeVisible();
+  await context.close();
+});

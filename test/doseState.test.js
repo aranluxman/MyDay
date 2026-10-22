@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   doseState, summarise, dayMark, dayMarkFromCounts, headlineFor, adherence, sortForDisplay,
-  canMarkTaken, unlocksAt,
+  canMarkTaken, unlocksAt, doseTiming, lateWords,
 } from '../src/lib/doseState.js';
 
 const NOW = Date.parse('2026-09-17T12:00:00Z');
@@ -204,4 +204,24 @@ test('skipped doses sort last, below taken', () => {
   const list = [dose(-600, 'skipped'), dose(-600, 'taken'), dose(-5)];
   const order = sortForDisplay(list, { now: NOW }).map((d) => doseState(d, { now: NOW }));
   assert.deepEqual(order, ['overdue', 'taken', 'skipped']);
+});
+
+test('a taken dose is on time inside the missed-dose window, otherwise late by how much', () => {
+  const due = '2026-10-21T08:00:00Z';
+  const at = (iso) => ({ status: 'taken', due_at: due, taken_at: iso });
+  assert.deepEqual(doseTiming(at('2026-10-21T07:50:00Z'), { windowMinutes: 60 }), { onTime: true, lateMinutes: 0 }); // early
+  assert.deepEqual(doseTiming(at('2026-10-21T08:59:00Z'), { windowMinutes: 60 }), { onTime: true, lateMinutes: 0 });
+  assert.deepEqual(doseTiming(at('2026-10-21T13:36:00Z'), { windowMinutes: 60 }), { onTime: false, lateMinutes: 336 });
+  // A medicine's own window wins, as it does for "missed".
+  const own = { ...at('2026-10-21T09:30:00Z'), medication: { alert_window_override: 120 } };
+  assert.equal(doseTiming(own, { windowMinutes: 60 }).onTime, true);
+  assert.equal(doseTiming({ status: 'pending', due_at: due }), null);
+  assert.equal(doseTiming({ ...at('2026-10-21T13:36:00Z'), as_needed: true }), null);
+  assert.equal(doseTiming({ status: 'taken', due_at: 'nope', taken_at: due }), null);
+});
+
+test('lateness reads as minutes, then hours and minutes', () => {
+  assert.equal(lateWords(45), '45 min');
+  assert.equal(lateWords(120), '2h');
+  assert.equal(lateWords(336), '5h 36m');
 });

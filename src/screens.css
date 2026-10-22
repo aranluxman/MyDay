@@ -594,3 +594,70 @@ html[data-contrast='1'] .tl-day__date { background: var(--surface); }
   -webkit-backdrop-filter: blur(calc(3px * var(--scrim, 1))); backdrop-filter: blur(calc(3px * var(--scrim, 1)));
 }
 .sheet__grab, .sheet__head, .wiz__head { -webkit-user-select: none; user-select: none; }
+
+/* ---------- Medicine: any day of the week, in place ---------- */
+.medhead__text { flex: 1 1 auto; min-width: 0; }
+.medhead__back {
+  flex: none; display: inline-flex; align-items: center; gap: 4px; min-height: 44px; padding: 0 14px 0 10px;
+  border: 0; border-radius: 999px; cursor: pointer; font: inherit; font-size: 16px; font-weight: 750;
+  color: var(--primary); background: var(--tint-blue);
+  -webkit-user-select: none; user-select: none; transition: transform 0.35s var(--ease-settle);
+}
+.medhead__back:active { transform: scale(0.95); transition-duration: 0.1s; }
+.medhead { align-items: flex-start; }
+.medhead__back { margin: 8px 0 0 -4px; }
+/* A button too long to sit beside the name goes underneath, full width. */
+.drow--wide-act .drow__row { flex-wrap: wrap; }
+.drow--wide-act .drow__act { flex: 1 1 100%; }
+.drow--wide-act .drow__take { width: 100%; }
+
+/* The picked day is filled in; today keeps a dot when another day is picked. */
+.daystrip__d.is-today { background: var(--surface-2); color: var(--ink); box-shadow: none; }
+.daystrip__d.is-today .daystrip__w { color: var(--primary); opacity: 1; }
+.daystrip__d.is-today::after {
+  content: ''; position: absolute; bottom: 5px; left: 50%; width: 5px; height: 5px; margin-left: -2.5px;
+  border-radius: 50%; background: var(--primary);
+}
+.daystrip__d.is-on { background: var(--primary-fill, var(--primary)); color: var(--on-primary); box-shadow: 0 6px 16px color-mix(in srgb, var(--primary) 35%, transparent); }
+.daystrip__d.is-on .daystrip__w { color: inherit; opacity: 0.9; }
+.daystrip__d.is-on::after { background: var(--on-primary); }
+.dayview { animation: settle-in 0.3s var(--ease-settle) both; }
+html[data-motion='calm'] .dayview { animation: none; }
+@media (prefers-reduced-motion: reduce) { .dayview { animation: none; } }
+.dayview__note {
+  margin: 0; display: flex; align-items: flex-start; gap: 8px; padding: 10px 14px; border-radius: 14px;
+  font-size: 15px; color: var(--ink); background: var(--tint-blue);
+}
+.dayview__note svg { flex: none; color: var(--primary); margin-top: 2px; }
+.ring-card { cursor: default; }
+.ring-card:active { transform: none; }
+
+/* Scheduled and taken, one line each, with an On time / Late tag. */
+.drow__times { display: flex; flex-direction: column; gap: 1px; margin-top: 2px; }
+.drow__times .drow__time { margin-top: 0; }
+.drow__tl { font-weight: 500; color: var(--ink-soft); margin-right: 2px; }
+.drow__time--taken { color: var(--good-ink); }
+.drow--taken .drow__time:not(.drow__time--taken) { color: var(--ink); }
+.drow__flags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.drow__flags .drow__flag { margin-top: 0; }
+.drow__flag--ontime { background: var(--good-bg); color: var(--good-ink); }
+.drow__flag--late { background: var(--warn-bg); color: var(--warn-ink); }
+.medhead__back { white-space: nowrap; }
+.medhead__t { overflow-wrap: anywhere; }
+/* Largest text: a smaller page title, and the week on two rows rather than
+   days scrolled out of sight. */
+html[data-text='huge'] .medhead__t, html[data-text='xlarge'] .medhead__t { font-size: 26px; }
+html[data-text='huge'] .daystrip { grid-template-columns: repeat(4, minmax(0, 1fr)); overflow: visible; }
+@media (max-width: 359px) { html[data-text='xlarge'] .daystrip { grid-template-columns: repeat(4, minmax(0, 1fr)); overflow: visible; } }
+
+/* Dose row: the medicine is the button; times and tags run under the whole
+   row, lined up with the name, so they never wrap into a narrow column. */
+.drow__row > .drow__btn { min-height: 52px; }
+.drow__info { padding-left: 64px; min-width: 0; margin-top: 2px; }
+.drow__name .drow__chev { display: inline-block; vertical-align: -2px; margin-left: 4px; }
+.drow__act--below { margin-top: 10px; }
+.drow__act--below .drow__take { width: 100%; }
+@media (max-width: 379px) { .drow__info { padding-left: 56px; } }
+@media (max-width: 379px) {
+  html[data-text='xlarge'] .drow__info, html[data-text='huge'] .drow__info { padding-left: 0; }
+}

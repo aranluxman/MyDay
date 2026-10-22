@@ -66,6 +66,31 @@ function normaliseWindow(v) {
   return Number.isFinite(n) && n > 0 ? n : DEFAULT_WINDOW_MINUTES;
 }
 
+/**
+ * How a taken dose's time compares with when it was due. Inside the missed-dose
+ * window (the medicine's own, or the person's) counts as on time; after it,
+ * how late in minutes. Taking it early is on time. Null when there is nothing
+ * to compare: not taken, an as-needed dose, or an unreadable time.
+ */
+export function doseTiming(dose, opts = {}) {
+  if (!dose || dose.status !== 'taken' || dose.as_needed) return null;
+  const takenAt = new Date(dose.taken_at).getTime();
+  const dueAt = new Date(dose.due_at).getTime();
+  if (!Number.isFinite(takenAt) || !Number.isFinite(dueAt)) return null;
+  const windowMinutes = normaliseWindow(dose.medication?.alert_window_override ?? opts.windowMinutes);
+  const late = Math.round((takenAt - dueAt) / MINUTE);
+  return late > windowMinutes ? { onTime: false, lateMinutes: late } : { onTime: true, lateMinutes: 0 };
+}
+
+/** "45 min", "2h", "5h 36m" — short enough for a tag. */
+export function lateWords(minutes) {
+  const m = Math.max(0, Math.round(minutes));
+  if (m < 60) return `${m} min`;
+  const h = Math.floor(m / 60);
+  const r = m % 60;
+  return r ? `${h}h ${r}m` : `${h}h`;
+}
+
 /** Worst (most urgent) of a set of states, or null for an empty set. */
 export function mostUrgent(states) {
   for (const s of DOSE_STATES) if (states.includes(s)) return s;
