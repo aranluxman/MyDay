@@ -511,3 +511,86 @@ html[data-text='huge'] .ring-card__main { flex: 1 1 auto; }
 html[data-text='huge'] .ring-card__n { font-size: 24px; }
 html[data-text='huge'] .ring-card__l { font-size: 15px; }
 html[data-text='huge'] .ring-card .today__headline { font-size: 14px; margin-top: 2px; }
+
+/* =====================================================================
+   Apple design pass (WWDC "Designing Fluid Interfaces", "The Details of UI
+   Typography"): instant press feedback, calm critically-damped entrances,
+   size-specific tracking, and solid fallbacks for every glass surface.
+   ===================================================================== */
+
+/* ---------- response: feedback on touch-down, never only on release ---------- */
+:root { --ease-settle: cubic-bezier(0.2, 0.8, 0.2, 1); }
+.qcalls__btn, .tile, .ring-card, .medlink, .chatbar, .feel__tile, .mood, .drow__take,
+.tmeds__all, .tl__talk, .dayhero__today, .daystrip__d, .medhead__cal, .topbar__add,
+.topbar__avatar, .subhead__back, .tl__menu, .remind-card__fix {
+  -webkit-user-select: none; user-select: none;
+  transition: transform 0.35s var(--ease-settle), background-color 0.2s ease, opacity 0.2s ease;
+}
+/* Small things press in a little more than big ones, so both read the same. */
+.qcalls__btn:active, .feel__tile:active, .mood:active:not(:disabled), .drow__take:active:not(:disabled),
+.dayhero__today:active, button.daystrip__d:active, .medhead__cal:active, .topbar__add:active,
+.topbar__avatar:active, .tl__menu:active, .subhead__back:active { transform: scale(0.95); transition-duration: 0.1s; }
+.tile:active, .ring-card:active, .medlink:active, .chatbar:active, .tmeds__all:active,
+.tl__talk:active, .remind-card__fix:active { transform: scale(0.98); transition-duration: 0.1s; }
+/* A list row highlights rather than shrinking, as iOS table rows do. */
+.drow__btn { -webkit-user-select: none; user-select: none; border-radius: 14px; transition: opacity 0.2s ease; }
+.drow__btn:active { opacity: 0.6; transition-duration: 0.05s; }
+
+/* ---------- motion: things arrive, critically damped (no bounce on a tap) ---------- */
+@keyframes settle-in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+@keyframes taken-in { from { opacity: 0; transform: scale(0.82); } to { opacity: 1; transform: none; } }
+@keyframes tick-draw { from { stroke-dasharray: 24; stroke-dashoffset: 24; } to { stroke-dasharray: 24; stroke-dashoffset: 0; } }
+.drow__more, .tl__tools, .mood-card__d { animation: settle-in 0.28s var(--ease-settle) both; }
+.drow__done { animation: taken-in 0.34s var(--ease-settle) both; }
+.drow__tick svg path { animation: tick-draw 0.38s 0.08s var(--ease-settle) both; }
+.drow { transition: background-color 0.35s ease, box-shadow 0.35s ease; }
+/* While a sheet is held, nothing about it eases: it is glued to the finger. */
+.sheet.is-dragging { transition: none !important; animation: none !important; }
+.sheet__grab, .sheet__head, .wiz__head { touch-action: none; }
+/* The grabber is 5px tall; the place to grab it is not. */
+.sheet__grab { box-sizing: content-box; padding: 8px 60px; margin: 2px auto 0; background-clip: content-box; cursor: grab; }
+.sheet.is-dragging .sheet__grab { cursor: grabbing; }
+
+html[data-motion='calm'] .drow__more, html[data-motion='calm'] .tl__tools, html[data-motion='calm'] .mood-card__d,
+html[data-motion='calm'] .drow__done, html[data-motion='calm'] .drow__tick svg path { animation: none; }
+@media (prefers-reduced-motion: reduce) {
+  .drow__more, .tl__tools, .mood-card__d, .drow__done, .drow__tick svg path { animation: none; }
+  .qcalls__btn, .tile, .ring-card, .medlink, .chatbar, .feel__tile, .mood, .drow__take, .tmeds__all,
+  .tl__talk, .dayhero__today, .daystrip__d, .medhead__cal, .topbar__add, .topbar__avatar, .subhead__back,
+  .tl__menu, .remind-card__fix { transition: background-color 0.2s ease, opacity 0.2s ease; }
+}
+
+/* ---------- typography: tracking and leading by size ---------- */
+.dayhero__name { letter-spacing: -0.025em; line-height: 1.05; }
+.dayhero__greet { letter-spacing: -0.015em; }
+.medhead__t { letter-spacing: -0.022em; }
+.subhead__t, .ring-card__n { letter-spacing: -0.02em; }
+.tmeds__t, .mood-card__q, .feel__q, .tl-day__h, .updates-head__t, .ontime__t { letter-spacing: -0.012em; line-height: 1.2; }
+.drow__name, .tl .card__title, .chatbar__t, .medlink__t { letter-spacing: -0.006em; }
+.daystrip__w, .tile__k, .drow__flag, .tl .tl__cat, .tl .tl__time { letter-spacing: 0.01em; }
+.updates-head__d, .feel__d, .remind-card__d, .ontime__d, .tile__d, .drow__dose { line-height: 1.4; }
+
+/* ---------- materials: never glass on glass; solid when asked ---------- */
+.tmeds .drow { -webkit-backdrop-filter: none; backdrop-filter: none; }
+@media (prefers-reduced-transparency: reduce) {
+  .qcalls__btn, .tile, .drow, .ring-card, .medlink, .daystrip, .dayhero__today, .tl-day__date {
+    background-color: var(--surface); -webkit-backdrop-filter: none; backdrop-filter: none;
+  }
+  .drow--taken { background-color: var(--tint-green); }
+  .dayhero__scene { opacity: 0.5; }
+}
+html[data-contrast='1'] .qcalls__btn, html[data-contrast='1'] .tile, html[data-contrast='1'] .drow,
+html[data-contrast='1'] .ring-card, html[data-contrast='1'] .medlink, html[data-contrast='1'] .daystrip,
+html[data-contrast='1'] .dayhero__today, html[data-contrast='1'] .tl-day__date, html[data-contrast='1'] .chatbar,
+html[data-contrast='1'] .feel__tile, html[data-contrast='1'] .mood {
+  -webkit-backdrop-filter: none; backdrop-filter: none; border: 2px solid var(--ink-soft);
+}
+html[data-contrast='1'] .qcalls__btn, html[data-contrast='1'] .tile, html[data-contrast='1'] .ring-card,
+html[data-contrast='1'] .medlink, html[data-contrast='1'] .daystrip, html[data-contrast='1'] .dayhero__today,
+html[data-contrast='1'] .tl-day__date { background: var(--surface); }
+/* The dimming behind a sheet lightens as the sheet is pulled down. */
+.sheet-overlay {
+  background: rgba(8, 12, 24, calc(0.32 * var(--scrim, 1)));
+  -webkit-backdrop-filter: blur(calc(3px * var(--scrim, 1))); backdrop-filter: blur(calc(3px * var(--scrim, 1)));
+}
+.sheet__grab, .sheet__head, .wiz__head { -webkit-user-select: none; user-select: none; }

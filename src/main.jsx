@@ -10,6 +10,10 @@ import './phone.css';
 import './liquid.css';
 import './screens.css';
 
+// iOS Safari only shows :active (the pressed look) while the page listens for
+// touches. Without this, buttons gave no feedback until the finger lifted.
+document.addEventListener('touchstart', () => {}, { passive: true });
+
 initLanguage();
 
 // The visible height of the page, which shrinks when the on-screen keyboard

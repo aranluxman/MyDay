@@ -198,3 +198,55 @@ test('Updates: a feeling tile starts a note and the general chat saves nothing',
   expect(mock.db.myday_diary).toHaveLength(0);
   await context.close();
 });
+
+test('a sheet follows a drag on its grabber: a short pull springs back, a long one closes', async ({ browser }) => {
+  // Full motion here, so the springs actually run.
+  const { page, context } = await openApp(browser, { mobile: false, settings: { calmMotion: false } });
+  await page.getByRole('button', { name: 'Today', exact: true }).click();
+  const sheet = page.getByRole('dialog', { name: 'Your calendar' });
+  await expect(sheet).toBeVisible();
+  await page.waitForTimeout(400); // let it finish arriving
+  const grab = await sheet.locator('.sheet__grab').boundingBox();
+  const x = grab.x + grab.width / 2;
+  const y = grab.y + grab.height / 2;
+  const before = (await sheet.boundingBox()).y;
+
+  // A short, slow pull: it follows the finger, then springs home.
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  for (let i = 1; i <= 6; i++) await page.mouse.move(x, y + i * 10);
+  await expect(sheet).toHaveClass(/is-dragging/);
+  expect((await sheet.boundingBox()).y).toBeGreaterThan(before + 40);
+  await page.waitForTimeout(150); // a still finger: no momentum
+  await page.mouse.up();
+  await expect.poll(async () => Math.round((await sheet.boundingBox()).y)).toBe(Math.round(before));
+
+  // Past halfway: it closes.
+  const h = (await sheet.boundingBox()).height;
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  for (let i = 1; i <= 10; i++) await page.mouse.move(x, y + (i * h * 0.7) / 10);
+  await page.mouse.up();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await context.close();
+});
+
+test('dragging the edit wizard down still asks before discarding changes', async ({ browser }) => {
+  const { page, context } = await openApp(browser, { path: '/medication', mobile: false, settings: { calmMotion: false } });
+  await page.getByRole('button', { name: 'Manage medicines' }).click();
+  await page.locator('.medlist__summary', { hasText: 'Synthetic Vitamin D' }).click();
+  await page.getByRole('button', { name: 'Edit Synthetic Vitamin D' }).click();
+  await page.locator('#wiz-name').fill('Synthetic Vitamin D3');
+  const sheet = page.locator('.sheet--wizard');
+  await page.waitForTimeout(400);
+  const grab = await sheet.locator('.sheet__grab').boundingBox();
+  const h = (await sheet.boundingBox()).height;
+  await page.mouse.move(grab.x + grab.width / 2, grab.y + 4);
+  await page.mouse.down();
+  for (let i = 1; i <= 10; i++) await page.mouse.move(grab.x + grab.width / 2, grab.y + 4 + (i * h * 0.7) / 10);
+  await page.mouse.up();
+  await expect(page.getByRole('alertdialog', { name: /Discard changes to Synthetic Vitamin D/ })).toBeVisible();
+  await page.getByRole('button', { name: 'Keep editing' }).click();
+  await expect(page.locator('#wiz-name')).toHaveValue('Synthetic Vitamin D3');
+  await context.close();
+});

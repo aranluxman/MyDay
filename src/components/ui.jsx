@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { Icon } from './Icon.jsx';
 import { useDialog } from '../hooks/useDialog.js';
 import { useLiquidSlider, useLiquidSwitch } from '../hooks/useLiquidDrag.js';
+import { useSheetDrag } from '../hooks/useSheetDrag.js';
 
 export function Button({ children, onClick, variant = 'primary', size = 'md', icon, disabled, type = 'button', full = true, className = '', ...rest }) {
   const cls = `btn btn--${variant} btn--${size}${full ? ' btn--full' : ''} ${className}`;
@@ -213,7 +214,7 @@ export function TabPanel({ idBase, value, children }) {
 }
 
 // Bottom-sheet modal. Closing from inside the sheet (Escape, the X, a tap on
-// the backdrop) plays the slide-down first; a parent that simply unmounts it
+// the backdrop, or dragging it down) plays the slide-down first; a parent that simply unmounts it
 // after a save still closes instantly, which is what you want after an action.
 //
 // Focus handling (entry, Tab trap, inert background, Escape, restore) comes
@@ -230,6 +231,8 @@ export function Modal({ title, children, onClose, wide, footer }) {
     setTimeout(() => onClose(), 220);
   }, [onClose]);
   useDialog(ref, { onEscape: onClose ? close : undefined });
+  // Pull it down by the grabber or title to close, like an iOS sheet.
+  useSheetDrag(ref, { onDismiss: onClose, disabled: !onClose });
 
   return createPortal(
     <div className={`sheet-overlay${leaving ? ' is-leaving' : ''}`} onClick={(e) => e.target === e.currentTarget && close()}>
