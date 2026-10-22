@@ -2,28 +2,23 @@
 import { test, expect } from '@playwright/test';
 import { createRequire } from 'module';
 import { openApp } from './harness.js';
-import { openNewMedicine, nameAndAmount, cont } from './helpers.js';
+import { openNewMedicine, nameAndAmount, cont, openFold } from './helpers.js';
 
 const require = createRequire(import.meta.url);
 const AXE = require.resolve('axe-core/axe.min.js');
 
-test('medication tabs: ids, panels, roving tabindex, arrows, Home/End', async ({ browser }) => {
+test('Medicine: History and Manage medicines open from Today and come back', async ({ browser }) => {
   const { page, context } = await openApp(browser, { path: '/medication' });
-  const today = page.getByRole('tab', { name: 'Today' });
-  await expect(today).toHaveAttribute('aria-selected', 'true');
-  await expect(today).toHaveAttribute('tabindex', '0');
-  await expect(page.getByRole('tab', { name: 'History' })).toHaveAttribute('tabindex', '-1');
-  const panel = page.getByRole('tabpanel');
-  await expect(panel).toHaveAttribute('aria-labelledby', await today.getAttribute('id'));
-  expect(await today.getAttribute('aria-controls')).toBe(await panel.getAttribute('id'));
-  await today.focus();
-  await page.keyboard.press('ArrowRight');
-  await expect(page.getByRole('tab', { name: 'History' })).toBeFocused();
-  await expect(page.getByRole('tab', { name: 'History' })).toHaveAttribute('aria-selected', 'true');
-  await page.keyboard.press('End');
-  await expect(page.getByRole('tab', { name: 'Medicines' })).toHaveAttribute('aria-selected', 'true');
-  await page.keyboard.press('Home');
-  await expect(today).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByRole('heading', { name: 'Today', exact: true })).toBeVisible();
+  await expect(page.locator('.daystrip [aria-current="date"]')).toContainText('Today, Wednesday, October 7');
+  await page.getByRole('button', { name: 'Open your calendar and history' }).click();
+  await expect(page.getByRole('heading', { name: 'History' })).toBeVisible();
+  await page.getByRole('button', { name: 'Today', exact: true }).click();
+  await page.getByRole('button', { name: 'Manage medicines' }).click();
+  await expect(page.getByRole('heading', { name: 'Manage medicines' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Add medicines' }).first()).toBeVisible();
+  await page.getByRole('button', { name: 'Today', exact: true }).click();
+  await expect(page.locator('.ring-card')).toBeVisible();
   await context.close();
 });
 
@@ -57,6 +52,7 @@ test('two devices are distinguishable, with device-specific remove labels', asyn
 
 test('readiness separates preference, medicines, permission, subscription and delivery', async ({ browser }) => {
   const { page, context } = await openApp(browser, { path: '/profile/notifications' });
+  await openFold(page, /^Will reminders reach me/);
   const list = page.locator('.ready-list');
   for (const t of ['Reminders are on in MyDay', 'Medicines with reminders', 'This device allows notifications', 'This device is signed up for alerts', 'Last alert sent to this device']) {
     await expect(list).toContainText(t);
@@ -94,14 +90,17 @@ test('colour swatches have names and selected state; contact type is a radio gro
 
 test('skip link and meaningful route titles', async ({ browser }) => {
   const { page, context } = await openApp(browser, { path: '/medication' });
-  await expect(page).toHaveTitle('Medication · MyDay');
+  await expect(page).toHaveTitle('Medicine · MyDay');
   await page.keyboard.press('Tab');
   const skip = page.getByRole('link', { name: 'Skip to main content' });
   await expect(skip).toBeFocused();
   await page.keyboard.press('Enter');
   await expect(page.locator('main#main')).toBeFocused();
+  // Alerts are a section of Profile now; the old address opens it there.
   await page.goto('/profile/notifications');
-  await expect(page).toHaveTitle('Alerts · MyDay');
+  await expect(page).toHaveURL(/\/profile$/);
+  await expect(page).toHaveTitle('Profile · MyDay');
+  await expect(page.getByRole('switch', { name: 'All notifications' })).toBeInViewport();
   await context.close();
 });
 
@@ -125,7 +124,7 @@ test('settings fold to one line each and open on tap, with the guide at the bott
   const guide = page.getByRole('button', { name: /^How to use MyDay/ });
   await guide.click();
   await page.getByRole('button', { name: /Taking today/ }).click();
-  await expect(page.getByText('Tap the green button')).toBeVisible();
+  await expect(page.getByText('Tap the blue “Take” button')).toBeVisible();
   await page.goto('/help');
   await expect(page).toHaveURL(/\/profile$/);
   await context.close();
@@ -133,13 +132,13 @@ test('settings fold to one line each and open on tap, with the guide at the bott
 
 test('"How your medicines work together" minimizes and stays minimized', async ({ browser }) => {
   const { page, context } = await openApp(browser, { path: '/medication' });
-  await page.getByRole('tab', { name: 'Medicines' }).click();
+  await page.getByRole('button', { name: 'Manage medicines' }).click();
   await page.getByRole('button', { name: 'Minimize how your medicines work together' }).click();
   const mini = page.locator('.insights-mini');
   await expect(mini).toBeVisible();
   await expect(page.getByRole('button', { name: 'Explain my medicines' })).toHaveCount(0);
   await page.reload();
-  await page.getByRole('tab', { name: 'Medicines' }).click();
+  await page.getByRole('button', { name: 'Manage medicines' }).click();
   await expect(mini).toBeVisible();
   await mini.click();
   await expect(page.getByRole('button', { name: 'Explain my medicines' })).toBeVisible();

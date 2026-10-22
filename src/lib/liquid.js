@@ -76,3 +76,16 @@ export function springStep(state, target, dt, { damping = 1, response = 0.35 } =
 }
 
 export const atRest = (s, target) => Math.abs(s.x - target) < 0.05 && Math.abs(s.v) < 0.05;
+
+/**
+ * Whether a sheet let go at `offset` px below its resting place, moving at
+ * `velocity` px/s (down is positive), should close. The release is projected
+ * forward first, so a quick flick closes it from anywhere and a slow drag
+ * has to pass halfway. The direction of the flick wins: flicking back up
+ * keeps it open even past halfway.
+ */
+export function sheetShouldDismiss(offset, velocity, height) {
+  if (!height) return false;
+  if (velocity < -300) return false;
+  return offset + project(velocity) > height * 0.5;
+}

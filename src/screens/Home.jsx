@@ -8,8 +8,10 @@ import { useAsync } from '../hooks/useAsync.js';
 import { Card, Button, Avatar, Skeleton, SkeletonCard, Modal, Toggle } from '../components/ui.jsx';
 import { Icon } from '../components/Icon.jsx';
 import { MedCalendar, WeekStrip } from '../components/MedCalendar.jsx';
+import { DoseRow } from '../components/DoseRow.jsx';
 import { todaysDoses, upcomingAppointments, pastAppointments, playedTodayCount, listGuardians, listMedications, listContacts, listDiary, saveDiary, deleteDiary } from '../lib/db.js';
 import { prettyTime, prettyDate, localDateStr } from '../lib/format.js';
+import { telHref } from '../lib/contacts.js';
 import { countdownLabel } from '../lib/appointments.js';
 import { MOODS, normalizeLayout, moveWidget, toggleWidget, todaysMood, widgetInfo, DEFAULT_LAYOUT } from '../lib/homeWidgets.js';
 import { profileCompleteness } from '../lib/appearance.js';
@@ -29,6 +31,7 @@ export default function Home() {
   const [fullMonth, setFullMonth] = useState(false);
   const [layout, setLayout] = useHomeLayout();
   const [editing, setEditing] = useState(false);
+  const [calOpen, setCalOpen] = useState(false);
   const reminderProblem = useReminderProblem(installed);
   const { data, loading, error, reload } = useAsync(async () => {
     // Guardians are a nudge, not the day: if they fail to load, show nothing.
@@ -71,71 +74,14 @@ export default function Home() {
 
   function renderWidget(id) {
     switch (id) {
+      case 'quick':
+        return <QuickCalls contacts={contacts} />;
       case 'feeling':
         return <FeelingWidget diary={diary} />;
       case 'today':
-        return (
-          <div className="stack home-today">
-            {dueNow && (
-              <Card accent={STATE_UI[doseState(dueNow, opts)].tone} className="reminder">
-                <div className="reminder__kicker">
-                  {doseState(dueNow, opts) === 'overdue'
-                    ? `Overdue — your ${prettyTime(dueNow.scheduled_time)} medicine`
-                    : `Time for your ${prettyTime(dueNow.scheduled_time)} medicine`}
-                </div>
-                <div className="reminder__name" translate="no">{dueNow.medication?.name}{dueNow.medication?.dose ? ` - ${dueNow.medication.dose}` : ''}</div>
-                {dueNow.medication?.note && <div className="reminder__note">{dueNow.medication.note}</div>}
-                <Button variant="good" size="lg" icon={actions.pending.has(dueNow.id) ? 'clock' : 'check'}
-                  disabled={actions.pending.has(dueNow.id)}
-                  aria-label={`Done - I took it: ${dueNow.medication?.name || 'this medicine'}, ${prettyTime(dueNow.scheduled_time)} dose`}
-                  onClick={() => actions.take(dueNow)}>{actions.pending.has(dueNow.id) ? 'Saving…' : 'Done - I took it'}</Button>
-              </Card>
-            )}
-            {total === 0 ? (
-              <Card>
-                <div className="row-card">
-                  <span className="row-card__ic"><Icon name="pill" size={24} /></span>
-                  <div className="row-card__main">
-                    <div className="row-card__t">Today's medicines</div>
-                    <div className="row-card__d">No medicines scheduled. Tap to add your first medicine.</div>
-                  </div>
-                  <button className="row-card__add" aria-label="Add a medicine"
-                    onClick={() => navigate('/medication', { state: { add: 'med' } })}>
-                    <Icon name="plus" size={24} stroke={2.5} />
-                  </button>
-                </div>
-              </Card>
-            ) : (
-              <Card className="status" accent={missed ? 'missed' : undefined}>
-                {/* Missed doses are the one number that needs doing something about,
-                    so they get a big, coloured, tappable badge of their own rather
-                    than sitting as one of three equal counters. */}
-                {missed > 0 && (
-                  <button type="button" className="status__alert" onClick={() => navigate('/medication')}>
-                    <span className="status__alert-n" aria-hidden="true">{missed}</span>
-                    <span className="status__alert-t">
-                      <b>{missed === 1 ? '1 dose missed today' : `${missed} doses missed today`}</b>
-                      <small>Tap to review — you can still mark it if you took it late</small>
-                    </span>
-                    <Icon name="chevron" size={22} />
-                  </button>
-                )}
-                <div className="status__head">
-                  {/* State first, score second: "0 of 3 taken" reads as failure at
-                      eight in the morning, when the truth is "3 doses to take". */}
-                  <span>{missed > 0 ? "Today's medicines" : s.headline}</span>
-                  <span className="status__count">{taken} of {total}</span>
-                </div>
-                <div className="bar"><div className="bar__fill" style={{ width: `${pct}%` }} /></div>
-                <div className="status__row">
-                  <Stat kind="taken" n={taken} label="Taken" icon="check" />
-                  <Stat kind="missed" n={missed} label="Missed" icon="close" />
-                  <Stat kind="pending" n={toTake} label="To take" icon="clock" />
-                </div>
-              </Card>
-            )}
-          </div>
-        );
+        return <TodayMeds doses={doses} summary={s} dueNow={dueNow} opts={opts} actions={actions} />;
+      case 'diary':
+        return <DiaryTile diary={diary} />;
       case 'nextVisit':
         return <NextVisit appt={appts[0]} />;
       case 'watching':
@@ -199,15 +145,19 @@ export default function Home() {
 
   return (
     <div className="stack">
-      <div className="hello">
-        <div>
-          <h2 className="hello__name">{greeting}, {firstName}!<span className="hello__wave" aria-hidden="true">👋</span></h2>
-          <p className="hello__date">{prettyDate(localDateStr())}</p>
+      <section className="dayhero" aria-labelledby="hero-hi">
+        <HeroScene />
+        <h2 className="dayhero__hi" id="hero-hi">
+          <span className="dayhero__greet">{greeting},</span>
+          <span className="dayhero__name">{firstName}!<span className="hello__wave" aria-hidden="true">👋</span></span>
+        </h2>
+        <div className="dayhero__row">
+          <p className="dayhero__date">{prettyDate(localDateStr())}</p>
+          <button type="button" className="dayhero__today" aria-haspopup="dialog" onClick={() => setCalOpen(true)}>
+            <Icon name="calendar" size={20} /> <span>Today</span> <Icon name="chevron" size={18} className="dayhero__chev" />
+          </button>
         </div>
-        <button className="hello__avatar" onClick={() => navigate('/profile')} aria-label="Profile">
-          <Avatar name={profile?.full_name} color={profile?.avatar_color} size={52} src={profile?.avatar_url} />
-        </button>
-      </div>
+      </section>
 
       {/* Never fail silently: if this device cannot deliver reminders, the Home
           screen says so rather than letting someone believe they are covered. */}
@@ -216,8 +166,6 @@ export default function Home() {
       {/* One urgent banner at a time: while reminders are broken, the guardian
           nudge shrinks to a single quiet line instead of stacking a second
           full card of things to do on arrival. */}
-      <ContactsNudge contacts={contacts} />
-
       <GuardianNudge guardians={guardians} quiet={!!reminderProblem.status} />
 
       {completeness.pct < 100 && (
@@ -237,9 +185,9 @@ export default function Home() {
       {/* Everything below is the person's own Home: widgets they can hide,
           show and reorder from "Edit Home". The urgent cards above stay. */}
       <div className="home-grid">
-        {placed.map(({ id, span }) => {
+        {placed.map(({ id, span, tile }) => {
           const el = renderWidget(id);
-          return el ? <div key={id} className={`home-w home-w--${id}${span ? ' home-w--full' : ''}`}>{el}</div> : null;
+          return el ? <div key={id} className={`home-w home-w--${id}${span ? ' home-w--full' : ''}${tile ? ' home-w--tile' : ''}`}>{el}</div> : null;
         })}
       </div>
 
@@ -247,6 +195,13 @@ export default function Home() {
         <Icon name="layout" size={20} /> <span>Edit Home</span>
       </button>
       {editing && <HomeEditor layout={layout} onChange={setLayout} onClose={() => setEditing(false)} />}
+      {calOpen && (
+        <Modal title="Your calendar" onClose={() => setCalOpen(false)}>
+          <p className="muted" style={{ margin: '0 0 12px' }}>Tap a day to see its medicines.</p>
+          <MedCalendar selected={localDateStr()} windowMinutes={windowMinutes} meds={meds}
+            onPick={(day) => { setCalOpen(false); navigate('/medication', { state: { view: 'calendar', day } }); }} />
+        </Modal>
+      )}
     </div>
   );
 }
@@ -292,7 +247,7 @@ function ReminderWarning({ problem }) {
       </div>
       <div className="btn-row">
         <Button variant="ghost" size="sm" onClick={problem.hide}>Hide this</Button>
-        <Button size="sm" onClick={() => navigate('/profile/notifications')}>Fix it</Button>
+        <Button size="sm" onClick={() => navigate('/profile', { state: { open: 'alerts' } })}>Fix it</Button>
       </div>
     </Card>
   );
@@ -346,62 +301,20 @@ function GuardianNudge({ guardians, quiet }) {
   );
 }
 
-// No one to call yet: a pharmacy, doctor or family number should be one tap
-// away before it is needed. Shown until any contact is saved; "Not now" quiets
-// it for a week.
-const CONTACTS_NUDGE_KEY = 'myday_contacts_nudge_hidden_until';
-function ContactsNudge({ contacts }) {
-  const navigate = useNavigate();
-  const [hidden, setHidden] = useState(() => {
-    try { return Number(localStorage.getItem(CONTACTS_NUDGE_KEY) || 0) > Date.now(); } catch { return false; }
-  });
-  if (!contacts || contacts.length || hidden) return null;
-  return (
-    <Card className="gnudge">
-      <div className="gnudge__head">
-        <span className="gnudge__ic"><Icon name="phone" size={24} /></span>
-        <div>
-          <div className="gnudge__t">Add someone to call</div>
-          <p className="gnudge__d">Save a family member, your doctor or your pharmacy so help is one tap away.</p>
-        </div>
-      </div>
-      <div className="btn-row">
-        <Button variant="ghost" size="sm" onClick={() => {
-          setHidden(true);
-          try { localStorage.setItem(CONTACTS_NUDGE_KEY, String(Date.now() + 7 * 86400000)); } catch {}
-        }}>Not now</Button>
-        <Button size="sm" icon="plus" onClick={() => navigate('/profile', { state: { add: 'contact' } })}>Add a contact</Button>
-      </div>
-    </Card>
-  );
-}
-
 // Skeleton that mirrors the Home layout (greeting, cards, glance chips).
 function HomeSkeleton() {
   return (
     <div className="stack" role="status" aria-label="Loading your day">
-      <div className="hello">
-        <div style={{ flex: 1 }}>
-          <Skeleton h={28} w="55%" />
-          <Skeleton h={14} w="45%" style={{ marginTop: 8 }} />
-        </div>
-        <Skeleton h={52} w={52} r={26} />
+      <div className="dayhero">
+        <Skeleton h={28} w="45%" />
+        <Skeleton h={34} w="35%" style={{ marginTop: 8 }} />
+        <Skeleton h={14} w="45%" style={{ marginTop: 12 }} />
       </div>
-      <SkeletonCard lines={2} />
-      <div className="glance">
-        {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} h={110} r={18} />)}
+      <div className="qcalls">
+        {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} h={104} r={18} />)}
       </div>
+      <SkeletonCard lines={3} />
       <span className="sr-only">Loading…</span>
-    </div>
-  );
-}
-// Colour, an icon and a word together; a counter only lights up when it is
-// above zero, so a row of zeros stays calm.
-function Stat({ kind, n, label, icon }) {
-  return (
-    <div className={`stat stat--${kind}${n > 0 ? ' is-on' : ''}`}>
-      <div className="stat__num">{n}</div>
-      <div className="stat__label"><Icon name={icon} size={14} stroke={2.5} /> {label}</div>
     </div>
   );
 }
@@ -426,15 +339,21 @@ function useHomeLayout() {
 }
 
 // On a wide screen, small widgets pair up side by side; one left without a
-// partner takes the full row rather than leaving a hole beside it.
-const HALF = new Set(['feeling', 'nextVisit', 'watching', 'glance', 'week', 'visitHistory']);
+// partner takes the full row rather than leaving a hole beside it. The two
+// small tiles (Next visit, Health diary) sit side by side even on a phone.
+const HALF = new Set(['feeling', 'nextVisit', 'watching', 'glance', 'week', 'visitHistory', 'diary']);
+const TILES = new Set(['nextVisit', 'diary']);
 function placeWidgets(ids, { games }) {
   const shown = ids.filter((id) => id !== 'games' || games === 0);
   const out = [];
   for (let i = 0; i < shown.length; i++) {
     const id = shown[i];
-    if (HALF.has(id) && HALF.has(shown[i + 1])) {
-      out.push({ id, span: false }, { id: shown[i + 1], span: false });
+    const next = shown[i + 1];
+    if (TILES.has(id) && TILES.has(next)) {
+      out.push({ id, span: false, tile: true }, { id: next, span: false, tile: true });
+      i++;
+    } else if (HALF.has(id) && HALF.has(next)) {
+      out.push({ id, span: false }, { id: next, span: false });
       i++;
     } else {
       out.push({ id, span: true });
@@ -451,6 +370,7 @@ function FeelingWidget({ diary }) {
   const [answer, setAnswer] = useState(() => todaysMood(diary, localDateStr(), (iso) => localDateStr(undefined, new Date(iso))));
   const [changing, setChanging] = useState(false);
   const [busy, setBusy] = useState(null);
+  const [tip, setTip] = useState(false);
 
   async function pick(m) {
     setBusy(m.id);
@@ -492,8 +412,14 @@ function FeelingWidget({ diary }) {
 
   return (
     <Card className="mood-card">
-      <h3 className="mood-card__q" id="mood-q">How are you feeling today?</h3>
-      <p className="muted mood-card__d">One tap saves it to your health diary.</p>
+      <div className="mood-card__head">
+        <h3 className="mood-card__q" id="mood-q">How are you feeling today?</h3>
+        <button type="button" className="icon-btn mood-card__info" aria-expanded={tip} aria-controls="mood-tip"
+          aria-label="What happens when I tap one?" onClick={() => setTip((v) => !v)}>
+          <Icon name="info" size={24} />
+        </button>
+      </div>
+      {tip && <p className="muted mood-card__d" id="mood-tip">One tap saves it to your health diary in Updates. You can add details there.</p>}
       <div className="mood-grid" role="group" aria-labelledby="mood-q">
         {MOODS.map((m) => (
           <button key={m.id} type="button" className={`mood mood--${m.id}${answer?.mood.id === m.id ? ' is-on' : ''}`}
@@ -507,41 +433,189 @@ function FeelingWidget({ diary }) {
   );
 }
 
+// Small tile: the next appointment, or a nudge to add one.
 function NextVisit({ appt }) {
   const navigate = useNavigate();
   if (!appt) {
     return (
-      <Card>
-        <div className="row-card">
-          <span className="row-card__ic"><Icon name="calendar" size={24} /></span>
-          <div className="row-card__main">
-            <div className="row-card__t">Next visit</div>
-            <div className="row-card__d">Nothing booked. Add your next check-up and MyDay will remind you.</div>
-          </div>
-          <button className="row-card__add" aria-label="Add a visit" onClick={() => navigate('/appointments', { state: { add: 'appt' } })}>
-            <Icon name="plus" size={24} stroke={2.5} />
-          </button>
-        </div>
+      <button type="button" className="tile" onClick={() => navigate('/appointments', { state: { add: 'appt' } })}>
+        <span className="tile__ic tile__ic--violet" aria-hidden="true"><Icon name="calendar" size={22} /></span>
+        <span className="tile__main">
+          <span className="tile__k">Next appointment</span>
+          <span className="tile__t">Nothing booked</span>
+          <span className="tile__d">Tap to add a visit</span>
+        </span>
+        <Icon name="chevron" size={20} className="tile__chev" />
+      </button>
+    );
+  }
+  const date = new Date(`${appt.appt_date}T00:00:00`);
+  const when = `${date.toLocaleDateString([], { month: 'short', day: 'numeric' })}${appt.appt_time ? ` · ${prettyTime(appt.appt_time)}` : ''}`;
+  return (
+    <button type="button" className="tile" onClick={() => navigate('/appointments')}>
+      <span className="tile__ic tile__ic--violet" aria-hidden="true"><Icon name="calendar" size={22} /></span>
+      <span className="tile__main">
+        <span className="tile__k">Next appointment<span className="sr-only">, {countdownLabel(appt.appt_date)}</span></span>
+        <span className="tile__t">{appt.doctor_name || appt.reason || 'Appointment'}</span>
+        <span className="tile__d">{when}</span>
+      </span>
+      <Icon name="chevron" size={20} className="tile__chev" />
+    </button>
+  );
+}
+
+// Small tile: the newest health-diary note, which opens Updates.
+function DiaryTile({ diary }) {
+  const navigate = useNavigate();
+  const last = diary?.[0];
+  return (
+    <button type="button" className="tile" onClick={() => navigate('/updates')}>
+      <span className="tile__ic tile__ic--blue" aria-hidden="true"><Icon name="notes" size={22} /></span>
+      <span className="tile__main">
+        <span className="tile__k">Health diary</span>
+        <span className="tile__t">{last ? (last.title || 'Latest note') : 'No notes yet'}</span>
+        <span className="tile__d">{last ? 'View your updates' : 'Write how you feel'}</span>
+      </span>
+      <Icon name="chevron" size={20} className="tile__chev" />
+    </button>
+  );
+}
+
+// Call family, the doctor or the pharmacy in one tap, from the contacts saved
+// in Profile. Nobody saved yet: the tile opens the contact form with that
+// kind already picked. 911 always asks first, so a pocket or a stray finger
+// cannot ring it.
+const QUICK = [
+  { id: 'family', label: 'Call Family', icon: 'phone', tone: 'green', types: ['other'], add: 'other' },
+  { id: 'doctor', label: 'Call Doctor', icon: 'plus', tone: 'blue', types: ['provider', 'clinic'], add: 'provider' },
+  { id: 'pharmacy', label: 'Pharmacy', icon: 'pill', tone: 'violet', types: ['pharmacy'], add: 'pharmacy' },
+];
+function pickContact(contacts, types) {
+  const callable = (contacts || []).filter((c) => types.includes(c.type) && telHref(c.phone));
+  // An emergency contact of that kind first, then the first one saved.
+  return callable.find((c) => c.is_emergency) || callable[0] || null;
+}
+function QuickCalls({ contacts }) {
+  const navigate = useNavigate();
+  const [sos, setSos] = useState(false);
+  return (
+    <section className="qcalls" aria-label="Quick calls">
+      {QUICK.map((q) => {
+        const c = pickContact(contacts, q.types);
+        const inner = (
+          <>
+            <span className={`qcalls__ic qcalls__ic--${q.tone}`} aria-hidden="true"><Icon name={q.icon} size={28} stroke={2.6} /></span>
+            <span className="qcalls__l">{q.label}</span>
+          </>
+        );
+        return c
+          ? <a key={q.id} className="qcalls__btn" href={telHref(c.phone)} aria-label={`${q.label}: ${c.name}, ${c.phone}`}>{inner}</a>
+          : (
+            <button key={q.id} type="button" className="qcalls__btn" aria-label={`${q.label}: no number saved yet — add one`}
+              onClick={() => navigate('/profile', { state: { add: 'contact', contactType: q.add } })}>{inner}</button>
+          );
+      })}
+      <button type="button" className="qcalls__btn" aria-haspopup="dialog" onClick={() => setSos(true)}>
+        <span className="qcalls__ic qcalls__ic--red qcalls__ic--911" aria-hidden="true">911</span>
+        <span className="qcalls__l">Emergency</span>
+      </button>
+      {sos && (
+        <Modal title="Call 911?" onClose={() => setSos(false)}>
+          <p className="dialog-msg">This calls emergency services. Only call if you or someone near you needs urgent help.</p>
+          <a className="btn btn--danger-solid btn--lg btn--full" href="tel:911" onClick={() => setSos(false)}>
+            <Icon name="phone" size={24} /> Call 911 now
+          </a>
+          <div style={{ height: 10 }} />
+          <Button variant="ghost" onClick={() => setSos(false)}>Cancel</Button>
+        </Modal>
+      )}
+    </section>
+  );
+}
+
+// "Today's Medicines": how the day is going, the one dose that matters most
+// right now, and a way into the full list. A missed dose gets its own big,
+// coloured, tappable line, because it is the number that needs acting on.
+function TodayMeds({ doses, summary: s, dueNow, opts, actions }) {
+  const navigate = useNavigate();
+  const scheduled = doses.filter((d) => !d.as_needed);
+  if (!s.total) {
+    return (
+      <Card className="tmeds">
+        <div className="tmeds__head"><h3 className="tmeds__t">Today's Medicines</h3></div>
+        <p className="muted" style={{ margin: '0 0 12px' }}>No medicines scheduled today.</p>
+        <Button variant="ghost" icon="plus" onClick={() => navigate('/medication', { state: { add: 'med' } })}>Add a medicine</Button>
       </Card>
     );
   }
-  const when = appt.appt_time ? `${prettyDate(appt.appt_date)} at ${prettyTime(appt.appt_time)}` : prettyDate(appt.appt_date);
-  const date = new Date(`${appt.appt_date}T00:00:00`);
+  // What needs doing now; otherwise the next dose later today; otherwise the
+  // last one taken, so the card always shows something real.
+  const later = scheduled.filter((d) => doseState(d, opts) === 'upcoming')
+    .sort((a, b) => String(a.scheduled_time).localeCompare(String(b.scheduled_time)));
+  const done = scheduled.filter((d) => doseState(d, opts) === 'taken')
+    .sort((a, b) => String(b.scheduled_time).localeCompare(String(a.scheduled_time)));
+  const show = dueNow || later[0] || done[0];
   return (
-    <Card className="visit-w">
-      <button type="button" className="visit-w__btn" onClick={() => navigate('/appointments')}>
-        <span className="appt__date" aria-hidden="true">
-          <span className="appt__d">{date.getDate()}</span>
-          <span className="appt__m">{date.toLocaleDateString([], { month: 'short' })}</span>
-        </span>
-        <span className="visit-w__main">
-          <span className="visit-w__k">Next visit · {countdownLabel(appt.appt_date)}</span>
-          <span className="visit-w__t">{appt.doctor_name || appt.reason || 'Appointment'}</span>
-          <span className="visit-w__d">{when}{appt.location ? ` · ${appt.location}` : ''}</span>
-        </span>
-        <Icon name="chevron" size={22} />
+    <Card className="tmeds">
+      <div className="tmeds__head">
+        <h3 className="tmeds__t">Today's Medicines</h3>
+        <span className="tmeds__n">{s.taken} of {s.total} taken</span>
+      </div>
+      <div className="bar tmeds__bar" role="img" aria-label={`${s.taken} of ${s.total} doses taken`}>
+        <div className="bar__fill" style={{ width: `${s.pct}%` }} />
+      </div>
+      {s.missed > 0 && (
+        <button type="button" className="status__alert" onClick={() => navigate('/medication')}>
+          <span className="status__alert-n" aria-hidden="true">{s.missed}</span>
+          <span className="status__alert-t">
+            <b>{s.missed === 1 ? '1 dose missed today' : `${s.missed} doses missed today`}</b>
+            <small>Tap to review — you can still mark it if you took it late</small>
+          </span>
+          <Icon name="chevron" size={22} />
+        </button>
+      )}
+      {show && (
+        <ul className="drows tmeds__list">
+          <DoseRow dose={show} actions={actions} windowMinutes={opts.windowMinutes} simple />
+        </ul>
+      )}
+      <button type="button" className="tmeds__all" onClick={() => navigate('/medication')}>
+        View All Medicines <Icon name="chevron" size={20} />
       </button>
     </Card>
+  );
+}
+
+// The calm landscape behind the greeting: hills, a lake and a few pines.
+// Decorative only, drawn in the theme's own colours so it works light or dark.
+function HeroScene() {
+  return (
+    <svg className="dayhero__scene" viewBox="0 0 400 220" preserveAspectRatio="xMaxYMax slice" aria-hidden="true">
+      <defs>
+        <linearGradient id="hs-sky" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" className="hs-sky1" />
+          <stop offset="1" className="hs-sky2" />
+        </linearGradient>
+        <linearGradient id="hs-fade" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0.05" stopColor="#fff" stopOpacity="0" />
+          <stop offset="0.35" stopColor="#fff" stopOpacity="0.75" />
+          <stop offset="0.6" stopColor="#fff" stopOpacity="1" />
+        </linearGradient>
+        <mask id="hs-mask"><rect width="400" height="220" fill="url(#hs-fade)" /></mask>
+      </defs>
+      <g mask="url(#hs-mask)">
+        <rect width="400" height="220" fill="url(#hs-sky)" />
+        <circle cx="300" cy="62" r="26" className="hs-sun" />
+        <path d="M120 150l70-62 40 30 55-58 60 52 55-34v72z" className="hs-far" />
+        <path d="M150 160l60-40 45 26 50-40 45 30 50-22v46z" className="hs-mid" />
+        <rect x="120" y="158" width="280" height="62" className="hs-lake" />
+        <path d="M190 172h70M280 182h60M220 194h90" className="hs-ripple" />
+        <g className="hs-pine">
+          <path d="M352 160l14-44 14 44z" /><path d="M370 162l12-36 12 36z" /><path d="M336 162l10-30 10 30z" />
+          <path d="M386 160l8-26 8 26z" />
+        </g>
+      </g>
+    </svg>
   );
 }
 
@@ -579,18 +653,8 @@ const WATCH_COLORS = ['#2563a8', '#18774c', '#a1520e', '#b3376c', '#6d3fd1', '#0
 const colorFor = (name = '') => WATCH_COLORS[[...name].reduce((n, ch) => n + ch.charCodeAt(0), 0) % WATCH_COLORS.length];
 function WatchingWidget({ watching }) {
   const navigate = useNavigate();
-  if (!watching.length) {
-    return (
-      <button type="button" className="watch-empty" onClick={() => navigate('/guardian')}>
-        <span className="watch-empty__ic"><Icon name="shield" size={22} /></span>
-        <span className="watch-empty__main">
-          <b>Helping someone with their medicines?</b>
-          <small>Enter their guardian code to check on them here.</small>
-        </span>
-        <Icon name="chevron" size={22} />
-      </button>
-    );
-  }
+  // Nobody to watch: nothing on Home. "Become a guardian" lives in Profile.
+  if (!watching.length) return null;
   return (
     <Card className="watch">
       <div className="w-head">

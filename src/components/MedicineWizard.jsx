@@ -17,6 +17,7 @@ import { toMedicationPayload, medicineProblems } from '../lib/medicationPayload.
 import { saveMedication, uploadMedPhoto, medPhotoUrl, recentMedicineNames, listContacts } from '../lib/db.js';
 import { prettyTime, prettyDate, localDateStr } from '../lib/format.js';
 import { blankMedicineForm, meaningfulMedicineDraft } from '../lib/medicineDraft.js';
+import { useSheetDrag } from '../hooks/useSheetDrag.js';
 
 // Adding a medicine, as a short guided sheet instead of one dense form.
 //
@@ -188,6 +189,8 @@ export function MedicineWizard({ med, prefill, stageDraft, onDraftChange, onStag
   }
 
   useDialog(dialogRef, { onEscape: requestClose });
+  // Dragging it down asks the same way the X does, so a draft is never lost to a swipe.
+  useSheetDrag(dialogRef, { onDismiss: requestClose, keepOpen: true });
   const pct = Math.round(((step + 1) / STEPS.length) * 100);
 
   return createPortal(

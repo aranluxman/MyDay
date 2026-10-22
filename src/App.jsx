@@ -21,8 +21,6 @@ const Games = lazy(() => import('./screens/Games.jsx'));
 const GuardianJoin = lazy(() => import('./screens/GuardianJoin.jsx'));
 const Guardian = lazy(() => import('./screens/Guardian.jsx'));
 const AccountGuardian = lazy(() => import('./screens/AccountGuardian.jsx'));
-const NotificationSettings = lazy(() => import('./screens/NotificationSettings.jsx'));
-const Cards = lazy(() => import('./screens/Cards.jsx'));
 const MedicineAsk = lazy(() => import('./screens/MedicineAsk.jsx'));
 const ForgotPassword = lazy(() => import('./screens/ForgotPassword.jsx'));
 const ResetPassword = lazy(() => import('./screens/ResetPassword.jsx'));
@@ -86,8 +84,9 @@ function Root() {
         <Route path="/medication/ask" element={<LazyScreen><MedicineAsk /></LazyScreen>} />
         <Route path="/appointments" element={<LazyScreen><Appointments /></LazyScreen>} />
         <Route path="/profile" element={<LazyScreen><Profile /></LazyScreen>} />
-        <Route path="/profile/notifications" element={<LazyScreen><NotificationSettings /></LazyScreen>} />
-        <Route path="/cards" element={<LazyScreen><Cards /></LazyScreen>} />
+        {/* Alerts are a section of Profile now, not a page of their own; old
+            links (and the AI helper's navigate action) open that section. */}
+        <Route path="/profile/notifications" element={<Navigate to="/profile" state={{ open: 'alerts' }} replace />} />
         <Route path="/games" element={<LazyScreen><Games /></LazyScreen>} />
         {/* The guide now lives at the bottom of Settings; old links land there. */}
         <Route path="/help" element={<Navigate to="/profile" replace />} />

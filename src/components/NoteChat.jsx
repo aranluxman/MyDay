@@ -20,7 +20,7 @@ import { prettyTime } from '../lib/format.js';
 // "Save this to my note", which adds the helper's last reply to the entry.
 const MAX_TURNS = 12;
 
-export function NoteChat({ entry, recent = [], onClose, onSaved }) {
+export function NoteChat({ entry, general, recent = [], onClose, onSaved }) {
   const { profile } = useApp();
   const ui = useUI();
   const [messages, setMessages] = useState([]); // { role, content }
@@ -127,10 +127,18 @@ export function NoteChat({ entry, recent = [], onClose, onSaved }) {
   return (
     <Modal title="Chat with MyDay" onClose={onClose}>
       <div className="nchat">
-        <div className="nchat__note">
-          <Icon name="notes" size={20} />
-          <span><b>{entry.title || 'Your note'}</b>{entry.body ? ` — ${entry.body.slice(0, 120)}${entry.body.length > 120 ? '…' : ''}` : ''}</span>
-        </div>
+        {general ? (
+          // Started from "Chat with MyDay" at the top of Updates, not from a note.
+          <div className="nchat__note">
+            <Icon name="sparkle" size={20} />
+            <span>Talk about how you're feeling or ask a question. Nothing here is added to your diary.</span>
+          </div>
+        ) : (
+          <div className="nchat__note">
+            <Icon name="notes" size={20} />
+            <span><b>{entry.title || 'Your note'}</b>{entry.body ? ` — ${entry.body.slice(0, 120)}${entry.body.length > 120 ? '…' : ''}` : ''}</span>
+          </div>
+        )}
 
         {urgent && <UrgentCall />}
 

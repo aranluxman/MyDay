@@ -7,12 +7,12 @@ const OUT = new URL('../../docs/audit/screenshots/', import.meta.url).pathname;
 const SCENES = [
   { id: '01-medication-320-largest', w: 320, h: 568, text: 'huge', path: '/medication' },
   { id: '02-profile-320-largest', w: 320, h: 568, text: 'huge', path: '/profile' },
-  { id: '03-alerts-320', w: 320, h: 568, text: 'normal', path: '/profile/notifications' },
+  { id: '03-alerts-320', w: 320, h: 568, text: 'normal', path: '/profile/notifications' }  // opens the Alerts section of Profile,
   { id: '04-medication-landscape-844x390', w: 844, h: 390, text: 'normal', path: '/medication',
     run: async (p) => { await p.evaluate(() => window.scrollBy(0, 230)); } },
   { id: '05-review-2.75mg-390', w: 390, h: 844, text: 'normal', path: '/medication',
     run: async (p) => {
-      await p.getByRole('tab', { name: 'Medicines' }).click();
+      await p.getByRole('button', { name: 'Manage medicines' }).click();
       await p.getByRole('button', { name: 'Add medicines' }).first().click();
       await p.getByRole('button', { name: 'Type a medicine' }).click();
       await p.locator('#wiz-name, input[aria-label="Medicine name"]').fill('Synthetic Liquid');
@@ -24,7 +24,7 @@ const SCENES = [
     } },
   { id: '06-history-calendar-390', w: 390, h: 844, text: 'normal', path: '/medication',
     run: async (p) => {
-      await p.getByRole('tab', { name: 'History' }).click();
+      await p.getByRole('button', { name: 'Open your calendar and history' }).click();
       await p.getByText('Calendar', { exact: true }).click();
       await p.waitForTimeout(400);
       await p.locator('.cal').scrollIntoViewIfNeeded();

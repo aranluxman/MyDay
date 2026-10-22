@@ -1,7 +1,7 @@
 import { test, expect, devices } from '@playwright/test';
 import { openApp, NOW, BASE } from './harness.js';
 import { makeFixtures, installMock } from './mock.js';
-import { openNewMedicine, cont } from './helpers.js';
+import { openNewMedicine, cont, openFold } from './helpers.js';
 
 const sizes = [[360, 800], [390, 844], [430, 932]];
 const reply = 'Thanks for adding that to your diary. What would you like to record next?';
@@ -98,7 +98,7 @@ for (const [width, height] of sizes) for (const scaled of [false, true]) {
     if (scaled) await zoom200(page);
     await page.route('**/functions/v1/ai-assist', (route) => route.fulfill({ status: 503, contentType: 'application/json',
       body: JSON.stringify({ error: 'missing OPENAI_API_KEY' }) }));
-    await page.getByRole('button', { name: 'Chat with MyDay' }).click();
+    await page.getByRole('button', { name: 'Chat with MyDay', exact: true }).click();
     await expect(page.getByRole('alert')).toContainText('Chat is unavailable right now. You can still use your health diary.');
     await expect(page.getByRole('button', { name: 'Retry', exact: true })).toHaveCount(0);
     await expect(page.getByText('missing OPENAI_API_KEY')).toHaveCount(0);
@@ -124,7 +124,7 @@ test('multi-turn chat keeps history, retries the failed turn once and preserves 
     }
     return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ result: { reply: reply.repeat(8), suggestions: [], urgent: false } }) });
   });
-  await page.getByRole('button', { name: 'Chat with MyDay' }).click();
+  await page.getByRole('button', { name: 'Chat with MyDay', exact: true }).click();
   const input = page.getByLabel('Your message', { exact: true });
   await expect(input).toBeEnabled();
   expect(calls).toHaveLength(1);
@@ -160,6 +160,9 @@ test('multi-turn chat keeps history, retries the failed turn once and preserves 
 test('permission is separate from subscription; saved device nicknames never identify this device', async ({ browser }) => {
   const { page, context } = await openApp(browser, { path: '/profile/notifications' });
   await expect(page.getByText('Will reminders reach me?')).toBeVisible();
+  await openFold(page, /^Will reminders reach me/);
+  await openFold(page, /^Devices getting your alerts/);
+  await openFold(page, /^Missed doses/);
   await expect(page.getByText('Not this device — 2 other devices are set up.')).toBeVisible();
   await expect(page.locator('.ns-med.is-current')).toHaveCount(0);
   await expect(page.locator('.ns-med', { hasText: 'iPhone' })).toBeVisible();
@@ -189,7 +192,7 @@ test('chat also refuses unsafe generated content from an older backend', async (
   await page.route('**/functions/v1/ai-assist', (route) => route.fulfill({ contentType: 'application/json', body: JSON.stringify({
     result: { reply: 'You probably have diabetes. Take 2 tablets.', suggestions: ['Double my dose'], urgent: false },
   }) }));
-  await page.getByRole('button', { name: 'Chat with MyDay' }).click();
+  await page.getByRole('button', { name: 'Chat with MyDay', exact: true }).click();
   await expect(page.locator('.nchat__msg--ai')).toContainText('cannot diagnose, prescribe, or advise on medicine doses');
   await expect(page.getByText('You probably have diabetes. Take 2 tablets.')).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Double my dose' })).toHaveCount(0);
@@ -221,6 +224,8 @@ test('push-service acceptance never claims receipt, and a disabled current subsc
     }) });
   });
   await page.reload();
+  await openFold(page, /^Devices getting your alerts/);
+  await openFold(page, /^Missed doses/);
   await expect(page.getByText('This device allows notifications.')).toBeVisible();
   await expect(page.locator('.ns-med.is-current')).toContainText('iPhone');
   await expect(page.locator('.ns-med.is-current .contact__type')).toHaveText('This device');

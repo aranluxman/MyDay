@@ -14,26 +14,36 @@ Built with **React + Vite (JSX)**, **Supabase** (Auth + Postgres + Edge Function
 - **Accounts** — email + password sign up / sign in / sign out. Each person's data
   is private (per-user Row Level Security). Sign-up is instant (no email-confirmation
   step), which is friendlier for older users.
-- **Bottom navigation** — on phones: Home, Medicine, Updates, Games and More (Visits, Profile, My cards, Alerts); the desktop side rail shows all eight, including My cards and Alerts.
+- **Bottom navigation** — on phones: Home, Medicine, Updates, Games and More (Visits, Profile); the desktop side rail shows all six. Alerts & reminders are a section of Profile (`/profile/notifications` opens it there).
 - **Liquid Glass controls** — the tab bar / side rail, segmented controls and switches use a Liquid Glass lens (`src/liquid.css`, `src/hooks/useLiquidDrag.js`, physics in `src/lib/liquid.js`): press and slide a finger along the bar and the glass follows it, magnifying the tab under it, then springs to the nearest tab on release (Apple's momentum projection + critically damped springs). Switches turn to glass while held and can be slid. Real refraction in Chromium; frosted elsewhere; solid with Reduce Transparency / High contrast; no springs with Reduce Motion or Calm screen.
 - **Forgot password** — a plain-language email recovery flow (`/forgot` →
   `/reset-password`), linked from the sign-in screen.
-- **Home** — a warm dashboard: greeting, then widgets the person arranges with
-  **Edit Home** (show/hide + reorder, saved on the device): *How are you feeling
-  today?* (one tap saves a mood note to Updates, with Undo), today's medicines with
-  the due-now Done button, Next visit, People I watch, Today at a glance, This week,
-  Visit history and the brain-game nudge.
-- **Medication** — three views via a segmented control:
-  - **Today** — each dose with a big "Done - I took it" tap (pending / taken / missed).
-  - **Calendar** — a MediSafe-style month calendar with per-day adherence dots; tap a
-    day to see that day's doses.
-  - **Medicines** — add / edit / remove any number of medicines & vitamins (name,
-    dose, multiple daily times, color, note).
+- **Home** — a warm dashboard: greeting over a calm landscape with a *Today*
+  calendar button, then widgets the person arranges with **Edit Home** (show/hide +
+  reorder, saved on the device). By default: **Quick calls** (Call Family, Call
+  Doctor, Pharmacy from saved contacts — or add one — and 911, which always asks
+  first), *How are you feeling today?* (one tap saves a mood note to Updates, with
+  Undo), **Today's Medicines** (progress, missed-dose alert, the dose that matters
+  now with its Take button), and the **Next appointment** and **Health diary** tiles.
+  Today at a glance, This week, Visit history and the brain-game nudge can be
+  switched on.
+- **Medicine** — *Today* with this week's day strip, a "1 of 3 doses taken" ring, and
+  one row per dose with a **Take** button (tap the medicine for "I took it earlier",
+  "Not today" and instructions). Every dose shows *Scheduled* and *Taken* times
+  with an **On time** / **Late by …** tag. Tapping another day in the strip shows
+  that day in place (the plan for later days; yesterday's missed doses can still
+  be marked with the real time; older days are read-only). From there: **History**
+  (list or a month calendar with per-day adherence, via the calendar button),
+  **Manage medicines** (add / edit / copy / refill / remove), and a **Reminders**
+  switch for dose reminders. "+ Add" sits in the top bar.
 - **Appointments** — date, time, doctor, location, reason; soonest first.
-- **Updates (health diary)** — a timeline of symptoms, health events, and notes.
+- **Updates (health diary)** — *How are you feeling now?* tiles that start a note,
+  a general **Chat with MyDay**, and a day-by-day timeline of notes (Edit / Delete
+  behind "…").
 - **Profile** — "about me" intake (name, birthday, age, *what I'm on*, *what I'm
   working toward*), typed **contacts** (pharmacy, provider, clinic, insurance,
-  merchant, other), **light/dark theme**, missed-dose alerts, and sign out.
+  merchant, other), **Alerts & reminders** (delivery check, missed doses, quiet
+  hours, sound, devices), **light/dark theme**, and sign out.
 - **Brain Games** — its own bottom-nav tab, with six games: Match the Pairs, Word
   Puzzle, Number Patterns, Quick Math, Odd One Out, and Today (orientation).
   **10 difficulty levels** with a level picker plus adaptive difficulty. Scores
@@ -87,7 +97,8 @@ src/
   main.jsx, App.jsx                         -> entry + routes (auth gate)
   index.css                                 -> design system + light/dark themes
   glass.css                                 -> Apple-style glass layer: palette, frosted surfaces, motion, alerts
-  liquid.css                                -> Liquid Glass for the controls layer (loaded last): nav lens, segmented, switches
+  liquid.css                                -> Liquid Glass for the controls layer: nav lens, segmented, switches
+  screens.css                               -> Home, Medicine and Updates layouts (loaded last)
   context/AppContext.jsx                    -> session, profile, theme
   context/UIContext.jsx                     -> toasts + confirm dialogs
   components/                               -> Icon, ui primitives, AppShell, BottomNav, MedCalendar

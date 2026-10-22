@@ -1,7 +1,7 @@
 // Liquid Glass physics: Apple's projection, rubber-banding and springs.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { project, rubberband, bandedPosition, nearestIndex, velocityFrom, landingIndex, springStep, atRest } from '../src/lib/liquid.js';
+import { project, rubberband, bandedPosition, nearestIndex, velocityFrom, landingIndex, springStep, atRest, sheetShouldDismiss } from '../src/lib/liquid.js';
 
 test('momentum projection matches Apple’s formula', () => {
   // (v/1000) * d / (1 - d): 1000px/s at 0.998 coasts ~499px.
@@ -43,4 +43,12 @@ test('a critically damped spring settles on target without overshoot', () => {
   for (let i = 0; i < 120; i++) { s = springStep(s, 100, 1 / 60); max = Math.max(max, s.x); }
   assert.ok(max <= 100.5, `overshot to ${max}`);
   assert.ok(atRest(s, 100));
+});
+
+test('a sheet closes on a flick or past halfway, and stays when flicked back up', () => {
+  assert.equal(sheetShouldDismiss(60, 0, 600), false); // a small, slow pull springs back
+  assert.equal(sheetShouldDismiss(320, 0, 600), true); // let go past halfway
+  assert.equal(sheetShouldDismiss(40, 900, 600), true); // a short, quick flick down
+  assert.equal(sheetShouldDismiss(400, -800, 600), false); // flicked back up
+  assert.equal(sheetShouldDismiss(400, 0, 0), false);
 });

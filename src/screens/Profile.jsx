@@ -13,6 +13,7 @@ import { ageFromBirthday, prettyClock, shortDate } from '../lib/format.js';
 import { THEMES, TEXT_SIZES, MODES, modeOf, themeForMode, profileCompleteness } from '../lib/appearance.js';
 import { CONTACT_TYPES, validPhone, telHref } from '../lib/contacts.js';
 import { HowToGuide } from './HowTo.jsx';
+import { AlertsSettings } from '../components/AlertsSettings.jsx';
 
 
 // A linking code now lives for 15 minutes, not 14 days, so it is counted in
@@ -88,7 +89,8 @@ export default function Profile() {
     if (open) { setReveal((r) => ({ id: open, n: (r?.n || 0) + 1 })); window.history.replaceState({}, ''); }
   }, [location.key]);
   useEffect(() => {
-    if (location.state?.add === 'contact') { setEditContact({}); window.history.replaceState({}, ''); }
+    // Home's quick-call tiles send the kind of contact they need (doctor, pharmacy…).
+    if (location.state?.add === 'contact') { setEditContact({ type: location.state.contactType }); window.history.replaceState({}, ''); }
     if (location.state?.add === 'guardian' && !location.state.guardianId) { setInviteOpen(true); window.history.replaceState({}, ''); }
   }, [location.key]);
   // From Home's "Finish connecting…": put that guardian's fresh code on screen
@@ -308,6 +310,11 @@ export default function Profile() {
         </p>
       </Collapsible>
 
+      {/* Alerts are part of staying safe, so they sit here rather than on a
+          separate page someone has to know to look for. */}
+      <h2 className="settings-group">Alerts &amp; reminders</h2>
+      <AlertsSettings reveal={reveal?.id === 'alerts' ? reveal.n : null} />
+
       <h2 className="settings-group">Personal info &amp; health</h2>
       {completeness.pct < 100 && (
         <Card>
@@ -378,14 +385,6 @@ export default function Profile() {
         </div>
       </Collapsible>
 
-      {/* Alerts used to be reachable only from the phone's More menu, so a
-          laptop had no way in at all. */}
-      <Card className="menu-card">
-        <div className="menu-list">
-          <MenuRow icon="bell" title="Alerts & reminders" desc="Medicine reminders, sounds and guardian alerts" onClick={() => navigate('/profile/notifications')} />
-        </div>
-      </Card>
-
       {/* the guide — at the very bottom, closed until tapped */}
       <Collapsible id="howto" icon="info" title="How to use MyDay" {...fold('howto')} summary="A step-by-step guide">
         <HowToGuide />
@@ -430,7 +429,7 @@ export default function Profile() {
 
       {editProfile && <ProfileForm profile={profile} onClose={() => setEditProfile(false)}
         onSaved={async (patch) => { await updateProfile(patch); await reloadProfile(); setEditProfile(false); ui.toast('Saved.'); }} />}
-      {editContact && <ContactForm contact={editContact.id ? editContact : null} onClose={() => setEditContact(null)}
+      {editContact && <ContactForm contact={editContact.id ? editContact : null} initialType={editContact.type} onClose={() => setEditContact(null)}
         onSaved={() => { setEditContact(null); contacts.reload(); }} />}
     </div>
   );
@@ -503,7 +502,6 @@ function GuardianRow({ guardian: g, onShowCode, onRevokeDevice, onToggleDiary, o
             <li className="g-can__yes"><Icon name="check" size={18} /> The phone numbers of your saved contacts</li>
             <li className="g-can__no"><Icon name="close" size={18} /> They cannot change or add anything</li>
             <li className="g-can__no"><Icon name="close" size={18} /> They cannot mark a dose as taken</li>
-            <li className="g-can__no"><Icon name="close" size={18} /> They cannot see your health cards</li>
           </ul>
           <SettingRow icon="notes" title="Share my health notes"
             desc="Off by default. Lets them read your recent diary entries.">
@@ -595,10 +593,10 @@ function ProfileForm({ profile, onClose, onSaved }) {
   );
 }
 
-function ContactForm({ contact, onClose, onSaved }) {
+function ContactForm({ contact, initialType, onClose, onSaved }) {
   const ui = useUI();
   const editing = !!contact;
-  const [type, setType] = useState(contact?.type || 'pharmacy');
+  const [type, setType] = useState(contact?.type || initialType || 'pharmacy');
   const [name, setName] = useState(contact?.name || '');
   const [phone, setPhone] = useState(contact?.phone || '');
   const [email, setEmail] = useState(contact?.email || '');

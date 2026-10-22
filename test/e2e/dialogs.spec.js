@@ -64,7 +64,7 @@ test('any minute can be entered, AM/PM is explicit, and duplicates are refused',
 
 test('closing an edited medicine with changes asks before discarding', async ({ browser }) => {
   const { page, context } = await openApp(browser, { path: '/medication' });
-  await page.getByRole('tab', { name: 'Medicines' }).click();
+  await page.getByRole('button', { name: 'Manage medicines' }).click();
   await page.locator('.medlist__summary', { hasText: 'Synthetic Vitamin D' }).click();
   await page.getByRole('button', { name: 'Edit Synthetic Vitamin D' }).click();
   await page.locator('#wiz-name').fill('Synthetic Vitamin D3');

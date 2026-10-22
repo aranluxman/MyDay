@@ -12,7 +12,7 @@ const TOPICS = [
     like: 'The bar at the bottom is like the rooms in a house — tap one to walk into it.',
     steps: [
       'On a phone, look at the bottom of the screen. There are five buttons. On a computer or tablet, the buttons are down the left side.',
-      'Home shows your day. Medicine is your pill list. Updates is your health diary. Games are brain games. On a phone, More opens Visits (your appointments), Profile (your settings), My cards and Alerts. On a computer they are all in the side bar.',
+      'Home shows your day. Medicine is your pill list. Updates is your health diary. Games are brain games. On a phone, More opens Visits (your appointments) and Profile (your settings and alerts). On a computer they are all in the side bar.',
       'The glass bubble shows the room you are in now. You can tap a button, or slide your finger along the bar and let go on the one you want.',
     ],
     go: '/', goLabel: 'Go to Home',
@@ -21,9 +21,9 @@ const TOPICS = [
     id: 'dose', icon: 'check', title: 'Taking today’s medicine',
     like: 'Like ticking a box on a paper chart — but MyDay keeps the chart for you.',
     steps: [
-      'Open Home. When it is time, a big card says “Time for your medicine”.',
+      'Open Home or Medicine. Each medicine shows its time.',
       'Take your medicine.',
-      'Tap the green button “Done – I took it”. That’s it.',
+      'Tap the blue “Take” button next to it. That’s it — it turns green and says “Taken”.',
       'If you forget, MyDay can remind you, and let your family know.',
     ],
     go: '/', goLabel: 'Go to Home',
@@ -77,12 +77,12 @@ const TOPICS = [
     id: 'alerts', icon: 'bell', title: 'Turning on reminders',
     like: 'Like setting an alarm clock — MyDay rings when it is time for a pill.',
     steps: [
-      'Open Profile and tap “Alerts & reminders” — or tap Alerts in More (on a phone) or in the side bar (on a computer).',
+      'Open Profile and find “Alerts & reminders”, under “Safety & care”.',
       'First add MyDay to your home screen when it asks — then the alerts show as MyDay.',
       'Tap “Turn on alerts on this device”, then “Allow”.',
       'Tap “Send a test alert” to check it works.',
     ],
-    go: '/profile/notifications', goLabel: 'Open Alerts',
+    go: '/profile', state: { open: 'alerts' }, goLabel: 'Open Alerts',
   },
   {
     id: 'lang', icon: 'globe', title: 'Changing the language',

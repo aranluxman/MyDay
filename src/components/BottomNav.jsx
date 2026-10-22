@@ -7,24 +7,19 @@ import { useLiquidSlider } from '../hooks/useLiquidDrag.js';
 // Destinations. On a phone, six tabs only fit by shrinking their labels to
 // about 9px — unreadable — and at the largest text size they overlapped. So a
 // phone shows four tabs plus a clearly labelled "More", and the side rail on a
-// large screen shows everything — including My cards and Alerts, which used
-// to live only behind More, so a laptop had no way to reach them at all.
-// The visible label is the accessible name.
+// large screen shows everything. Alerts live inside Profile now, not on a page
+// of their own. The visible label is the accessible name.
 const ITEMS = [
   { to: '/', icon: 'home', label: 'Home', end: true, phone: true },
   { to: '/medication', icon: 'pill', label: 'Medicine', phone: true },
   { to: '/updates', icon: 'pulse', label: 'Updates', phone: true },
   { to: '/appointments', icon: 'calendar', label: 'Visits' },
   { to: '/games', icon: 'brain', label: 'Games', phone: true },
-  { to: '/cards', icon: 'cross', label: 'My cards' },
-  { to: '/profile/notifications', icon: 'bell', label: 'Alerts' },
   { to: '/profile', icon: 'user', label: 'Profile', end: true },
 ];
 const MORE = [
   { to: '/appointments', icon: 'calendar', label: 'Visits', desc: 'Doctor and clinic appointments' },
-  { to: '/profile', icon: 'user', label: 'Profile', desc: 'Your details and preferences' },
-  { to: '/cards', icon: 'cross', label: 'My cards', desc: 'Health and insurance cards' },
-  { to: '/profile/notifications', icon: 'bell', label: 'Alerts', desc: 'Reminders and notifications' },
+  { to: '/profile', icon: 'user', label: 'Profile', desc: 'Your details, alerts and preferences' },
 ];
 
 export function BottomNav() {

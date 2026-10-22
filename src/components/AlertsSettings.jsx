@@ -1,8 +1,7 @@
-import { useCallback, useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Icon } from '../components/Icon.jsx';
-import { InstallCard, detectDevice } from '../components/InstallCard.jsx';
-import { Card, Button, Toggle, SegmentedControl, SkeletonCard, Collapsible } from '../components/ui.jsx';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Icon } from './Icon.jsx';
+import { InstallCard } from './InstallCard.jsx';
+import { Card, Button, Toggle, SegmentedControl, SkeletonCard, Collapsible } from './ui.jsx';
 import { useUI } from '../context/UIContext.jsx';
 import { useApp } from '../context/AppContext.jsx';
 import { useAsync } from '../hooks/useAsync.js';
@@ -22,7 +21,8 @@ import { setAlarmEnabled } from '../lib/alarm.js';
 import { prettyClock, prettyTime, shortDate } from '../lib/format.js';
 import { readinessChecklist, describeDevice } from '../lib/readiness.js';
 
-// Everything about notifications, in one place the person can actually reach.
+// Everything about notifications, as a section of Profile. It used to be a
+// page of its own; one fewer place to find means one fewer place to get lost.
 //
 // The rule throughout: never fail silently. If alerts cannot be delivered on
 // this device, this screen says so in plain words and gives the steps for
@@ -37,9 +37,9 @@ const ALERT_WINDOWS = [
 
 const TIME_CHOICES = ['07:00', '08:00', '09:00', '12:00', '18:00', '20:00', '21:00'];
 
-export default function NotificationSettings() {
+export function AlertsSettings({ reveal }) {
   const ui = useUI();
-  const navigate = useNavigate();
+  const sectionRef = useRef(null);
   const { profile, updateProfile } = useApp();
   const { installed } = useInstallPrompt();
 
@@ -129,17 +129,33 @@ export default function NotificationSettings() {
     } catch { ui.toast('Could not send a test alert.', 'bad'); }
   }
 
+  // "Fix it" on Home, the guide and old /profile/notifications links land on
+  // Profile with { open: 'alerts' }: bring this section into view.
+  useEffect(() => {
+    if (!reveal || !prefs) return;
+    const calm = document.documentElement.dataset.motion === 'calm'
+      || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    requestAnimationFrame(() => {
+      sectionRef.current?.scrollIntoView({ behavior: calm ? 'auto' : 'smooth', block: 'start' });
+      sectionRef.current?.focus({ preventScroll: true });
+    });
+  }, [reveal, !!prefs]);
+
   if (!prefs) {
-    return <div className="stack"><SkeletonCard lines={3} /><SkeletonCard lines={4} /></div>;
+    return <div className="stack" id="fold-alerts"><SkeletonCard lines={3} /><SkeletonCard lines={2} /></div>;
   }
 
   const off = !prefs.master;
+  const ready = readinessChecklist({
+    prefs, permission, supported: pushSupported(), installed,
+    meds: meds.data || [], devices: devices.data || [], myEndpoint,
+  });
+  const warnings = ready.filter((r) => r.state === 'warn').length;
+  // Like the rest of Profile, each part below is one line until tapped; the
+  // delivery status and the master switch always stay in view.
 
   return (
-    <div className="stack">
-      <button type="button" className="ns-back" onClick={() => navigate('/profile')}>
-        <Icon name="back" size={22} /> Profile
-      </button>
+    <div className="stack" id="fold-alerts" ref={sectionRef} tabIndex={-1} aria-label="Alerts and reminders">
 
       {/* ---- can this device actually deliver? ---- */}
       <Card>
@@ -190,14 +206,13 @@ export default function NotificationSettings() {
         )}
       </Card>
 
-      {/* ---- readiness: every link in the chain, separately ---- */}
-      <Card>
-        <h2 className="ns-h">Will reminders reach me?</h2>
+      {/* ---- readiness: every link in the chain, separately. Open by default
+          whenever something needs attention, so a problem is never folded away. ---- */}
+      <Collapsible id="ns-ready" icon="check" title="Will reminders reach me?" defaultOpen={warnings > 0}
+        attention={warnings > 0}
+        summary={warnings ? `${warnings} ${warnings === 1 ? 'thing needs' : 'things need'} attention` : 'Everything checked'}>
         <ul className="ready-list">
-          {readinessChecklist({
-            prefs, permission, supported: pushSupported(), installed,
-            meds: meds.data || [], devices: devices.data || [], myEndpoint,
-          }).map((r) => (
+          {ready.map((r) => (
             <li key={r.id} className={`ready ready--${r.state}`}>
               <span className="ready__ic" aria-hidden="true"><Icon name={r.state === 'ok' ? 'check' : r.state === 'warn' ? 'alert' : 'info'} size={18} /></span>
               <span className="ready__main">
@@ -211,7 +226,7 @@ export default function NotificationSettings() {
           “Sent” means MyDay handed the alert to your device's notification service. Only a test you
           actually see on your screen proves it arrived.
         </p>
-      </Card>
+      </Collapsible>
 
       {/* ---- master switch ---- */}
       <Card>
@@ -228,7 +243,7 @@ export default function NotificationSettings() {
       </Card>
 
       {/* ---- per type ---- */}
-      <Collapsible id="ns-types" icon="bell" title="What to tell me about"
+      <Collapsible id="ns-types" defaultOpen={false} icon="bell" title="What to tell me about"
         summary={`${NOTIFICATION_TYPES.filter((t) => prefs[t.id]).length} of ${NOTIFICATION_TYPES.length} on`}>
         {NOTIFICATION_TYPES.map((t) => (
           <Row key={t.id} id={`ns-${t.id}`} title={t.label} desc={t.desc} dim={off}>
@@ -238,7 +253,7 @@ export default function NotificationSettings() {
       </Collapsible>
 
       {/* ---- missed dose ---- */}
-      <Collapsible id="ns-missed" icon="clock" title="Missed doses"
+      <Collapsible id="ns-missed" defaultOpen={false} icon="clock" title="Missed doses"
         summary={`Missed after ${ALERT_WINDOWS.find((w) => w.value === (profile?.alert_window_minutes ?? 60))?.label || `${profile?.alert_window_minutes ?? 60} min`} · ${prefs.repeat_every_minutes ? `repeat every ${prefs.repeat_every_minutes} min` : 'no repeats'}`}>
         <p className="muted" id="ns-window-label" style={{ margin: '0 0 10px' }}>
           The default is {profile?.alert_window_minutes ?? 60} minutes after a scheduled dose. A medicine with its own missed-dose window uses that instead.
@@ -282,7 +297,7 @@ export default function NotificationSettings() {
       </Collapsible>
 
       {/* ---- appointments + summary ---- */}
-      <Collapsible id="ns-appts" icon="calendar" title="Appointments and summaries"
+      <Collapsible id="ns-appts" defaultOpen={false} icon="calendar" title="Appointments and summaries"
         summary={`${APPOINTMENT_LEADS.find((l) => l.minutes === prefs.appointment_lead_minutes)?.label || ''} · summary at ${prettyTime(prefs.daily_summary_at)}`}>
         <Row id="ns-lead" title="Remind me before a visit" desc="How far ahead." control="select">
           <select id="ns-lead-c" className="input input--select" value={prefs.appointment_lead_minutes} aria-describedby="ns-lead-d"
@@ -299,7 +314,7 @@ export default function NotificationSettings() {
       </Collapsible>
 
       {/* ---- quiet hours ---- */}
-      <Collapsible id="ns-quiet" icon="moon" title="Quiet hours"
+      <Collapsible id="ns-quiet" defaultOpen={false} icon="moon" title="Quiet hours"
         summary={prefs.quiet_hours_enabled ? `${prettyTime(prefs.quiet_from)} to ${prettyTime(prefs.quiet_to)}` : 'Off'}>
         <Row id="ns-quiet-on" title="Stay quiet at night" desc="No reminders between these times.">
           <Toggle checked={!!prefs.quiet_hours_enabled} labelledBy="ns-quiet-on-t" describedBy="ns-quiet-on-d"
@@ -334,7 +349,7 @@ export default function NotificationSettings() {
       </Collapsible>
 
       {/* ---- sound and feel ---- */}
-      <Collapsible id="ns-sound" icon="bell" title="Sound and vibration"
+      <Collapsible id="ns-sound" defaultOpen={false} icon="bell" title="Sound and vibration"
         summary={[prefs.sound ? 'Sound on' : 'Sound off', prefs.vibrate ? 'vibration on' : 'vibration off'].join(' · ')}>
         <Row id="ns-sound-on" title="Sound" desc="A loud alarm plays once if you miss a dose while MyDay is open.">
           <Toggle checked={!!prefs.sound} onChange={(v) => update({ sound: v })} labelledBy="ns-sound-on-t" describedBy="ns-sound-on-d" />
@@ -345,7 +360,7 @@ export default function NotificationSettings() {
       </Collapsible>
 
       {/* ---- devices ---- */}
-      <Collapsible id="ns-devices" icon="phone" title="Devices getting your alerts"
+      <Collapsible id="ns-devices" defaultOpen={false} icon="phone" title="Devices getting your alerts"
         summary={devices.data ? `${devices.data.length} device${devices.data.length === 1 ? '' : 's'}${devices.data.some((d) => d.endpoint === myEndpoint) ? ', including this one' : ''}` : ''}>
         {devices.loading ? <SkeletonCard lines={2} /> : !devices.data?.length ? (
           <p className="muted" style={{ margin: 0 }}>

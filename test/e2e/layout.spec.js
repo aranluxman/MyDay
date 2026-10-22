@@ -5,7 +5,7 @@ import { openApp } from './harness.js';
 
 const VIEWPORTS = [[320, 568], [360, 640], [390, 844], [430, 932], [844, 390], [390, 400]];
 const TEXT = ['normal', 'huge'];
-const PAGES = ['/', '/medication', '/profile', '/profile/notifications'];
+const PAGES = ['/', '/medication', '/updates', '/profile'];
 
 async function settle(page) {
   await page.waitForSelector('main .stack');
@@ -52,8 +52,9 @@ for (const [w, h] of VIEWPORTS) {
           expect.soft(n.clipped, 'nav labels clipped').toEqual([]);
           expect.soft(n.minPx, 'nav label size').toBeGreaterThanOrEqual(12);
         }
-        if (path === '/profile/notifications') {
+        if (path === '/profile') {
           await expect.soft(page.locator('.fab')).toHaveCount(0);
+          // Alerts live in Profile now; their master switch must still be reachable.
           const sw = page.getByRole('switch', { name: 'All notifications' });
           await sw.scrollIntoViewIfNeeded();
           const box = await sw.boundingBox();
@@ -63,7 +64,7 @@ for (const [w, h] of VIEWPORTS) {
         if (path === '/medication') {
           // Every action can be scrolled fully clear of the nav and Add button
           // and actually receives the tap there.
-          const actions = page.locator('main .card button');
+          const actions = page.locator('main .card button, main .drow button, main .ring-card, main .medlink');
           const n = await actions.count();
           for (let i = 0; i < n; i++) {
             const b = actions.nth(i);
@@ -80,7 +81,7 @@ for (const [w, h] of VIEWPORTS) {
             expect.soft(r.own, `"${r.label}" does not receive the tap`).toBe(true);
           }
           // Full medicine names are readable, not cut off.
-          const cut = await page.$$eval('main .card__title', (els) => els.filter((e) => e.scrollWidth > e.clientWidth + 1).map((e) => e.textContent));
+          const cut = await page.$$eval('main .card__title, main .drow__name', (els) => els.filter((e) => e.scrollWidth > e.clientWidth + 1).map((e) => e.textContent));
           expect.soft(cut, 'truncated medicine names').toEqual([]);
         }
         await context.close();
@@ -90,9 +91,10 @@ for (const [w, h] of VIEWPORTS) {
 }
 
 // Interactive targets on the core phone screens, at the default settings
-// (no "Bigger buttons"). WCAG 2.5.5 asks for 44x44; calendar day cells are
-// the one documented exception (2.5.8's 24px minimum still holds).
-for (const path of ['/medication', '/profile/notifications', '/profile', '/']) {
+// (no "Bigger buttons"). WCAG 2.5.5 asks for 44x44; calendar day cells (the
+// month grid and the Medicine week strip, 37x60 at 320px) are the one
+// documented exception (2.5.8's 24px minimum still holds).
+for (const path of ['/medication', '/updates', '/profile', '/']) {
   test(`hit areas at 320px on ${path}`, async ({ browser }) => {
     const { page, context } = await openApp(browser, { width: 320, height: 568, path });
     await settle(page);
@@ -101,7 +103,7 @@ for (const path of ['/medication', '/profile/notifications', '/profile', '/']) {
       return [...document.querySelectorAll(sel)].filter((el) => el.offsetParent !== null && !el.closest('[inert]'))
         .map((el) => ({ el, r: el.getBoundingClientRect() }))
         .filter(({ el, r }) => r.width > 0 && (r.width < 44 || r.height < 44) && !el.classList.contains('skip-link'))
-        .map(({ el, r }) => ({ name: (el.getAttribute('aria-label') || el.textContent || el.tagName).trim().slice(0, 40), w: Math.round(r.width), h: Math.round(r.height), cal: !!el.closest('.cal__grid') }));
+        .map(({ el, r }) => ({ name: (el.getAttribute('aria-label') || el.textContent || el.tagName).trim().slice(0, 40), w: Math.round(r.width), h: Math.round(r.height), cal: !!el.closest('.cal__grid, .daystrip') }));
     });
     const real = small.filter((s) => !(s.cal && s.w >= 24 && s.h >= 24));
     expect(real, JSON.stringify(real)).toEqual([]);

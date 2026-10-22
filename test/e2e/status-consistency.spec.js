@@ -7,9 +7,9 @@ import { openApp } from './harness.js';
 test('calendar, history list, Today and Home agree on missed doses', async ({ browser }) => {
   const { page, context } = await openApp(browser, { path: '/medication' });
   await expect(page.locator('.today__headline')).toHaveText('1 dose missed today');
-  await expect(page.locator('.card', { hasText: 'Synthetic Metformin' }).filter({ hasText: '8:00 AM' }).locator('.g-badge')).toContainText('Missed');
+  await expect(page.locator('.drow', { hasText: 'Synthetic Metformin' }).filter({ hasText: '8:00 AM' }).locator('.drow__flag')).toContainText('Missed');
 
-  await page.getByRole('tab', { name: 'History' }).click();
+  await page.getByRole('button', { name: 'Open your calendar and history' }).click();
   await page.getByRole('radio', { name: 'Calendar' }).click();
   const oct7 = page.getByRole('button', { name: /Wednesday, October 7:/ });
   await expect(oct7).toHaveAttribute('aria-label', /1 missed/);
@@ -27,7 +27,8 @@ test('calendar, history list, Today and Home agree on missed doses', async ({ br
   await expect(oct3.locator('.g-badge--missed')).toHaveCount(2);
 
   await page.goto('/');
-  await expect(page.locator('.stat--missed .stat__num')).toHaveText('1');
-  await expect(page.getByRole('button', { name: /Wednesday, October 7:/ })).toHaveAttribute('aria-label', /1 missed/);
+  await expect(page.locator('.tmeds .status__alert-n')).toHaveText('1');
+  await page.getByRole('button', { name: 'Today', exact: true }).click();
+  await expect(page.getByRole('dialog').getByRole('button', { name: /Wednesday, October 7:/ })).toHaveAttribute('aria-label', /1 missed/);
   await context.close();
 });

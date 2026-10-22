@@ -1,6 +1,7 @@
 import { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { BottomNav } from './BottomNav.jsx';
+import { Avatar } from './ui.jsx';
 import { Icon } from './Icon.jsx';
 import { InstallButton } from './InstallButton.jsx';
 import { useApp } from '../context/AppContext.jsx';
@@ -12,16 +13,17 @@ const MODE_WORDS = { system: 'match my device', light: 'light mode', dark: 'dark
 const TITLES = {
   '/': 'MyDay',
   '/updates': 'Updates',
-  '/medication': 'Medication',
+  '/medication': 'Medicine',
   '/appointments': 'Appointments',
   '/profile': 'Profile',
-  '/profile/notifications': 'Alerts',
-  '/cards': 'My cards',
   '/games': 'Brain Games',
   '/medication/ask': 'Ask about medicines',
 };
 
-const ADD_PAGES = new Set(['/', '/medication', '/appointments', '/updates']);
+// Medicine has its own "+ Add" in the top bar instead.
+const ADD_PAGES = new Set(['/', '/appointments', '/updates']);
+// Pages that carry the profile photo in the top bar, as a way into Profile.
+const AVATAR_PAGES = new Set(['/', '/updates']);
 
 const ADD_ACTIONS = [
   { icon: 'pill', label: 'Add a medicine', desc: 'Pills, vitamins, drops', to: '/medication', add: 'med' },
@@ -31,7 +33,7 @@ const ADD_ACTIONS = [
 ];
 
 export function AppShell() {
-  const { theme, resolvedTheme, setTheme } = useApp();
+  const { theme, resolvedTheme, setTheme, profile } = useApp();
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const [addOpen, setAddOpen] = useState(false);
@@ -41,8 +43,9 @@ export function AppShell() {
   const next = nextMode(theme);
   const modeIcon = mode === 'system' ? 'monitor' : mode === 'dark' ? 'moon' : 'sun';
   const isHome = pathname === '/';
+  const labeledFab = isHome || pathname === '/updates';
   // The floating + belongs where adding things is the job. On settings,
-  // games, cards and the guide it only covers controls — at 320px it sat
+  // games and the guide it only covers controls — at 320px it sat
   // squarely on the "All notifications" switch.
   const showAdd = ADD_PAGES.has(pathname);
   const mainRef = useRef(null);
@@ -96,14 +99,25 @@ export function AppShell() {
         </div>
       )}
       <header className={`topbar${scrolled ? ' is-scrolled' : ''}`}>
-        <h1 className="topbar__title" id="page-title">{title}</h1>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <h1 className="topbar__title" id="page-title">{isHome ? <>My<span className="topbar__accent">Day</span></> : title}</h1>
+        <div className="topbar__tools">
           <InstallButton />
-          <button className="topbar__btn" data-mode={mode}
-            aria-label={`Switch to ${MODE_WORDS[next]} (now ${MODE_WORDS[mode]}${mode === 'system' ? `, ${resolvedTheme === 'dark' ? 'dark' : 'light'}` : ''})`}
+          {pathname === '/medication' && (
+            <button type="button" className="topbar__add" aria-label="Add a medicine" onClick={() => navigate('/medication', { state: { add: 'med' } })}>
+              <Icon name="plus" size={22} stroke={2.6} /> <span>Add</span>
+            </button>
+          )}
+          <button className={`topbar__btn${pathname === '/updates' ? ' topbar__btn--label' : ''}`} data-mode={mode}
+            aria-label={`Theme: switch to ${MODE_WORDS[next]} (now ${MODE_WORDS[mode]}${mode === 'system' ? `, ${resolvedTheme === 'dark' ? 'dark' : 'light'}` : ''})`}
             title={`Now ${MODE_WORDS[mode]} — tap for ${MODE_WORDS[next]}`} onClick={() => setTheme(themeForMode(next, theme))}>
             <Icon name={modeIcon} size={24} />
+            {pathname === '/updates' && <span className="topbar__btn-l">Theme</span>}
           </button>
+          {AVATAR_PAGES.has(pathname) && (
+            <button type="button" className="topbar__avatar" aria-label="Profile" onClick={() => navigate('/profile')}>
+              <Avatar name={profile?.full_name} color={profile?.avatar_color} size={48} src={profile?.avatar_url} />
+            </button>
+          )}
         </div>
       </header>
 
@@ -113,11 +127,11 @@ export function AppShell() {
       {showAdd && addOpen && <AddMenu onPick={doAdd} onClose={() => setAddOpen(false)} />}
 
       {showAdd && (
-        <button className={`fab${isHome ? ' fab--labeled' : ''}${addOpen ? ' is-open' : ''}`}
+        <button className={`fab${labeledFab ? ' fab--labeled' : ''}${addOpen ? ' is-open' : ''}`}
           aria-label={addOpen ? 'Close the add menu' : 'Add something'} aria-haspopup="menu" aria-expanded={addOpen}
           onClick={() => setAddOpen((v) => !v)}>
           <Icon name="plus" size={30} stroke={2.6} className="fab__ic" />
-          {isHome && <span className="fab__label">{addOpen ? 'Close' : 'Add'}</span>}
+          {labeledFab && <span className="fab__label">{addOpen ? 'Close' : 'Add'}</span>}
         </button>
       )}
 
