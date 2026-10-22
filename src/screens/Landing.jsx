@@ -50,6 +50,7 @@ export default function Landing() {
         </div>
       </header>
 
+      <main id="main">
       {/* hero */}
       <section className="mkt-hero">
         <div className="mkt-wrap mkt-hero__grid">
@@ -187,6 +188,7 @@ export default function Landing() {
           </div>
         </div>
       </section>
+      </main>
 
       <footer className="mkt-footer">
         <div className="mkt-wrap mkt-footer__in">
@@ -248,7 +250,7 @@ function Step({ n, title, text, i }) {
 function Phone({ src, title, sub, i }) {
   return (
     <div data-reveal style={{ '--i': i }}>
-      <div className="phone"><img src={src} alt={title} loading="lazy" /></div>
+      <div className="phone"><img src={src} alt={title} width="800" height="1720" loading="lazy" decoding="async" /></div>
       <div className="phone__cap">{title}<span>{sub}</span></div>
     </div>
   );
