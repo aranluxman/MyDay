@@ -55,7 +55,10 @@ Deno.serve(async (req) => {
       const { data: guardians } = await admin.from('myday_guardians').select('id').eq('user_id', uid).eq('status', 'active');
       const gIds = (guardians || []).map((g: any) => g.id);
       if (gIds.length) {
-        const { data: gdevs } = await admin.from('myday_guardian_devices').select('*').in('guardian_id', gIds);
+        // A disconnected guardian keeps its row (and old subscription) for the
+        // audit trail, so only live, push-enabled devices may be sent to.
+        const { data: gdevs } = await admin.from('myday_guardian_devices').select('*').in('guardian_id', gIds)
+          .eq('push_enabled', true).is('revoked_at', null).not('subscription', 'is', null);
         const byGuardian: Record<string, any[]> = {}; for (const d of (gdevs || [])) (byGuardian[d.guardian_id] ||= []).push(d);
         for (const g of guardians as any[]) {
           const gd = byGuardian[g.id] || [];
