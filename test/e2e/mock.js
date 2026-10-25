@@ -164,7 +164,7 @@ function project(db, table, row, select) {
  * inspect what the app sent. `options.offline` makes every write fail like a
  * dropped connection.
  */
-export async function installMock(page, { now, fixtures, onCall } = {}) {
+export async function installMock(page, { now, fixtures, onCall, seedSession = true } = {}) {
   const db = fixtures || makeFixtures(now);
   const calls = [];
   const session = fakeSession();
@@ -173,7 +173,7 @@ export async function installMock(page, { now, fixtures, onCall } = {}) {
   const started = Date.now();
   const state = { offline: false };
 
-  await page.addInitScript(([key, s]) => {
+  if (seedSession) await page.addInitScript(([key, s]) => {
     try { localStorage.setItem(key, JSON.stringify(s)); } catch {}
   }, ['sb-cthpunnnkdgukuogyvxm-auth-token', session]);
 
