@@ -118,7 +118,9 @@ export function AppProvider({ children }) {
       } catch (e) { console.warn('onboarding upsert failed', e); }
     }
   }
-  async function signOut() { await supabase.auth.signOut(); setProfile(null); }
+  // 'local': the button says "on this phone", and the default (global) would
+  // also sign a senior out on their other phone or tablet.
+  async function signOut() { await supabase.auth.signOut({ scope: 'local' }); setProfile(null); }
 
   function setTheme(t) { setThemeState(t); localStorage.setItem('myday_theme', t); saveProfile({ theme: t }).catch(() => {}); }
   function setTextSize(s) { setTextSizeState(s); localStorage.setItem('myday_text', s); saveProfile({ text_size: s }).catch(() => {}); }
