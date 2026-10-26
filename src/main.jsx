@@ -10,6 +10,8 @@ import './phone.css';
 import './liquid.css';
 import './screens.css';
 import './games.css';
+import './pages.css';
+// Loaded last: no see-through surfaces anywhere.
 import './solid.css';
 
 // iOS Safari only shows :active (the pressed look) while the page listens for

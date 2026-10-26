@@ -71,16 +71,19 @@ export function DoseHistory({ windowMinutes }) {
   const more = days.length - visible.length;
 
   return (
-    <div className="stack">
+    <div className="stack hist">
       <div className="hist__filters">
-        <label className="g-field">
-          <span>Medication history date</span>
-          <select className="input" value={date} onChange={(e) => {
-            setDate(e.target.value); setFilter('all'); setMedId('all'); setLimit(PAGE);
-          }}>
-            <option value="all">All dates</option>
-            {dates.map((day) => <option key={day} value={day}>{prettyDate(day)}</option>)}
-          </select>
+        <label className="g-field hist__range">
+          <span>Date range</span>
+          <span className="hist__sel">
+            <Icon name="calendar" size={20} />
+            <select className="input" value={date} onChange={(e) => {
+              setDate(e.target.value); setFilter('all'); setMedId('all'); setLimit(PAGE);
+            }}>
+              <option value="all">All dates</option>
+              {dates.map((day) => <option key={day} value={day}>{prettyDate(day)}</option>)}
+            </select>
+          </span>
         </label>
         <div className="chips" role="group" aria-label="Show doses">
           {FILTERS.map((f) => (
@@ -91,11 +94,14 @@ export function DoseHistory({ windowMinutes }) {
           ))}
         </div>
         {meds.length > 1 && (
-          <select className="input hist__med" value={medId} aria-label="Show one medicine"
-            onChange={(e) => { setMedId(e.target.value); setLimit(PAGE); }}>
-            <option value="all">All medicines</option>
-            {meds.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
-          </select>
+          <span className="hist__sel">
+            <Icon name="pill" size={20} />
+            <select className="input hist__med" value={medId} aria-label="Show one medicine"
+              onChange={(e) => { setMedId(e.target.value); setLimit(PAGE); }}>
+              <option value="all">All medicines</option>
+              {meds.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
+            </select>
+          </span>
         )}
       </div>
 
@@ -111,10 +117,10 @@ export function DoseHistory({ windowMinutes }) {
             return (
               <section key={date} className="g-day" aria-label={prettyDate(date)}>
                 <header className="g-day__head">
-                  <h3 className="g-day__title">{date === range.to ? 'Today' : prettyDate(date)}</h3>
+                  <h3 className="g-day__title">{dayTitle(date, range.to)}</h3>
                   {due > 0 && (
                     <span className={`g-badge g-badge--${mark === 'taken' ? 'taken' : mark === 'missed' ? 'missed' : mark === 'partial' ? 'overdue' : 'upcoming'}`}>
-                      {s.taken}/{due} taken
+                      {mark === 'taken' && <Icon name="check" size={16} stroke={3} />} {s.taken}/{due} taken
                     </span>
                   )}
                 </header>
@@ -136,6 +142,14 @@ export function DoseHistory({ windowMinutes }) {
   );
 }
 
+// "Today · Wed, Oct 7", "Yesterday · Tue, Oct 6", then "Monday · Mon, Oct 5".
+function dayTitle(date, today) {
+  const at = new Date(`${date}T12:00:00`);
+  const y = new Date(`${today}T12:00:00`); y.setDate(y.getDate() - 1);
+  const word = date === today ? 'Today' : date === localDateStr(undefined, y) ? 'Yesterday' : at.toLocaleDateString([], { weekday: 'long' });
+  return `${word} · ${at.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })}`;
+}
+
 function HistoryRow({ dose, opts }) {
   const st = doseState(dose, opts);
   const ui = STATE_UI[st];
@@ -150,10 +164,8 @@ function HistoryRow({ dose, opts }) {
       </span>
       <div className="g-dose__main">
         <div className="g-dose__name" translate="no">{m.name || 'Medicine'}</div>
-        <div className="g-dose__meta">
-          <span>{prettyTime(dose.scheduled_time)} dose</span>
-          {m.dose ? <span>{m.dose}</span> : null}
-        </div>
+        {m.dose ? <div className="g-dose__meta"><span>{m.dose}</span></div> : null}
+        <div className="g-dose__time"><Icon name="clock" size={17} /> {prettyTime(dose.scheduled_time)} dose</div>
         {detail}
       </div>
       <span className={`g-badge g-badge--${ui.tone}`}>

@@ -9,7 +9,7 @@ import { localDateStr, deviceTimezone, prettyDate } from '../lib/format.js';
 
 // Calendars are always Sunday-first; the old "Week starts on" preference was
 // one more thing to get wrong for no real benefit.
-const WEEKDAYS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 // Word marks inside each day so status never relies on colour alone. 'partial'
 // is a day that was neither fully taken nor fully missed — it used to be drawn
@@ -47,7 +47,7 @@ export function dayLabel(dateIso, agg, planned = 0) {
  *                countsByDay(). The guardian dashboard passes this in (it has
  *                no Supabase session), so both render the same marks.
  */
-export function MedCalendar({ selected, onPick, counts, windowMinutes = 60, meds = null }) {
+export function MedCalendar({ selected, onPick, counts, windowMinutes = 60, meds = null, inlineKey = false }) {
   const today = localDateStr(deviceTimezone());
   const [cursor, setCursor] = useState(() => {
     // Open on the selected day's month when one is given, so a guardian
@@ -137,8 +137,24 @@ export function MedCalendar({ selected, onPick, counts, windowMinutes = 60, meds
         </div>
       )}
       {!onThisMonth && <button type="button" className="cal__today-btn" onClick={goToday}>Back to today</button>}
-      <CalLegend planned={!!meds} />
+      {inlineKey ? <CalKeyRow planned={!!meds} hint={!!onPick} /> : <CalLegend planned={!!meds} />}
     </div>
+  );
+}
+
+// The Medicine page's calendar is the first thing on the page, so its key is
+// always shown rather than folded away, with a nudge that the days open.
+function CalKeyRow({ planned, hint }) {
+  return (
+    <>
+      <ul className="cal__keyrow" aria-label="What the days show">
+        <li><span className="cal__dot cal__dot--taken" aria-hidden="true">✓</span> Taken</li>
+        <li><span className="cal__dot cal__dot--missed" aria-hidden="true">!</span> Missed</li>
+        <li><span className="cal__dot cal__dot--partial" aria-hidden="true" /> Partial</li>
+        {planned && <li><span className="cal__dot cal__dot--planned" aria-hidden="true" /> Upcoming</li>}
+      </ul>
+      {hint && <p className="cal__hint"><Icon name="info" size={20} /> Tap a day to see details</p>}
+    </>
   );
 }
 
@@ -151,7 +167,7 @@ function CalLegend({ planned }) {
       <summary><Icon name="info" size={16} /> What do the symbols mean?</summary>
       <div className="cal__legend">
         <span className="lg--taken">✓ All taken</span>
-        <span className="lg--partial">◐ Some taken</span>
+        <span className="lg--partial"><i className="cal__ring" aria-hidden="true" /> Some taken</span>
         <span className="lg--pending">• To take</span>
         <span className="lg--missed">! Missed</span>
         {planned && <span className="lg--planned">○ Planned</span>}

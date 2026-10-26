@@ -162,3 +162,24 @@ export function icsFilename(appt) {
     .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40);
   return `myday-${name || 'appointment'}-${appt?.appt_date || ''}.ics`;
 }
+
+/**
+ * What kind of visit this is, read from what was typed, so the list can show
+ * a tooth for the dentist and a flask for a blood test. Anything unclear is a
+ * doctor visit.
+ */
+export function apptKind(appt) {
+  const said = `${appt?.reason || ''} ${appt?.doctor_name || ''}`.toLowerCase();
+  if (/dent|orthodont|hygien/.test(said)) return 'dentist';
+  if (/\beye|optom|ophthal|vision|glasses/.test(said)) return 'eye';
+  if (/pharm|pick ?up|prescription|refill/.test(said)) return 'pharmacy';
+  if (/\blab|blood|test|x-?ray|scan|ultrasound|mri|\bct\b/.test(said)) return 'lab';
+  // Only then the place, and only names that say what it is: "Markham
+  // Dental" or "LifeLabs", never a word like "Test Clinic".
+  const place = String(appt?.location || '').toLowerCase();
+  if (/dental|dentist/.test(place)) return 'dentist';
+  if (/optical|optometr|vision|eye care/.test(place)) return 'eye';
+  if (/pharmacy|drug ?mart|rexall/.test(place)) return 'pharmacy';
+  if (/labs?\b|diagnostic|imaging/.test(place)) return 'lab';
+  return 'doctor';
+}

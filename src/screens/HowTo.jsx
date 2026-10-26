@@ -56,7 +56,8 @@ const TOPICS = [
     id: 'visits', icon: 'calendar', title: 'Doctor visits',
     like: 'Like the calendar on your fridge, but it reminds you before you need to leave.',
     steps: [
-      'Tap the + button, then “Add a visit” — or tap More at the bottom, then Visits.',
+      'Tap the + button, then “Add a visit” — or tap More at the bottom, then Visits, then + Add at the top. The Quick add buttons there fill in the reason for you.',
+      'Tap a visit in the list to call, get directions, add it to your phone’s calendar, change it or remove it.',
       'Type who you are seeing, the day and the time.',
       'MyDay reminds you before the visit.',
     ],

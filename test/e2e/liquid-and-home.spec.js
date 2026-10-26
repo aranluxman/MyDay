@@ -84,8 +84,10 @@ test('a visit with no doctor never offers to call a contact’s number', async (
   mock.db.myday_contacts.push({ id: 'c-short', user_id: mock.db.myday_profiles[0].user_id, name: 'Mom', type: 'other', phone: '467' });
   mock.db.myday_appointments.push({ id: 'a-none', user_id: mock.db.myday_profiles[0].user_id, appt_date: mock.db.myday_appointments[0].appt_date, appt_time: '15:00', doctor_name: null, location: 'Lab', reason: 'Blood test' });
   await page.goto('/appointments');
-  const card = page.locator('.appt', { hasText: 'Blood test' });
+  await page.locator('.appt', { hasText: 'Blood test' }).click();
+  const card = page.getByRole('dialog', { name: 'Blood test' });
   await expect(card).toBeVisible();
+  await expect(card.getByRole('button', { name: 'Add to calendar' })).toBeVisible();
   await expect(card.getByRole('link', { name: 'Call' })).toHaveCount(0);
   await expect(page.locator('a[href="tel:467"]')).toHaveCount(0);
   await context.close();
@@ -254,6 +256,7 @@ test('dragging the edit wizard down still asks before discarding changes', async
 
 test('Medicine: tapping a day shows it right there, with scheduled and taken times', async ({ browser }) => {
   const { page, mock, context } = await openApp(browser, { path: '/medication' });
+  await page.getByRole('radio', { name: 'List' }).click();
   const strip = page.getByRole('group', { name: 'Pick a day this week' });
   await expect(strip.getByRole('button', { name: /^Today, Wednesday, October 7/ })).toHaveAttribute('aria-pressed', 'true');
 

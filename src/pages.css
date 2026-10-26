@@ -1,0 +1,218 @@
+/* =====================================================================
+   pages.css — Medicine, History and Appointments as designed (October
+   2026), plus the colour each tab wears. Loaded last. Built on the shared
+   tokens, so dark mode, More contrast, Reduce transparency and the text
+   sizes all still apply.
+   ===================================================================== */
+
+/* ---------- a colour per tab ----------
+   Medicine and Games are a toasted orange, Appointments purple. AppShell
+   puts data-tab on <html>, so sheets (rendered outside the shell) match the
+   page under them. The High contrast theme keeps its own colours. */
+html[data-tab='medicine']:not([data-theme='contrast']), html[data-tab='games']:not([data-theme='contrast']) {
+  --primary: #a9530f; --primary-2: #c0651a; --on-primary: #ffffff; --primary-fill: var(--primary);
+  --aura-1: #fdba74; --aura-2: #fda4af;
+}
+html[data-tab='visits']:not([data-theme='contrast']) {
+  --primary: #6d3fe0; --primary-2: #8458f0; --on-primary: #ffffff; --primary-fill: var(--primary);
+  --aura-1: #c4b5fd; --aura-2: #93c5fd;
+}
+html:is([data-tab='medicine'], [data-tab='games']):is([data-theme='dark'], [data-theme='midnight'], [data-theme='forest-night'], [data-theme='plum-night']) {
+  --primary: #f0a35a; --primary-2: #f5b678; --on-primary: #1d1006; --primary-fill: var(--primary);
+}
+html[data-tab='visits']:is([data-theme='dark'], [data-theme='midnight'], [data-theme='forest-night'], [data-theme='plum-night']) {
+  --primary: #b49cff; --primary-2: #c6b3ff; --on-primary: #160b33; --primary-fill: var(--primary);
+}
+
+/* "Appointments" is a long title beside Install, Add and the theme button:
+   it gets a size that fits, and on a narrow phone with Install showing,
+   Add gives up its word before the title would be cut short. */
+.app-shell[data-page='/appointments'] .topbar__title { font-size: clamp(21px, 5.8cqi, 30px); }
+@media (max-width: 430px) {
+  .app-shell[data-page='/appointments'] .topbar:has(.install-btn) .topbar__add { padding: 0; width: 46px; justify-content: center; }
+  .app-shell[data-page='/appointments'] .topbar:has(.install-btn) .topbar__add span { display: none; }
+}
+
+.page-intro { margin: -4px 0 2px; font-size: 17px; line-height: 1.4; color: var(--ink-soft); }
+
+/* ---------- a segmented control whose choice is filled with the tab colour ---------- */
+.segmented--accent { padding: 5px; border-radius: 22px; background: color-mix(in srgb, var(--ink-soft) 12%, var(--surface)); }
+.segmented--accent .segmented__item {
+  display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+  min-height: 52px; border-radius: 17px; font-size: 17px; font-weight: 700; color: var(--ink);
+}
+.segmented.segmented--accent .segmented__thumb {
+  border-radius: 17px;
+  background: linear-gradient(140deg, var(--primary-2), var(--primary));
+  box-shadow: 0 6px 16px color-mix(in srgb, var(--primary) 35%, transparent);
+}
+.segmented--accent.has-lens .segmented__item.is-active { color: var(--on-primary); }
+.segmented--accent.is-wrapped .segmented__item.is-active {
+  background: linear-gradient(140deg, var(--primary-2), var(--primary)); color: var(--on-primary); box-shadow: none;
+}
+
+/* ---------- the month calendar ---------- */
+.cal { padding: 16px 12px 14px; border-radius: 26px; }
+.cal__head { margin-bottom: 6px; }
+.cal__title { font-size: 20px; font-weight: 800; }
+.cal__nav { width: 44px; height: 44px; border-radius: 50%; border: 0; background: color-mix(in srgb, var(--ink-soft) 11%, var(--surface)); }
+.cal__weekdays span { font-size: 14px; font-weight: 600; text-transform: none; letter-spacing: 0; color: var(--ink-soft); }
+.cal__grid { gap: 6px 4px; }
+.cal__grid .cal__cell { border-radius: 50%; border: 1.5px solid transparent; min-height: 40px; gap: 1px; }
+.cal__day { font-size: 16px; font-weight: 700; }
+.cal__cell--taken { background: color-mix(in srgb, var(--good) 13%, var(--surface)); }
+.cal__cell--partial { background: color-mix(in srgb, var(--good) 10%, var(--surface)); }
+.cal__cell--missed { background: color-mix(in srgb, var(--bad) 12%, var(--surface)); }
+.cal__cell--pending { background: color-mix(in srgb, var(--warn) 14%, var(--surface)); }
+.cal__grid .cal__cell--planned { background: var(--surface); border-color: var(--line); outline: none; }
+.cal__mark { font-size: 12px; height: 12px; }
+.cal__mark--missed { color: var(--bad); }
+/* Partly taken: a small orange ring, as in the key below the month. */
+.cal__mark--partial { font-size: 0; width: 9px; height: 9px; margin-top: 2px; border-radius: 50%; border: 2px solid #e08a00; }
+.cal__mark--planned { font-size: 0; }
+.cal__cell.is-selected {
+  background: linear-gradient(150deg, var(--primary-2), var(--primary)); border-color: transparent;
+  box-shadow: 0 0 0 3px var(--surface), 0 0 0 5px color-mix(in srgb, var(--primary) 45%, transparent);
+}
+.cal__cell.is-selected .cal__mark--partial { border-color: var(--on-primary); }
+.cal__ring { display: inline-block; width: 10px; height: 10px; border-radius: 50%; border: 2px solid #e08a00; }
+.cal__cell.is-selected.is-today::after { display: none; }
+
+.cal__keyrow {
+  display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 18px;
+  list-style: none; margin: 16px 0 0; padding: 0;
+}
+.cal__keyrow li { display: inline-flex; align-items: center; gap: 7px; font-size: 14px; font-weight: 600; color: var(--ink-soft); }
+.cal__keyrow .cal__dot {
+  width: 20px; height: 20px; display: inline-grid; place-items: center; border-radius: 50%;
+  font-size: 12px; font-weight: 900; line-height: 1; color: #fff;
+}
+.cal__keyrow .cal__dot--taken { background: var(--good); }
+.cal__keyrow .cal__dot--missed { background: var(--bad); }
+.cal__keyrow .cal__dot--partial { background: none; box-shadow: inset 0 0 0 5px var(--surface), inset 0 0 0 7.5px #e08a00; }
+.cal__keyrow .cal__dot--planned { background: none; border: 1.5px dashed var(--ink-soft); }
+[data-theme='dark'] .cal__keyrow .cal__dot--taken, [data-theme='midnight'] .cal__keyrow .cal__dot--taken,
+[data-theme='dark'] .cal__keyrow .cal__dot--missed, [data-theme='midnight'] .cal__keyrow .cal__dot--missed,
+[data-theme='forest-night'] .cal__keyrow .cal__dot--taken, [data-theme='plum-night'] .cal__keyrow .cal__dot--taken,
+[data-theme='forest-night'] .cal__keyrow .cal__dot--missed, [data-theme='plum-night'] .cal__keyrow .cal__dot--missed { color: #06121f; }
+.cal__hint {
+  display: flex; align-items: center; gap: 10px; margin: 14px 0 0; padding: 11px 14px; border-radius: 14px;
+  background: color-mix(in srgb, var(--primary) 8%, var(--surface)); font-size: 15px; color: var(--ink-soft);
+}
+.cal__hint svg { flex: none; color: var(--primary); }
+
+/* ---------- the day under the calendar ---------- */
+.dayhead { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; margin-top: 4px; }
+.dayhead__text { min-width: 0; }
+.dayhead__t { margin: 0; font-size: 21px; font-weight: 800; letter-spacing: -0.015em; line-height: 1.2; }
+.dayhead__d { font-weight: 700; }
+.dayhead__pill {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 38px; padding: 0 14px; border-radius: 999px;
+  background: color-mix(in srgb, var(--ink-soft) 10%, var(--surface)); font-size: 15px; font-weight: 750; white-space: nowrap;
+}
+.dayhead__pill.is-done { background: var(--tint-green); color: var(--good-ink); }
+.dayhead__note { margin: -6px 0 0; font-size: 16px; font-weight: 700; }
+
+/* ---------- History ---------- */
+.subhead__d { margin: 0; font-size: 16px; line-height: 1.4; color: var(--ink-soft); }
+.adh__how { border-top: 1px solid var(--line); padding-top: 4px; }
+.adh__how summary { gap: 10px; list-style: none; }
+.adh__how summary::-webkit-details-marker { display: none; }
+.adh__how .adh__chev { margin-left: auto; color: var(--ink-soft); transition: transform 0.2s ease; }
+.adh__how[open] .adh__chev { transform: rotate(90deg); }
+
+.hist__range { flex-direction: row; align-items: center; gap: 12px; margin: 0; }
+.hist__range > span:first-child { flex: none; font-size: 16px; font-weight: 750; }
+.hist__sel { position: relative; display: block; flex: 1 1 auto; min-width: 0; }
+.hist__sel > svg { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--primary); pointer-events: none; }
+.hist__sel select { width: 100%; padding-left: 46px; border-radius: 16px; }
+.hist .chip { min-height: 48px; padding: 0 20px; border-width: 1.5px; }
+.hist .chip.is-on { background: linear-gradient(140deg, var(--primary-2), var(--primary)); border-color: transparent; color: var(--on-primary); }
+.hist .g-day__title { font-size: 19px; font-weight: 800; letter-spacing: -0.01em; }
+.hist .g-day__head .g-badge { min-height: 34px; padding: 0 12px; font-size: 14px; }
+.g-dose__time { display: inline-flex; align-items: center; gap: 6px; margin-top: 4px; font-size: 15px; font-weight: 600; color: var(--ink-soft); }
+
+/* ---------- Appointments ---------- */
+.vtint--blue { --t: #2f7fe0; }
+.vtint--violet { --t: #7c3aed; }
+.vtint--red { --t: #e5484d; }
+.vtint--orange { --t: #e2700f; }
+.vtint--grey { --t: var(--ink-soft); }
+[data-theme='dark'] [class*='vtint--'], [data-theme='midnight'] [class*='vtint--'],
+[data-theme='forest-night'] [class*='vtint--'], [data-theme='plum-night'] [class*='vtint--'] { --t-ink: color-mix(in srgb, var(--t) 60%, #fff); }
+
+.vquick { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.vquick__b {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
+  min-height: 104px; padding: 12px 8px; border: 1px solid var(--glass-edge); border-radius: 20px;
+  background: color-mix(in srgb, var(--t) 7%, var(--surface)); box-shadow: var(--shadow);
+  color: var(--ink); font: inherit; text-align: center; cursor: pointer;
+  -webkit-user-select: none; user-select: none; transition: transform 0.35s var(--ease-settle, ease);
+}
+.vquick__b:active { transform: scale(0.96); transition-duration: 0.1s; }
+.vquick__ic {
+  flex: none; width: 46px; height: 46px; border-radius: 15px; display: grid; place-items: center;
+  background: color-mix(in srgb, var(--t) 15%, var(--surface)); color: var(--t-ink, var(--t));
+}
+.vquick__t { font-size: 15px; font-weight: 700; line-height: 1.2; }
+@media (min-width: 480px) {
+  .vquick__b { flex-direction: row; justify-content: flex-start; min-height: 76px; padding: 10px 12px; text-align: left; }
+}
+
+.vlist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.vrow {
+  display: flex; align-items: center; gap: 12px; width: 100%; min-height: 96px; padding: 12px 8px 12px 12px;
+  border: 1px solid var(--glass-edge); border-radius: 22px; background: var(--glass); box-shadow: var(--shadow);
+  -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
+  color: var(--ink); text-align: left; font: inherit; cursor: pointer;
+  -webkit-user-select: none; user-select: none; transition: transform 0.35s var(--ease-settle, ease);
+}
+.vrow:active { transform: scale(0.98); transition-duration: 0.1s; }
+.vrow.is-soon { box-shadow: inset 4px 0 0 var(--primary), var(--shadow); }
+.vrow__date {
+  flex: none; width: 58px; padding: 8px 0; border-radius: 16px; display: flex; flex-direction: column; align-items: center; gap: 3px;
+  background: color-mix(in srgb, var(--primary) 9%, var(--surface)); line-height: 1;
+}
+.vrow__m { font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; color: var(--primary-text, var(--primary)); }
+.vrow__d { font-size: 26px; font-weight: 850; letter-spacing: -0.02em; }
+.vrow__w { font-size: 13px; font-weight: 650; color: var(--primary-text, var(--primary)); }
+.vrow__ic {
+  flex: none; width: 52px; height: 52px; border-radius: 16px; display: grid; place-items: center;
+  background: color-mix(in srgb, var(--t) 13%, var(--surface)); color: var(--t-ink, var(--t));
+}
+.vrow__main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.vrow__t { font-size: 18px; font-weight: 800; line-height: 1.2; letter-spacing: -0.01em; overflow-wrap: anywhere; }
+.vrow__s { font-size: 15px; line-height: 1.3; color: var(--ink-soft); overflow-wrap: anywhere; }
+.vrow__time { display: inline-flex; align-items: center; gap: 6px; margin-top: 3px; font-size: 15px; font-weight: 650; color: var(--primary-text, var(--primary)); }
+.vrow__time svg { flex: none; }
+.vrow__go { flex: none; color: var(--ink-soft); }
+
+.vempty {
+  display: flex; flex-direction: column; gap: 12px; padding: 18px; border-radius: 22px;
+  background: var(--glass); border: 1px solid var(--glass-edge); box-shadow: var(--shadow);
+}
+.vempty p { margin: 0; font-size: 16px; line-height: 1.45; color: var(--ink-soft); }
+
+.vdetail { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; margin-bottom: 16px; }
+.vdetail p { margin: 0; display: flex; align-items: flex-start; gap: 10px; font-size: 17px; line-height: 1.4; }
+.vdetail svg { flex: none; margin-top: 2px; color: var(--primary); }
+.vdetail__when { font-weight: 700; }
+
+/* ---------- small phones and large text: give the words the room ---------- */
+@media (max-width: 379px) {
+  .vrow__ic { display: none; }
+  .cal__weekdays span { font-size: 12px; }
+}
+html[data-text='xlarge'] .vquick, html[data-text='huge'] .vquick { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+html[data-text='xlarge'] .vrow__ic, html[data-text='huge'] .vrow__ic { display: none; }
+html[data-text='huge'] .cal__weekdays span { font-size: 11px; }
+
+/* ---------- motion, transparency and contrast ---------- */
+html[data-motion='calm'] .vquick__b, html[data-motion='calm'] .vrow { transition: none; }
+@media (prefers-reduced-motion: reduce) { .vquick__b, .vrow, .adh__how .adh__chev { transition: none; } }
+@media (prefers-reduced-transparency: reduce) {
+  .vrow, .vempty { background: var(--surface); -webkit-backdrop-filter: none; backdrop-filter: none; }
+}
+html[data-contrast='1'] .vrow, html[data-contrast='1'] .vquick__b, html[data-contrast='1'] .vempty {
+  background: var(--surface); -webkit-backdrop-filter: none; backdrop-filter: none; border: 2px solid var(--ink-soft);
+}
