@@ -46,9 +46,10 @@ export const PREF_DEFAULTS = {
   daily_summary_at: '09:00',
 
   // Repeat a dose reminder every N minutes, up to M times, until it is marked
-  // taken. 0 means do not repeat.
-  repeat_every_minutes: 0,
-  repeat_max_times: 2,
+  // taken. 0 means do not repeat. On by default: a single reminder is too
+  // easy to miss.
+  repeat_every_minutes: 10,
+  repeat_max_times: 3,
   snooze_minutes: 15,
 
   quiet_hours_enabled: false,

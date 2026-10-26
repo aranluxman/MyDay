@@ -96,8 +96,13 @@ test('quiet hours are evaluated in the person’s timezone, not UTC', () => {
   assert.equal(shouldSend({ type: 'dose_due', at }, prefs, { timezone: TZ }).send, false);
 });
 
-test('repeats are off by default and bounded when on', () => {
-  assert.deepEqual(repeatTimes('2026-09-17T08:00:00Z', PREF_DEFAULTS), [], 'off by default');
+test('repeats are on by default (every 10 min, 3 times) and can be switched off', () => {
+  assert.deepEqual(repeatTimes('2026-09-17T08:00:00Z', PREF_DEFAULTS), [
+    '2026-09-17T08:10:00.000Z',
+    '2026-09-17T08:20:00.000Z',
+    '2026-09-17T08:30:00.000Z',
+  ], 'on by default');
+  assert.deepEqual(repeatTimes('2026-09-17T08:00:00Z', { repeat_every_minutes: 0 }), [], 'off when switched off');
 
   const out = repeatTimes('2026-09-17T08:00:00Z', { repeat_every_minutes: 15, repeat_max_times: 3 });
   assert.deepEqual(out, [

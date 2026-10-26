@@ -205,8 +205,6 @@ export default function Profile() {
   const current = page && pages[page];
   const languageName = (LANGUAGES.concat(MORE_LANGUAGES).find((l) => l.code === currentLanguage())?.name) || 'English';
   const contrastLevel = !settings.highContrast ? 'default' : settings.extraContrast ? 'extra' : 'high';
-  const featured = ['light', 'dark', 'warm'];
-  const shownThemes = showAllThemes ? THEMES : THEMES.filter((t) => featured.includes(t.id) || t.id === theme);
 
   if (current) {
     return (
@@ -258,7 +256,7 @@ export default function Profile() {
             <Card className="pref-card">
               <div className="pref-card__head"><span className="pref-card__ic pref-card__ic--orange"><Icon name="sun" size={22} /></span>
                 <div><div className="pref-card__t">Theme</div><div className="pref-card__d">Choose a look you like.</div></div></div>
-              <ThemeGrid themes={shownThemes} theme={theme} setTheme={setTheme} />
+              {showAllThemes ? <ThemeGrid themes={THEMES} theme={theme} setTheme={setTheme} /> : <ThemePictures theme={theme} setTheme={setTheme} />}
               <Button variant="ghost" size="sm" onClick={() => setShowAllThemes((v) => !v)}>
                 {showAllThemes ? 'Show fewer themes' : `More themes (${THEMES.length})`}
               </Button>
@@ -375,14 +373,26 @@ export default function Profile() {
               </Card>}
 
         {page === 'appearance' && (
-          <Card>
-            <SettingRow icon="monitor" title="Light or dark" desc="System matches your phone or computer, day and night." stacked>
-              <SegmentedControl label="Light or dark" value={mode} onChange={(m) => setTheme(themeForMode(m, theme))}
-                options={MODES.map((m) => ({ value: m.id, label: m.name }))} />
-            </SettingRow>
-            <p className="muted" style={{ margin: '14px 0 12px' }}>Or pick a colour theme that's comfortable for you.</p>
-            <ThemeGrid themes={THEMES} theme={theme} setTheme={setTheme} />
-          </Card>
+          <>
+            <ThemePictures theme={theme} setTheme={setTheme} />
+            <Card className="pref-list">
+              <MenuRow icon="star" title={`More themes (${THEMES.length})`} desc="Lavender, Mint, Sunshine, Forest night and more"
+                onClick={() => setShowAllThemes((v) => !v)} />
+              {showAllThemes && <div style={{ padding: '4px 14px 14px' }}><ThemeGrid themes={THEMES} theme={theme} setTheme={setTheme} /></div>}
+            </Card>
+            <Card className="pref-list">
+              <MenuRow icon="bell" title="Sound & vibration" desc="Control alert sounds and vibration" onClick={() => openPage('alerts')} />
+              <SettingRow icon="plus" title="Larger touch targets" desc="Bigger buttons, easier to tap.">
+                <Toggle checked={settings.bigButtons} onChange={(v) => setSetting({ bigButtons: v })} label="Larger touch targets" />
+              </SettingRow>
+              <SettingRow icon="edit" title="Bold text" desc="Thicker letters that are easier to read.">
+                <Toggle checked={settings.bold} onChange={(v) => setSetting({ bold: v })} label="Bold text" />
+              </SettingRow>
+              <SettingRow icon="moon" title="Calm screen" desc="Turns off moving animations.">
+                <Toggle checked={settings.calmMotion} onChange={(v) => setSetting({ calmMotion: v })} label="Calm screen" />
+              </SettingRow>
+            </Card>
+          </>
         )}
 
         {page === 'info' && (
@@ -412,9 +422,7 @@ export default function Profile() {
 
             <Card>
         <div className="menu-list">
-          <MenuRow icon="user" title="Personal information" desc="Your name, birthday and more" onClick={() => setEditProfile(true)} />
-          <MenuRow icon="cross" title="Health information" desc="Medications, supplements and conditions" onClick={() => setEditProfile(true)} />
-          <MenuRow icon="star" title="Health goals" desc="Set and track what you're working toward" onClick={() => setEditProfile(true)} />
+          <MenuRow icon="user" title="About me" desc="Your name, birthday, health and goals — all on one page" onClick={() => setEditProfile(true)} />
         </div>
             </Card>
           </>
@@ -470,7 +478,7 @@ export default function Profile() {
         <MenuRow icon="bell" title="Alerts & reminders" desc="Notifications and sound" onClick={() => openPage('alerts')} />
         <MenuRow icon="globe" title="Language" desc={languageName} onClick={() => openPage('language')} />
         <MenuRow icon="sun" title="Appearance" desc={`${themeName} theme`} onClick={() => openPage('appearance')} />
-        <MenuRow icon="cross" title="My information" desc={completeness.pct < 100 ? `Profile ${completeness.pct}% complete` : 'Name, birthday, health and goals'} onClick={() => openPage('info')} />
+        <MenuRow icon="cross" title="My information" desc={completeness.pct < 100 ? `Profile ${completeness.pct}% complete` : 'Name, birthday, health and goals'} onClick={() => setEditProfile(true)} />
       </Card>
 
       <h2 className="settings-group">Help &amp; Information</h2>
@@ -530,6 +538,27 @@ export default function Profile() {
 }
 
 const PAGE_IDS = { access: 1, alerts: 1, guardians: 1, contacts: 1, language: 1, appearance: 1, info: 1, howto: 1 };
+
+// The three everyday themes as big pictures: a sunny sky, a night sky, a
+// warm sunset. Easier to choose between than small colour swatches.
+const PICTURES = [
+  { id: 'light', name: 'Light', icon: 'sun' },
+  { id: 'dark', name: 'Dark', icon: 'moon' },
+  { id: 'warm', name: 'Warm', icon: 'sun' },
+];
+function ThemePictures({ theme, setTheme }) {
+  return (
+    <div className="theme-pics" role="radiogroup" aria-label="Theme">
+      {PICTURES.map((t) => (
+        <button key={t.id} type="button" role="radio" aria-checked={theme === t.id}
+          className={`theme-pic theme-pic--${t.id}${theme === t.id ? ' is-active' : ''}`} onClick={() => setTheme(t.id)}>
+          <span className="theme-pic__art" aria-hidden="true"><Icon name={t.icon} size={40} /></span>
+          <span className="theme-pic__name">{t.name}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
 
 // The colour theme picker: a preview swatch per theme.
 function ThemeGrid({ themes, theme, setTheme }) {

@@ -749,3 +749,25 @@ html[data-text='huge'] .daystrip { grid-template-columns: repeat(4, minmax(0, 1f
 .me-card__name, .safety-tile__t, .safety-tile__d { overflow-wrap: anywhere; }
 .me-card { flex-wrap: wrap; }
 html[data-text='xlarge'] .safety-tiles, html[data-text='huge'] .safety-tiles { grid-template-columns: 1fr; }
+
+/* Medicine waiting to be taken: first on Home, above everything. */
+.needs-taking { border: 3px solid var(--bad); }
+.needs-taking__t { display: flex; align-items: center; gap: 10px; margin: 0 0 12px; font-size: 24px; color: var(--bad-ink); }
+
+/* Theme pictures: Light, Dark, Warm */
+.theme-pics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 10px; }
+.theme-pic {
+  position: relative; display: flex; flex-direction: column; overflow: hidden; padding: 0;
+  border-radius: 18px; border: 3px solid transparent; background: var(--surface); font: inherit; color: var(--ink);
+}
+.theme-pic.is-active { border-color: var(--primary); }
+.theme-pic.is-active::after {
+  content: '✓'; position: absolute; top: 6px; right: 6px; width: 26px; height: 26px; border-radius: 50%;
+  display: grid; place-items: center; background: var(--primary); color: var(--on-primary); font-size: 15px;
+}
+.theme-pic__art { display: grid; place-items: center; height: 78px; }
+.theme-pic--light .theme-pic__art { background: linear-gradient(180deg, #cfe6ff, #f4f9ff); color: #f5a623; }
+.theme-pic--dark .theme-pic__art { background: linear-gradient(180deg, #1c2440, #2e3a5e); color: #f4f1e6; }
+.theme-pic--warm .theme-pic__art { background: linear-gradient(180deg, #ffd9b0, #fff1e2); color: #f08a24; }
+.theme-pic__name { padding: 8px 4px 10px; font-size: 16px; font-weight: 700; text-align: center; }
+.needs-taking__list { list-style: none; margin: 0; padding: 0; }

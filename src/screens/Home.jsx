@@ -143,8 +143,24 @@ export default function Home() {
   }
 
 
+  // Any medicine that is due, late or missed goes above everything else on
+  // Home, so it is the first thing seen on opening the app.
+  const needsTaking = (data?.doses || []).filter((d) => !d.as_needed
+    && ['due', 'overdue', 'missed'].includes(doseState(d, { windowMinutes })));
+
   return (
     <div className="stack">
+      {needsTaking.length > 0 && (
+        <Card accent="missed" className="needs-taking" role="region" aria-labelledby="needs-taking-t">
+          <h2 className="needs-taking__t" id="needs-taking-t">
+            <Icon name="bell" size={24} /> {needsTaking.length === 1 ? 'Take this medicine now' : `Take these ${needsTaking.length} medicines now`}
+          </h2>
+          <ul className="stack needs-taking__list">
+            {needsTaking.map((d) => <DoseRow key={d.id} dose={d} actions={actions} windowMinutes={windowMinutes} simple />)}
+          </ul>
+        </Card>
+      )}
+
       <section className="dayhero" aria-labelledby="hero-hi">
         <HeroScene />
         <h2 className="dayhero__hi" id="hero-hi">
