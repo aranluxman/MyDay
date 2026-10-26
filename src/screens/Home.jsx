@@ -9,7 +9,7 @@ import { Card, Button, Avatar, Skeleton, SkeletonCard, Modal, Toggle } from '../
 import { Icon } from '../components/Icon.jsx';
 import { MedCalendar, WeekStrip } from '../components/MedCalendar.jsx';
 import { DoseRow } from '../components/DoseRow.jsx';
-import { todaysDoses, upcomingAppointments, pastAppointments, playedTodayCount, listGuardians, listMedications, listContacts, listDiary, saveDiary, deleteDiary } from '../lib/db.js';
+import { getNotificationPrefs, todaysDoses, upcomingAppointments, pastAppointments, playedTodayCount, listGuardians, listMedications, listContacts, listDiary, saveDiary, deleteDiary } from '../lib/db.js';
 import { prettyTime, prettyDate, localDateStr } from '../lib/format.js';
 import { telHref } from '../lib/contacts.js';
 import { countdownLabel } from '../lib/appointments.js';
@@ -228,7 +228,32 @@ function useReminderProblem(installed) {
   // 'not_asked' is not a fault — they simply have not opted in, and Profile
   // asks properly. Only a real blocker is worth a Home-screen warning.
   const blocked = !status.ok && status.code !== 'not_asked' && !hidden;
-  return { status: blocked ? status : null, hide };
+  // A device that can receive alerts can still be muted by MyDay's own
+  // settings. Not dismissable: a silent reminder is a missed dose.
+  const muted = useMutedSettings();
+  if (blocked) return { status, hide };
+  if (muted) return { status: { ...muted, settings: true }, hide };
+  return { status: null, hide };
+}
+
+function useMutedSettings() {
+  const [prefs, setPrefs] = useState(null);
+  useEffect(() => { getNotificationPrefs().then(setPrefs).catch(() => {}); }, []);
+  if (!prefs) return null;
+  if (prefs.master === false) {
+    return { title: 'All reminders are turned off', message: 'MyDay will not remind you to take your medicine.', fix: 'Tap "Fix it" and switch reminders back on.' };
+  }
+  if (prefs.sound === false) {
+    return { title: 'Reminders are silent', message: 'Sound is off, so reminders arrive without any noise.', fix: 'Tap "Fix it" and switch Sound on.' };
+  }
+  if (prefs.quiet_hours_enabled) {
+    return {
+      title: 'Quiet hours are on',
+      message: `Medicine reminders are not sent between ${prettyTime(prefs.quiet_from)} and ${prettyTime(prefs.quiet_to)}.`,
+      fix: 'If you take medicine then, tap "Fix it" and turn Quiet hours off.',
+    };
+  }
+  return null;
 }
 
 function ReminderWarning({ problem }) {
@@ -241,12 +266,12 @@ function ReminderWarning({ problem }) {
       <div className="reminder-warn__head">
         <span className="reminder-warn__ic"><Icon name="bell" size={22} /></span>
         <div>
-          <div className="reminder-warn__t">Reminders cannot reach this device</div>
+          <div className="reminder-warn__t">{status.title || 'Reminders cannot reach this device'}</div>
           <p className="reminder-warn__d">{status.message} {status.fix}</p>
         </div>
       </div>
       <div className="btn-row">
-        <Button variant="ghost" size="sm" onClick={problem.hide}>Hide this</Button>
+        {!status.settings && <Button variant="ghost" size="sm" onClick={problem.hide}>Hide this</Button>}
         <Button size="sm" onClick={() => navigate('/profile', { state: { open: 'alerts' } })}>Fix it</Button>
       </div>
     </Card>

@@ -351,7 +351,7 @@ export function AlertsSettings({ reveal }) {
       {/* ---- sound and feel ---- */}
       <Collapsible id="ns-sound" defaultOpen={false} icon="bell" title="Sound and vibration"
         summary={[prefs.sound ? 'Sound on' : 'Sound off', prefs.vibrate ? 'vibration on' : 'vibration off'].join(' · ')}>
-        <Row id="ns-sound-on" title="Sound" desc="A loud alarm plays once if you miss a dose while MyDay is open.">
+        <Row id="ns-sound-on" title="Sound" desc="Reminders make a noise. Turned off, every reminder arrives silently.">
           <Toggle checked={!!prefs.sound} onChange={(v) => update({ sound: v })} labelledBy="ns-sound-on-t" describedBy="ns-sound-on-d" />
         </Row>
         <Row id="ns-vibrate" title="Vibration" desc="A strong, long buzz for a missed dose.">

@@ -168,7 +168,9 @@ Deno.serve(async (req) => {
             vibrate: prefs.vibrate,
             silent: !prefs.sound,
           },
-          'normal',
+          // High urgency: Android delays normal pushes in battery saver, and a
+          // reminder that rings late is a missed dose.
+          'high',
         );
       }
     }
