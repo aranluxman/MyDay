@@ -17,6 +17,7 @@ for (const [width, height] of LAPTOPS) {
     await expect(rail.getByRole('link', { name: 'Alerts' })).toHaveCount(0);
     await rail.getByRole('link', { name: 'Profile', exact: true }).click();
     await expect(page).toHaveURL(/\/profile$/);
+    await page.getByRole('button', { name: /^Alerts & reminders/ }).click();
     await expect(page.getByRole('switch', { name: 'All notifications' })).toBeVisible();
     await page.waitForLoadState('networkidle');
     // The last thing on the page can be scrolled into view and is not under the rail.
@@ -62,6 +63,7 @@ test('a switch can be slid, tapped or flipped from the keyboard', async ({ brows
   await page.getByRole('button', { name: /^Accessibility/ }).click();
   const sw = page.getByRole('switch', { name: 'Bold text' });
   await expect(sw).toHaveAttribute('aria-checked', 'false');
+  await sw.scrollIntoViewIfNeeded();
   const box = await sw.boundingBox();
   const y = box.y + box.height / 2;
   await page.mouse.move(box.x + 14, y);
@@ -94,9 +96,8 @@ test('the guide’s "Open Guardians" opens and scrolls to Guardians', async ({ b
   await page.getByRole('button', { name: /^How to use MyDay/ }).click();
   await page.getByRole('button', { name: /Letting family keep an eye out/ }).click();
   await page.getByRole('button', { name: 'Open Guardians' }).click();
-  const fold = page.locator('#fold-guardians');
-  await expect(fold.getByRole('button', { name: /^Guardians/ })).toHaveAttribute('aria-expanded', 'true');
-  await expect(fold).toBeInViewport();
+  await expect(page).toHaveURL(/section=guardians/);
+  await expect(page.getByRole('heading', { name: 'Guardians' })).toBeInViewport();
   await context.close();
 });
 

@@ -8,6 +8,7 @@ export const SETTINGS_DEFAULTS = {
   bigButtons: false,    // taller tap targets
   calmMotion: false,    // no animations
   highContrast: false,  // stronger text/borders on top of any theme
+  extraContrast: false, // the strongest level: outlines and secondary text in full ink
   clock: deviceClock(), // '12' | '24' hour times; follows the phone unless set by an older build
 };
 
@@ -54,6 +55,7 @@ export function SettingsProvider({ children }) {
     el.setAttribute('data-buttons', settings.bigButtons ? 'large' : 'normal');
     el.setAttribute('data-motion', settings.calmMotion ? 'calm' : 'full');
     el.setAttribute('data-contrast', settings.highContrast ? '1' : '0');
+    el.setAttribute('data-contrast-extra', settings.highContrast && settings.extraContrast ? '1' : '0');
     setClockPreference(settings.clock);
   }, [settings]);
 
