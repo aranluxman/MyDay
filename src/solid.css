@@ -1,0 +1,29 @@
+/* =====================================================================
+   solid.css — loaded last. No see-through "liquid glass" anywhere:
+   seniors found blurred, translucent surfaces hard to read, so every
+   card, bar and control is drawn solid, in any theme.
+   ===================================================================== */
+:root, [data-theme] {
+  --glass: var(--surface);
+  --glass-strong: var(--surface);
+  --glass-edge: var(--line);
+  --glass-blur: none;
+  --lg-fill: var(--surface);
+  --lg-blur: none;
+}
+*, *::before, *::after { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
+.ambient { display: none; }
+
+/* The moving highlight on the tab bar, segmented controls and switches
+   becomes a plain solid tint. */
+.lg-lens, .is-dragging > .lg-lens, .is-pressed > .lg-lens, html.lg-refract .is-dragging > .lg-lens {
+  background: color-mix(in srgb, var(--primary) 9%, var(--surface));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary) 45%, transparent);
+}
+.lg-lens::before, .bottom-nav::after { display: none; }
+.is-dragging > .lg-lens, .is-pressed > .lg-lens { z-index: 0; }
+.switch.is-pressed .switch__track::after { background: #fff; }
+.bottom-nav, .sheet, .toast { background: var(--surface); }
+/* Active tab label in the darker text shade, so it stays readable on the tint. */
+.bottom-nav__item.is-active, .bottom-nav__item.is-active .bottom-nav__label,
+.bottom-nav__more.is-active, .bottom-nav__more.is-active .bottom-nav__label { color: var(--primary-text, var(--primary)); }

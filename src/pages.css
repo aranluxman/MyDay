@@ -92,7 +92,9 @@ html[data-tab='visits']:is([data-theme='dark'], [data-theme='midnight'], [data-t
 .cal__keyrow .cal__dot--partial { background: none; box-shadow: inset 0 0 0 5px var(--surface), inset 0 0 0 7.5px #e08a00; }
 .cal__keyrow .cal__dot--planned { background: none; border: 1.5px dashed var(--ink-soft); }
 [data-theme='dark'] .cal__keyrow .cal__dot--taken, [data-theme='midnight'] .cal__keyrow .cal__dot--taken,
-[data-theme='dark'] .cal__keyrow .cal__dot--missed, [data-theme='midnight'] .cal__keyrow .cal__dot--missed { color: #06121f; }
+[data-theme='dark'] .cal__keyrow .cal__dot--missed, [data-theme='midnight'] .cal__keyrow .cal__dot--missed,
+[data-theme='forest-night'] .cal__keyrow .cal__dot--taken, [data-theme='plum-night'] .cal__keyrow .cal__dot--taken,
+[data-theme='forest-night'] .cal__keyrow .cal__dot--missed, [data-theme='plum-night'] .cal__keyrow .cal__dot--missed { color: #06121f; }
 .cal__hint {
   display: flex; align-items: center; gap: 10px; margin: 14px 0 0; padding: 11px 14px; border-radius: 14px;
   background: color-mix(in srgb, var(--primary) 8%, var(--surface)); font-size: 15px; color: var(--ink-soft);
