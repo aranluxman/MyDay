@@ -21,8 +21,8 @@ test('a morning completion survives reopening and evening has its own dose', asy
 
 test('history date dropdown shows all medicines on only the selected day', async ({ browser }) => {
   const { page, mock, context } = await openApp(browser, { path: '/medication' });
-  await page.getByRole('button', { name: 'Open your calendar and history' }).click();
-  const date = page.getByLabel('Medication history date');
+  await page.getByRole('button', { name: 'Your history' }).click();
+  const date = page.getByLabel('Date range');
   await expect(date).toBeVisible();
   await page.getByRole('button', { name: 'Taken', exact: true }).click();
   await date.selectOption('2026-10-06');
@@ -31,7 +31,7 @@ test('history date dropdown shows all medicines on only the selected day', async
   await expect(page.locator('.g-day .g-list > li')).toHaveCount(expected.length);
   await date.selectOption('2026-10-07');
   await expect(page.locator('.g-day')).toHaveCount(1);
-  await expect(page.locator('.g-day__title')).toHaveText('Today');
+  await expect(page.locator('.g-day__title')).toHaveText('Today · Wed, Oct 7');
   await context.close();
 });
 

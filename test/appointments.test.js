@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   daysUntil, countdownLabel, groupAppointments, directionsUrl, telHref, contactForAppointment,
-  icsEscape, buildIcs, icsFilename,
+  icsEscape, buildIcs, icsFilename, apptKind,
 } from '../src/lib/appointments.js';
 
 const NOW = new Date('2026-09-18T12:00:00');
@@ -118,4 +118,17 @@ test('the filename is recognisable and safe', () => {
   assert.equal(icsFilename({ doctor_name: 'Dr. Patel', appt_date: '2026-09-20' }), 'myday-dr-patel-2026-09-20.ics');
   assert.equal(icsFilename({ reason: 'Blood test', appt_date: '2026-09-20' }), 'myday-blood-test-2026-09-20.ics');
   assert.match(icsFilename({}), /^myday-appointment-\.ics$/);
+});
+
+test('each visit gets the picture that matches what was typed', () => {
+  assert.equal(apptKind({ reason: 'Dentist check-up' }), 'dentist');
+  assert.equal(apptKind({ doctor_name: 'Dr. Lee', location: 'Markham Dental' }), 'dentist');
+  assert.equal(apptKind({ reason: 'Eye exam' }), 'eye');
+  assert.equal(apptKind({ reason: 'Eye test' }), 'eye');
+  assert.equal(apptKind({ reason: 'Pharmacy pickup' }), 'pharmacy');
+  assert.equal(apptKind({ reason: 'Blood Test', location: 'LifeLabs' }), 'lab');
+  assert.equal(apptKind({ doctor_name: 'Dr. Singh', reason: 'Family Doctor' }), 'doctor');
+  assert.equal(apptKind({}), 'doctor');
+  assert.equal(apptKind({ doctor_name: 'Dr. Synthetic', reason: 'Check-up', location: 'Test Clinic' }), 'doctor');
+  assert.equal(apptKind({ reason: 'Follow-up', location: 'LifeLabs' }), 'lab');
 });

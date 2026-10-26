@@ -27,16 +27,26 @@ Built with **React + Vite (JSX)**, **Supabase** (Auth + Postgres + Edge Function
   now with its Take button), and the **Next appointment** and **Health diary** tiles.
   Today at a glance, This week, Visit history and the brain-game nudge can be
   switched on.
-- **Medicine** — *Today* with this week's day strip, a "1 of 3 doses taken" ring, and
-  one row per dose with a **Take** button (tap the medicine for "I took it earlier",
-  "Not today" and instructions). Every dose shows *Scheduled* and *Taken* times
-  with an **On time** / **Late by …** tag. Tapping another day in the strip shows
-  that day in place (the plan for later days; yesterday's missed doses can still
-  be marked with the real time; older days are read-only). From there: **History**
-  (list or a month calendar with per-day adherence, via the calendar button),
+- **Medicine** — opens on **Calendar**: the month with every day marked taken,
+  missed or partly taken (always-visible key), and the day you tap shown underneath
+  as "Today · Wed, Oct 7" with "1 of 3 taken" and one row per dose with a **Take**
+  button (tap the medicine for "I took it earlier", "Not today" and instructions).
+  **List** is the week-strip view with a "1 of 3 doses taken" ring; the choice is
+  remembered on the device. Every dose shows *Scheduled* and *Taken* times with an
+  **On time** / **Late by …** tag. Another day shows in place (the plan for later
+  days; yesterday's missed doses can still be marked with the real time; older days
+  are read-only). Below: **Your history** (last 7 / 30 days, then a list with date
+  range, Taken / Missed / Not today and medicine filters, or a month calendar),
   **Manage medicines** (add / edit / copy / refill / remove), and a **Reminders**
   switch for dose reminders. "+ Add" sits in the top bar.
-- **Appointments** — date, time, doctor, location, reason; soonest first.
+- **Appointments** — **Upcoming** / **Past** tabs, **Quick add** tiles (Doctor visit,
+  Lab test, Pharmacy pickup, Dentist, Eye exam, Other) that open the form with the
+  reason filled in, and compact rows with the date, a picture of the kind of visit,
+  who, where and when. Tapping a row opens Call, Directions, Add to calendar, Edit
+  and Remove. "+ Add" sits in the top bar.
+- **Tab colours** — Medicine and Games are toasted orange, Appointments purple
+  (light and dark); other screens keep the colour theme the person picked, and the
+  High contrast theme is never recoloured.
 - **Updates (health diary)** — *How are you feeling now?* tiles that start a note,
   a general **Chat with MyDay**, and a day-by-day timeline of notes (Edit / Delete
   behind "…").

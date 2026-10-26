@@ -100,11 +100,11 @@ export default function Medication() {
 
       {view === 'calendar' && (
         <div className="stack">
-          <SubHead title="History" onBack={() => go('today')} />
+          <SubHead title="History" sub="See how well you've been taking your medicines." onBack={() => go('today')} />
           <AdherenceSummary windowMinutes={windowMinutes} />
-          <SegmentedControl label="Show history as" value={historyMode} onChange={setHistoryMode} options={[
-            { value: 'list', label: 'List' },
-            { value: 'calendar', label: 'Calendar' },
+          <SegmentedControl className="segmented--accent" label="Show history as" value={historyMode} onChange={setHistoryMode} options={[
+            { value: 'list', label: 'List', icon: 'list' },
+            { value: 'calendar', label: 'Calendar', icon: 'calendar' },
           ]} />
           {historyMode === 'list' ? <DoseHistory windowMinutes={windowMinutes} /> : (
             <>
@@ -136,14 +136,15 @@ export default function Medication() {
   );
 }
 
-// "‹ Today" back to the main page, with the sub-page's own heading.
-function SubHead({ title, onBack }) {
+// "‹ Medicine" back to the main page, with the sub-page's own heading.
+function SubHead({ title, sub, onBack }) {
   return (
     <div className="subhead">
       <button type="button" className="subhead__back" onClick={onBack}>
-        <Icon name="back" size={22} /> Today
+        <Icon name="back" size={22} /> Medicine
       </button>
       <h2 className="subhead__t">{title}</h2>
+      {sub && <p className="subhead__d">{sub}</p>}
     </div>
   );
 }
@@ -154,12 +155,20 @@ const longDate = (d) => d.toLocaleDateString([], { weekday: 'long', month: 'shor
 const atNoon = (iso) => new Date(`${iso}T12:00:00`);
 const shiftDay = (iso, n) => { const d = atNoon(iso); d.setDate(d.getDate() + n); return localDateStr(undefined, d); };
 
-// The Medicine page. The week strip picks the day shown below it, right here:
-// today is the live list with Take buttons; another day swaps in that day's
-// record (or plan), with a clear way back to today.
+const shortDate = (d) => d.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
+const VIEW_KEY = 'myday_med_view';
+function savedView() { try { return localStorage.getItem(VIEW_KEY) === 'list' ? 'list' : 'calendar'; } catch { return 'calendar'; } }
+
+// The Medicine page. It opens on the month: every day marked taken, missed or
+// partly taken, and the day picked on it shown underneath — today is the live
+// list with Take buttons; another day swaps in that day's record (or plan),
+// with a clear way back to today. "List" is the week-strip view for anyone
+// who would rather see one day big. The choice is remembered on the device.
 function TodayView({ state, meds, actions, onAdd, onHistory, onManage, windowMinutes }) {
   const today = localDateStr();
+  const [mode, setModeState] = useState(savedView);
   const [picked, setPicked] = useState(null);
+  function setMode(m) { setModeState(m); try { localStorage.setItem(VIEW_KEY, m); } catch {} }
   // A day picked before midnight should not quietly become "today".
   const day = picked && picked !== today ? picked : today;
   const isToday = day === today;
@@ -168,34 +177,56 @@ function TodayView({ state, meds, actions, onAdd, onHistory, onManage, windowMin
   const title = relative || atNoon(day).toLocaleDateString([], { weekday: 'long' });
   // "Friday" over "Friday, Oct 9" says it twice; under a weekday, just the date.
   const subtitle = relative ? longDate(atNoon(day)) : atNoon(day).toLocaleDateString([], { month: 'long', day: 'numeric' });
-
-  const head = (
-    <div className="medhead">
-      <div className="medhead__text">
-        <h2 className="medhead__t" aria-live="polite">{title}</h2>
-        <p className="medhead__d">{subtitle}</p>
-        {!isToday && (
-          <button type="button" className="medhead__back" onClick={() => setPicked(null)}>
-            <Icon name="back" size={18} /> Back to today
-          </button>
-        )}
-      </div>
-      <button type="button" className="medhead__cal" aria-label="Open your calendar and history" onClick={onHistory}>
-        <Icon name="calendar" size={24} />
-      </button>
-    </div>
+  const pick = (d) => setPicked(d === today ? null : d);
+  const backToToday = !isToday && (
+    <button type="button" className="medhead__back" onClick={() => setPicked(null)}>
+      <Icon name="back" size={18} /> Back to today
+    </button>
   );
+  // In the calendar view the day's heading sits on the list itself, with its
+  // "1 of 3 taken" beside it, instead of a ring.
+  const dayHeading = { title: relative || atNoon(day).toLocaleDateString([], { weekday: 'long' }), date: shortDate(atNoon(day)), back: backToToday };
 
   return (
     <div className="stack">
-      {head}
-      <DayStrip day={day} today={today} onPick={(d) => setPicked(d === today ? null : d)} />
-      <div className="dayview" key={day}>
-        {isToday
-          ? <TodayList state={state} meds={meds} actions={actions} onAdd={onAdd} windowMinutes={windowMinutes} />
-          : <OtherDay day={day} today={today} lateMark={day === yesterday} meds={meds} windowMinutes={windowMinutes} />}
-      </div>
+      <p className="page-intro">Take your medicines on time for a healthier you.</p>
+      <SegmentedControl className="segmented--accent" label="Show your medicines as" value={mode} onChange={setMode} options={[
+        { value: 'calendar', label: 'Calendar', icon: 'calendar' },
+        { value: 'list', label: 'List', icon: 'list' },
+      ]} />
 
+      {mode === 'calendar' ? (
+        <>
+          <MedCalendar selected={day} onPick={pick} windowMinutes={windowMinutes} meds={meds} inlineKey />
+          <div className="dayview" key={day}>
+            {isToday
+              ? <TodayList state={state} meds={meds} actions={actions} onAdd={onAdd} windowMinutes={windowMinutes} heading={dayHeading} />
+              : <OtherDay day={day} today={today} lateMark={day === yesterday} meds={meds} windowMinutes={windowMinutes} heading={dayHeading} />}
+          </div>
+        </>
+      ) : (
+        <>
+          <div className="medhead">
+            <div className="medhead__text">
+              <h2 className="medhead__t" aria-live="polite">{title}</h2>
+              <p className="medhead__d">{subtitle}</p>
+              {backToToday}
+            </div>
+          </div>
+          <DayStrip day={day} today={today} onPick={pick} />
+          <div className="dayview" key={day}>
+            {isToday
+              ? <TodayList state={state} meds={meds} actions={actions} onAdd={onAdd} windowMinutes={windowMinutes} />
+              : <OtherDay day={day} today={today} lateMark={day === yesterday} meds={meds} windowMinutes={windowMinutes} />}
+          </div>
+        </>
+      )}
+
+      <button type="button" className="medlink" onClick={onHistory}>
+        <span className="medlink__ic" aria-hidden="true"><Icon name="history" size={24} /></span>
+        <span className="medlink__t">Your history</span>
+        <Icon name="chevron" size={22} />
+      </button>
       <button type="button" className="medlink" onClick={onManage}>
         <span className="medlink__ic" aria-hidden="true"><Icon name="gear" size={24} /></span>
         <span className="medlink__t">Manage medicines</span>
@@ -207,7 +238,27 @@ function TodayView({ state, meds, actions, onAdd, onHistory, onManage, windowMin
   );
 }
 
-function TodayList({ state, meds, actions, onAdd, windowMinutes }) {
+// "Today · Wed, Oct 7" over the day's doses, with how many were taken.
+function DayHeading({ heading, taken, total, planned }) {
+  const all = total > 0 && taken === total;
+  return (
+    <div className="dayhead">
+      <div className="dayhead__text">
+        <h2 className="dayhead__t" aria-live="polite">{heading.title} <span className="dayhead__d">· {heading.date}</span></h2>
+        {heading.back}
+      </div>
+      {planned != null
+        ? <span className="dayhead__pill"><Icon name="calendar" size={18} /> {planned} planned</span>
+        : total > 0 && (
+          <span className={`dayhead__pill${all ? ' is-done' : ''}`}>
+            {all ? <Icon name="check" size={18} stroke={3} /> : null} {taken} of {total} taken
+          </span>
+        )}
+    </div>
+  );
+}
+
+function TodayList({ state, meds, actions, onAdd, windowMinutes, heading }) {
   const { data: doses, loading, error, reload } = state;
   const asNeeded = meds.filter((m) => m.frequency === 'as_needed');
   if (loading) return <div className="stack"><SkeletonCard lines={2} /><SkeletonCard lines={2} /></div>;
@@ -228,7 +279,10 @@ function TodayList({ state, meds, actions, onAdd, windowMinutes }) {
   const rows = [...scheduled].sort(byTime);
   return (
     <div className="stack">
-      {!!scheduled.length && <DoseRing summary={summary} label="doses taken today" isToday />}
+      {heading
+        ? <DayHeading heading={heading} taken={summary.taken} total={summary.total - summary.skipped} />
+        : !!scheduled.length && <DoseRing summary={summary} label="doses taken today" isToday />}
+      {heading && summary.missed > 0 && <p className="today__headline is-missed dayhead__note" aria-live="polite">{summary.headline}</p>}
       {!!rows.length && (
         <ul className="drows" aria-label="Today's doses">
           {rows.map((d) => <DoseRow key={d.id} dose={d} actions={actions} windowMinutes={windowMinutes} />)}
@@ -253,17 +307,17 @@ function TodayList({ state, meds, actions, onAdd, windowMinutes }) {
 // corrected ("I took it, I just forgot to tap"); older days cannot, so the
 // history stays something a doctor or guardian can trust. Later days show
 // the plan, labelled as a plan.
-function OtherDay({ day, today, lateMark, meds, windowMinutes }) {
+function OtherDay({ day, today, lateMark, meds, windowMinutes, heading }) {
   const { data, loading, error, reload } = useAsync(() => (day > today ? Promise.resolve([]) : dosesForDate(day)), [day]);
   const actions = useDoseActions(reload);
   if (day > today) {
     const plan = meds.filter((m) => isDueOn(m, day))
       .flatMap((m) => normaliseTimes(m.times).map((t) => ({ m, t })))
       .sort((a, b) => a.t.localeCompare(b.t));
-    if (!plan.length) return <EmptyState icon="calendar">Nothing is scheduled for this day.</EmptyState>;
+    if (!plan.length) return <div className="stack">{heading && <DayHeading heading={heading} />}<EmptyState icon="calendar">Nothing is scheduled for this day.</EmptyState></div>;
     return (
       <div className="stack">
-        <DoseRing plan={plan.length} />
+        {heading ? <DayHeading heading={heading} planned={plan.length} /> : <DoseRing plan={plan.length} />}
         <ul className="drows" aria-label={`Planned for ${longDate(atNoon(day))}`}>
           {plan.map(({ m, t }) => (
             <li key={`${m.id}-${t}`} className="drow drow--upcoming">
@@ -288,13 +342,15 @@ function OtherDay({ day, today, lateMark, meds, windowMinutes }) {
   }
   if (loading) return <div className="stack"><SkeletonCard lines={2} /><SkeletonCard lines={2} /></div>;
   if (error) return <Card className="center"><p className="lead">Could not load this day.</p><Button onClick={reload}>Try again</Button></Card>;
-  if (!data.length) return <EmptyState icon="calendar">No doses were recorded for this day.</EmptyState>;
+  if (!data.length) return <div className="stack">{heading && <DayHeading heading={heading} />}<EmptyState icon="calendar">No doses were recorded for this day.</EmptyState></div>;
   const scheduled = data.filter((d) => !d.as_needed);
   const summary = summarise(scheduled, { windowMinutes });
   const byTaken = (a, b) => String(a.scheduled_time || a.taken_at).localeCompare(String(b.scheduled_time || b.taken_at));
   return (
     <div className="stack">
-      {!!scheduled.length && <DoseRing summary={summary} label="doses taken" />}
+      {heading
+        ? <DayHeading heading={heading} taken={summary.taken} total={summary.total - summary.skipped} />
+        : !!scheduled.length && <DoseRing summary={summary} label="doses taken" />}
       {lateMark && scheduled.some((d) => d.status !== 'taken' && d.status !== 'skipped') && (
         <p className="dayview__note"><Icon name="info" size={18} /> Took one and forgot to tap? You can still mark yesterday's doses.</p>
       )}
@@ -529,7 +585,7 @@ function AdherenceSummary({ windowMinutes }) {
         <p className="adh__sub">Over 30 days: {month.taken} of {month.total} doses{month.pct != null ? ` (${month.pct}%)` : ''}.</p>
       )}
       <details className="adh__how">
-        <summary>How is this worked out?</summary>
+        <summary><Icon name="info" size={22} /> <span>How is this worked out?</span> <Icon name="chevron" size={20} className="adh__chev" /></summary>
         <p>
           Counted: scheduled doses whose time has passed, as taken or missed. Not counted: doses still to come,
           doses marked “not today”, and “only when needed” medicines. A dose counts as missed once your
