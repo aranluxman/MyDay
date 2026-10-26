@@ -80,7 +80,7 @@ html[data-contrast='1'] .switch__track { outline: 2px solid var(--ink); outline-
   background: var(--surface); color: var(--ink); font-weight: 800;
   box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1), 0 0 0 2px color-mix(in srgb, var(--primary) 55%, transparent);
 }
-[data-theme='dark'] .segmented__item.is-active, [data-theme='midnight'] .segmented__item.is-active { background: #3a3b45; }
+[data-theme='dark'] .segmented__item.is-active, [data-theme='midnight'] .segmented__item.is-active, [data-theme='forest-night'] .segmented__item.is-active, [data-theme='plum-night'] .segmented__item.is-active { background: #3a3b45; }
 
 /* ---------- readable baseline type ---------- */
 .menu-row__d, .setting-row__d, .ns-row__d, .row-card__d, .quick__sub,
@@ -399,7 +399,7 @@ html:not([data-theme]), [data-theme='light'] {
 }
 [data-theme='ocean'], [data-theme='rose'] { --good-fill: #17734a; }
 /* Dark filled buttons use the deeper --primary-fill (glass.css), so their text stays white. */
-[data-theme='midnight'] { --on-good: #03210c; }
+[data-theme='midnight'], [data-theme='forest-night'], [data-theme='plum-night'] { --on-good: #03210c; }
 .btn--ghost, .medrow__dose, .g-badge--prn, .g-badge--due, .ns-back, .linkbtn,
 .chip.is-on, .menu-row.is-current .menu-row__t, .contact__type, .adh__how summary { color: var(--primary-text); }
 .btn--ghost { background: color-mix(in srgb, var(--primary) 8%, transparent); }
@@ -478,7 +478,7 @@ html:not([data-theme]), [data-theme='light'] {
 .tl__dot--warm { background: var(--warn-bg); color: var(--warn-ink); }
 .tl__dot--violet { background: color-mix(in srgb, #7c3aed 12%, var(--surface)); color: #6d28d9; }
 [data-theme='dark'] .tl__cat--violet, [data-theme='midnight'] .tl__cat--violet,
-[data-theme='dark'] .tl__dot--violet, [data-theme='midnight'] .tl__dot--violet { background: rgba(167, 139, 250, 0.18); color: #c4b5fd; }
+[data-theme='dark'] .tl__dot--violet, [data-theme='midnight'] .tl__dot--violet, [data-theme='forest-night'] .tl__cat--violet, [data-theme='plum-night'] .tl__cat--violet, [data-theme='forest-night'] .tl__dot--violet, [data-theme='plum-night'] .tl__dot--violet { background: rgba(167, 139, 250, 0.18); color: #c4b5fd; }
 .tl__chat { margin-top: 10px; }
 .tl__chat summary {
   display: inline-flex; align-items: center; gap: 8px; cursor: pointer; list-style: none;

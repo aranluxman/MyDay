@@ -1,6 +1,6 @@
 // MyDay service worker: offline app-shell + web-push handling.
 // Vite emits hashed asset filenames, so we cache at runtime rather than precache.
-const CACHE = 'myday-v19';
+const CACHE = 'myday-v20';
 // '/guardian' and its manifest are precached too: a guardian's installed app
 // starts there, and it has to open with no signal (they may be in a clinic
 // basement). The navigate handler below falls back to the cached index.html,
@@ -73,9 +73,12 @@ self.addEventListener('push', (e) => {
 
   // A web app cannot turn up the phone's notification volume, so when MyDay is
   // open it plays its own loud alarm for a missed dose (src/lib/alarm.js).
-  const tellOpenApp = critical && data.silent !== true
+  // A due dose arriving while MyDay is open takes over the screen with the
+  // full-page "Time for your medicine" alarm (src/components/DueAlarm.jsx).
+  const due = kind === 'dose_due';
+  const tellOpenApp = (critical || due) && data.silent !== true
     ? self.clients.matchAll({ type: 'window', includeUncontrolled: true })
-      .then((list) => list.forEach((c) => c.postMessage({ type: 'myday-missed', doseId: data.doseId || null })))
+      .then((list) => list.forEach((c) => c.postMessage({ type: due ? 'myday-due' : 'myday-missed', doseId: data.doseId || null })))
       .catch(() => {})
     : Promise.resolve();
 
@@ -86,7 +89,9 @@ self.addEventListener('push', (e) => {
     // Collapses repeats of the same alert instead of stacking them up.
     tag: data.tag || `myday-${kind}`,
     renotify: true,
-    requireInteraction: critical,
+    // A due dose stays on screen until it is dealt with too: a reminder that
+    // slides away unseen is a missed dose.
+    requireInteraction: critical || due,
     silent: data.silent === true,
     // A long-short-long buzz is distinct from a message tone, so a missed dose
     // is recognisable from a pocket without looking. A missed dose buzzes much
@@ -145,6 +150,8 @@ self.addEventListener('notificationclick', (e) => {
   // the app knows this was a tap on the alert, not someone simply reopening
   // MyDay — which, for a person with their own account, starts at Home.
   let target = d.url || '/';
+  // A due dose opens straight onto the full-screen alarm for that dose.
+  if (d.kind === 'dose_due' && d.doseId) target = `/?due=${encodeURIComponent(d.doseId)}`;
   if (/^\/guardian\/?$/.test(target)) target = '/guardian?from=alert';
   e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
     for (const c of list) {

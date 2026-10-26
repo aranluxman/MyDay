@@ -9,6 +9,14 @@ export const THEMES = [
   { id: 'ocean', name: 'Ocean', bg: '#eaf3fb', primary: '#2060eb', ink: '#0f2747' },
   { id: 'rose', name: 'Rose', bg: '#fbeef4', primary: '#b3376c', ink: '#3a1f2e' },
   { id: 'midnight', name: 'Midnight', bg: '#0b1020', primary: '#8b9cff', ink: '#e8ecff' },
+  { id: 'lavender', name: 'Lavender', bg: '#f3effb', primary: '#6b46c1', ink: '#2a1f45' },
+  { id: 'mint', name: 'Mint', bg: '#ecf8f5', primary: '#0f766e', ink: '#10302b' },
+  { id: 'sunshine', name: 'Sunshine', bg: '#fff8db', primary: '#8a5a00', ink: '#33290a' },
+  { id: 'ruby', name: 'Ruby', bg: '#fdeeee', primary: '#b4232c', ink: '#3b1416' },
+  { id: 'sand', name: 'Sand', bg: '#f6f0e6', primary: '#8a5a2b', ink: '#34291c' },
+  { id: 'autumn', name: 'Autumn', bg: '#fbefe6', primary: '#b0441a', ink: '#3a2216' },
+  { id: 'forest-night', name: 'Forest night', bg: '#0c1611', primary: '#5fd39a', ink: '#e5f3ea' },
+  { id: 'plum-night', name: 'Plum night', bg: '#160d1c', primary: '#d6a2ff', ink: '#f2e8fa' },
 ];
 export const THEME_IDS = THEMES.map((t) => t.id);
 
@@ -20,7 +28,7 @@ export const MODES = [
   { id: 'light', name: 'Light' },
   { id: 'dark', name: 'Dark' },
 ];
-const DARK_THEMES = new Set(['dark', 'midnight']);
+const DARK_THEMES = new Set(['dark', 'midnight', 'forest-night', 'plum-night']);
 
 /** The theme actually painted: 'system' becomes light or dark. */
 export function resolveTheme(theme, prefersDark = false) {

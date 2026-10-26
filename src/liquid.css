@@ -16,7 +16,7 @@
   --lg-drop: 0 6px 18px rgba(20, 30, 60, 0.14), 0 1px 3px rgba(20, 30, 60, 0.1);
   --lg-blur: blur(8px) saturate(190%) brightness(1.06);
 }
-[data-theme='dark'], [data-theme='midnight'] {
+[data-theme='dark'], [data-theme='midnight'], [data-theme='forest-night'], [data-theme='plum-night'] {
   --lg-tint: color-mix(in srgb, var(--primary) 22%, transparent);
   --lg-fill: linear-gradient(180deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0.06) 60%, rgba(255, 255, 255, 0.12) 100%);
   --lg-rim: inset 0 1px 0.5px rgba(255, 255, 255, 0.35), inset 0 -1px 1px rgba(255, 255, 255, 0.08),
@@ -52,7 +52,7 @@
   box-shadow: var(--lg-rim), 0 0 0 0.5px rgba(255, 255, 255, 0.4), 0 12px 32px rgba(20, 30, 60, 0.22), 0 2px 6px rgba(20, 30, 60, 0.12);
 }
 [data-theme='dark'] .is-dragging > .lg-lens, [data-theme='midnight'] .is-dragging > .lg-lens,
-[data-theme='dark'] .is-pressed > .lg-lens, [data-theme='midnight'] .is-pressed > .lg-lens {
+[data-theme='dark'] .is-pressed > .lg-lens, [data-theme='midnight'] .is-pressed > .lg-lens, [data-theme='forest-night'] .is-dragging > .lg-lens, [data-theme='plum-night'] .is-dragging > .lg-lens, [data-theme='forest-night'] .is-pressed > .lg-lens, [data-theme='plum-night'] .is-pressed > .lg-lens {
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.02) 60%, rgba(255, 255, 255, 0.08));
   box-shadow: var(--lg-rim), 0 14px 36px rgba(0, 0, 0, 0.55);
 }
@@ -116,7 +116,7 @@ html.lg-refract .is-dragging > .lg-lens {
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0.72)), var(--lg-tint);
   box-shadow: var(--lg-rim), 0 3px 10px rgba(20, 30, 60, 0.12), 0 0 0 2px color-mix(in srgb, var(--primary) 40%, transparent);
 }
-[data-theme='dark'] .segmented .segmented__thumb, [data-theme='midnight'] .segmented .segmented__thumb {
+[data-theme='dark'] .segmented .segmented__thumb, [data-theme='midnight'] .segmented .segmented__thumb, [data-theme='forest-night'] .segmented .segmented__thumb, [data-theme='plum-night'] .segmented .segmented__thumb {
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.1)), var(--lg-tint);
   box-shadow: var(--lg-rim), 0 4px 12px rgba(0, 0, 0, 0.4), 0 0 0 2px color-mix(in srgb, var(--primary) 50%, transparent);
 }

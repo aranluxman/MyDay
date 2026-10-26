@@ -16,7 +16,7 @@
   --g-hero-edge: #f6cfae;
   --g-shadow: 0 10px 28px rgba(180, 83, 15, 0.14);
 }
-[data-theme='dark'] .games, [data-theme='midnight'] .games {
+[data-theme='dark'] .games, [data-theme='midnight'] .games, [data-theme='forest-night'] .games, [data-theme='plum-night'] .games {
   --g-accent: #f0a35a;
   --g-on: #1d1006;
   --g-soft: rgba(240, 163, 90, 0.16);
@@ -42,7 +42,7 @@
   flex: none; width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center;
   background: var(--good); color: #fff;
 }
-[data-theme='dark'] .gstreak__ic, [data-theme='midnight'] .gstreak__ic { color: #06121f; }
+[data-theme='dark'] .gstreak__ic, [data-theme='midnight'] .gstreak__ic, [data-theme='forest-night'] .gstreak__ic, [data-theme='plum-night'] .gstreak__ic { color: #06121f; }
 .gstreak__main { flex: 1 1 110px; min-width: 0; }
 .gstreak__t { margin: 0; font-size: 17px; font-weight: 800; line-height: 1.25; color: var(--good-ink); letter-spacing: -0.01em; }
 .gstreak__d { margin: 2px 0 0; font-size: 14.5px; line-height: 1.35; color: var(--ink-soft); }
@@ -127,9 +127,9 @@
 .stat-tile__ic--gold { color: #e09400; }
 .stat-tile__ic--flame { color: #ea4a1f; }
 .stat-tile__ic--trophy { color: #c27803; }
-[data-theme='dark'] .stat-tile__ic--gold, [data-theme='midnight'] .stat-tile__ic--gold { color: #f6c445; background: none; }
-[data-theme='dark'] .stat-tile__ic--flame, [data-theme='midnight'] .stat-tile__ic--flame { color: #ff8a5c; }
-[data-theme='dark'] .stat-tile__ic--trophy, [data-theme='midnight'] .stat-tile__ic--trophy { color: #f2b544; }
+[data-theme='dark'] .stat-tile__ic--gold, [data-theme='midnight'] .stat-tile__ic--gold, [data-theme='forest-night'] .stat-tile__ic--gold, [data-theme='plum-night'] .stat-tile__ic--gold { color: #f6c445; background: none; }
+[data-theme='dark'] .stat-tile__ic--flame, [data-theme='midnight'] .stat-tile__ic--flame, [data-theme='forest-night'] .stat-tile__ic--flame, [data-theme='plum-night'] .stat-tile__ic--flame { color: #ff8a5c; }
+[data-theme='dark'] .stat-tile__ic--trophy, [data-theme='midnight'] .stat-tile__ic--trophy, [data-theme='forest-night'] .stat-tile__ic--trophy, [data-theme='plum-night'] .stat-tile__ic--trophy { color: #f2b544; }
 
 /* ---------- categories ---------- */
 .ghead { display: flex; align-items: center; gap: 12px; }
@@ -236,7 +236,7 @@
 .gart__nums { display: flex; align-items: flex-start; gap: 0.08em; height: 3em; }
 .gart__nums b { font-size: 2em; font-weight: 900; color: #2563eb; }
 .gart__nums b:nth-child(3) { margin-top: 0.42em; }
-[data-theme='dark'] .gart__nums b, [data-theme='midnight'] .gart__nums b { color: #6aa8ff; }
+[data-theme='dark'] .gart__nums b, [data-theme='midnight'] .gart__nums b, [data-theme='forest-night'] .gart__nums b, [data-theme='plum-night'] .gart__nums b { color: #6aa8ff; }
 
 .gart__sudoku { display: grid; grid-template-columns: 1.35em 1.35em; gap: 0.22em; }
 .gart__sudoku i { width: 1.35em; height: 1.35em; border-radius: 0.3em; background: #ef4444; }
