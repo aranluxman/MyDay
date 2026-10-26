@@ -143,7 +143,7 @@ export function Toggle({ checked, onChange, label, labelledBy, describedBy, disa
 // Options wrap onto a second row at large text sizes instead of overflowing.
 // On one row, a Liquid Glass lens slides between options and can be dragged
 // across them; once wrapped, the selected option carries its own style.
-export function SegmentedControl({ options, value, onChange, kind = 'radio', label, idBase }) {
+export function SegmentedControl({ options, value, onChange, kind = 'radio', label, idBase, className = '' }) {
   const autoId = useId();
   const base = idBase || `seg${autoId.replace(/:/g, '')}`;
   const idx = Math.max(0, options.findIndex((o) => o.value === value));
@@ -183,7 +183,7 @@ export function SegmentedControl({ options, value, onChange, kind = 'radio', lab
   }
 
   return (
-    <div ref={wrapRef} className={`segmented${wrapped ? ' is-wrapped' : ' has-lens'}`} role={tabs ? 'tablist' : 'radiogroup'} aria-label={label}
+    <div ref={wrapRef} className={`segmented${wrapped ? ' is-wrapped' : ' has-lens'}${className ? ` ${className}` : ''}`} role={tabs ? 'tablist' : 'radiogroup'} aria-label={label}
       onKeyDown={onKeyDown}>
       <span className="segmented__thumb lg-lens" ref={lensRef} aria-hidden="true" />
       {options.map((o, i) => {
@@ -197,7 +197,7 @@ export function SegmentedControl({ options, value, onChange, kind = 'radio', lab
             aria-checked={tabs ? undefined : on}
             tabIndex={on ? 0 : -1}
             className={`segmented__item${on ? ' is-active' : ''}`}
-            onClick={() => onChange(o.value)}>{o.label}</button>
+            onClick={() => onChange(o.value)}>{o.icon && <Icon name={o.icon} size={22} />}{o.label}</button>
         );
       })}
     </div>

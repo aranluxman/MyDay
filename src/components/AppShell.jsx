@@ -21,8 +21,12 @@ const TITLES = {
   '/medication/ask': 'Ask about medicines',
 };
 
-// Medicine has its own "+ Add" in the top bar instead.
-const ADD_PAGES = new Set(['/', '/appointments', '/updates']);
+// Medicine and Appointments have their own "+ Add" in the top bar instead.
+const ADD_PAGES = new Set(['/', '/updates']);
+// Each of these tabs wears its own colour (games.css): Medicine and Games a
+// toasted orange, Appointments purple. Set on <html> so sheets, which render
+// outside the shell, match the page they opened from.
+const TAB_COLOURS = [['/medication', 'medicine'], ['/games', 'games'], ['/appointments', 'visits']];
 // Pages that carry the profile photo in the top bar, as a way into Profile.
 const AVATAR_PAGES = new Set(['/', '/updates', '/games']);
 
@@ -55,6 +59,11 @@ export function AppShell() {
 
   // A meaningful page title for every route (tabs, history, screen readers).
   useEffect(() => { document.title = pathname === '/' ? 'Home · MyDay' : `${title} · MyDay`; }, [pathname, title]);
+  useEffect(() => {
+    const tab = TAB_COLOURS.find(([p]) => pathname === p || pathname.startsWith(`${p}/`))?.[1];
+    if (tab) document.documentElement.setAttribute('data-tab', tab);
+    else document.documentElement.removeAttribute('data-tab');
+  }, [pathname]);
 
   // A missed-dose push arriving while MyDay is open sets off the loud alarm,
   // once per dose — an ordinary notification sound is too easy to miss.
@@ -106,6 +115,11 @@ export function AppShell() {
           <InstallButton />
           {pathname === '/medication' && (
             <button type="button" className="topbar__add" aria-label="Add a medicine" onClick={() => navigate('/medication', { state: { add: 'med' } })}>
+              <Icon name="plus" size={22} stroke={2.6} /> <span>Add</span>
+            </button>
+          )}
+          {pathname === '/appointments' && (
+            <button type="button" className="topbar__add" aria-label="Add an appointment" onClick={() => navigate('/appointments', { state: { add: 'appt' } })}>
               <Icon name="plus" size={22} stroke={2.6} /> <span>Add</span>
             </button>
           )}
