@@ -45,7 +45,8 @@ export async function uploadAvatar(userId, file) {
 // user_id so a save still works if the profile row was never created (an
 // unscoped UPDATE silently matched nothing and looked like a successful save).
 export async function saveProfile(patch) {
-  const { data: { session } } = await supabase.auth.getSession();
+  const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+  if (sessionError) throw new Error('We could not reconnect to your account. Check your connection and try saving again.');
   const userId = session?.user?.id;
   if (!userId) throw new Error('You have been signed out. Please sign in again.');
   const { error } = await supabase.from('myday_profiles')
@@ -59,7 +60,8 @@ function profileErrorMessage(error) {
   const code = error?.code;
   if (code === '23514') return 'One of the answers was not recognised. Please pick an option and try again.';
   if (code === '22008' || code === '22007') return 'That date does not look right. Please check your birthday.';
-  if (code === '42501' || code === 'PGRST301') return 'You have been signed out. Please sign in again.';
+  if (code === '42501') return 'Your account does not have permission to save this change.';
+  if (code === 'PGRST301') return 'We could not verify your account. Please reconnect and try again.';
   if (error?.message?.includes('Failed to fetch')) return 'No internet connection. Please try again when you are back online.';
   return error?.message || 'Could not save.';
 }

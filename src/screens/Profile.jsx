@@ -115,7 +115,10 @@ export default function Profile() {
 
   async function onSignOut() {
     const ok = await ui.confirm({ title: 'Sign out', message: 'Sign out of MyDay on this phone?', confirmLabel: 'Sign out' });
-    if (ok) await signOut();
+    if (ok) {
+      try { await signOut(); }
+      catch { ui.toast('Could not sign out. Check your connection and try again.', 'bad'); }
+    }
   }
   async function removeContact(c) {
     const ok = await ui.confirm({ title: 'Remove contact', message: `Remove ${c.name}?`, confirmLabel: 'Remove', danger: true });

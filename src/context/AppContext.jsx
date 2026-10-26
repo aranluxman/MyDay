@@ -1,8 +1,9 @@
-import { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { supabase, CAME_FROM_RECOVERY_LINK } from '../lib/supabase.js';
 import { ensureProfile, getProfile, saveProfile, ensureDosesFresh, flushPendingGameResults } from '../lib/db.js';
 import { deviceTimezone } from '../lib/format.js';
 import { resolveTheme } from '../lib/appearance.js';
+import { watchSession } from '../lib/sessionLifecycle.js';
 
 const AppCtx = createContext(null);
 export const useApp = () => useContext(AppCtx);
@@ -11,6 +12,9 @@ export function AppProvider({ children }) {
   const [session, setSession] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [sessionError, setSessionError] = useState(null);
+  const sessionWatcher = useRef(null);
+  const retrySession = useCallback(() => sessionWatcher.current?.retry(), []);
   // True between opening a password-recovery link and choosing a new password.
   // That link creates a real session, so without this flag the app would drop
   // the person straight into Home and they'd never reset anything.
@@ -43,18 +47,19 @@ export function AppProvider({ children }) {
 
   // initial session + auth subscription
   useEffect(() => {
-    let active = true;
-    supabase.auth.getSession().then(({ data }) => {
-      if (!active) return;
-      setSession(data.session);
-      if (!data.session) setLoading(false);
+    const watcher = watchSession(supabase.auth, {
+      onSession(s) {
+        setSession(s);
+        if (!s) setLoading(false);
+      },
+      onError(error) {
+        setSessionError(error);
+        if (error) setLoading(false);
+      },
+      onRecovery: setRecovery,
     });
-    const { data: sub } = supabase.auth.onAuthStateChange((event, s) => {
-      setSession(s);
-      if (event === 'PASSWORD_RECOVERY') setRecovery(true);
-      if (event === 'SIGNED_OUT') setRecovery(false);
-    });
-    return () => { active = false; sub.subscription.unsubscribe(); };
+    sessionWatcher.current = watcher;
+    return () => { watcher.unsubscribe(); sessionWatcher.current = null; };
   }, []);
 
   // when a user is present, ensure their profile exists + refresh today's doses
@@ -120,7 +125,11 @@ export function AppProvider({ children }) {
   }
   // 'local': the button says "on this phone", and the default (global) would
   // also sign a senior out on their other phone or tablet.
-  async function signOut() { await supabase.auth.signOut({ scope: 'local' }); setProfile(null); }
+  async function signOut() {
+    const { error } = await supabase.auth.signOut({ scope: 'local' });
+    if (error) throw error;
+    setProfile(null);
+  }
 
   function setTheme(t) { setThemeState(t); localStorage.setItem('myday_theme', t); saveProfile({ theme: t }).catch(() => {}); }
   function setTextSize(s) { setTextSizeState(s); localStorage.setItem('myday_text', s); saveProfile({ text_size: s }).catch(() => {}); }
@@ -134,7 +143,7 @@ export function AppProvider({ children }) {
 
   const value = {
     session, user: session?.user || null, profile, loading, theme, resolvedTheme, textSize,
-    recovery, endRecovery: () => setRecovery(false),
+    recovery, endRecovery: () => setRecovery(false), sessionError, retrySession,
     signIn, signUp, signOut, setTheme, setTextSize, updateProfile, reloadProfile,
   };
   return <AppCtx.Provider value={value}>{children}</AppCtx.Provider>;

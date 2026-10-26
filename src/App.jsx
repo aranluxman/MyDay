@@ -26,7 +26,7 @@ const ForgotPassword = lazy(() => import('./screens/ForgotPassword.jsx'));
 const ResetPassword = lazy(() => import('./screens/ResetPassword.jsx'));
 
 function Root() {
-  const { user, loading, recovery, endRecovery } = useApp();
+  const { user, loading, recovery, endRecovery, sessionError, retrySession } = useApp();
   const { pathname, key } = useLocation();
   const publicFallback = <div className="content"><PageSkeleton /></div>;
 
@@ -42,6 +42,15 @@ function Root() {
     return <Suspense fallback={publicFallback}><ResetPassword ready={recovery || !!user} onDone={endRecovery} /></Suspense>;
   }
 
+  if (sessionError && !user) {
+    return (
+      <main className="content" aria-labelledby="reconnect-title">
+        <h1 id="reconnect-title">Let’s reconnect</h1>
+        <p role="status">{sessionError}</p>
+        <button type="button" className="mkt-btn mkt-btn--primary" onClick={retrySession}>Try again</button>
+      </main>
+    );
+  }
   if (loading) {
     return publicFallback;
   }
