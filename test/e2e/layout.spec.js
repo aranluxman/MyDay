@@ -54,7 +54,8 @@ for (const [w, h] of VIEWPORTS) {
         }
         if (path === '/profile') {
           await expect.soft(page.locator('.fab')).toHaveCount(0);
-          // Alerts live in Profile now; their master switch must still be reachable.
+          // Alerts live one tap into Settings; their master switch must still be reachable.
+          await page.getByRole('button', { name: /^Alerts & reminders/ }).click();
           const sw = page.getByRole('switch', { name: 'All notifications' });
           await sw.scrollIntoViewIfNeeded();
           const box = await sw.boundingBox();

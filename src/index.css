@@ -2482,3 +2482,10 @@ iframe.skiptranslate, .goog-te-banner-frame, #goog-gt-tt, .goog-te-balloon-frame
   --bad: #ef6a5e; --bad-bg: rgba(239,106,94,.16); --bad-ink: #ff8b80;
   --shadow: 0 10px 28px rgba(0,0,0,.5); --shadow-lg: 0 16px 44px rgba(0,0,0,.6);
 }
+
+/* Extra high contrast: on top of "more contrast", every outline and every
+   line of secondary text is drawn in the full text colour, in any theme. */
+html[data-contrast-extra='1'] { --ink-soft: var(--ink); --line: var(--ink); }
+html[data-contrast-extra='1'] .card, html[data-contrast-extra='1'] .btn,
+html[data-contrast-extra='1'] .input, html[data-contrast-extra='1'] .bottom-nav { border: 3px solid var(--ink); }
+html[data-contrast-extra='1'] body { font-weight: 600; }

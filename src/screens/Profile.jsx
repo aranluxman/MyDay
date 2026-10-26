@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext.jsx';
 import { useUI } from '../context/UIContext.jsx';
 import { useAsync } from '../hooks/useAsync.js';
-import { Card, Button, Spinner, Modal, Field, Input, Textarea, EmptyState, SegmentedControl, Avatar, Toggle, Collapsible } from '../components/ui.jsx';
+import { Card, Button, Spinner, Modal, Field, Input, Textarea, EmptyState, SegmentedControl, Avatar, Toggle } from '../components/ui.jsx';
 import { useSettings } from '../context/SettingsContext.jsx';
 import { Icon } from '../components/Icon.jsx';
 import { listContacts, saveContact, deleteContact, uploadAvatar,
@@ -84,6 +84,17 @@ export default function Profile() {
   const [busyInvite, setBusyInvite] = useState(false);
 
   const [reveal, setReveal] = useState(null);
+  // The open page lives in the address (?section=access), so the phone's back
+  // button and a reload both behave.
+  const section = new URLSearchParams(location.search).get('section');
+  const page = PAGE_IDS[section] ? section : null;
+  const [showAllThemes, setShowAllThemes] = useState(false);
+  function openPage(id, replace = false) {
+    navigate(id ? `/profile?section=${id}` : '/profile', { replace });
+    window.scrollTo(0, 0);
+  }
+  // "Show me" links (How to use MyDay, Home's banners) open their page.
+  useEffect(() => { if (reveal?.id && PAGE_IDS[reveal.id]) openPage(reveal.id, true); }, [reveal]);
   useEffect(() => {
     const open = location.state?.open;
     if (open) { setReveal((r) => ({ id: open, n: (r?.n || 0) + 1 })); window.history.replaceState({}, ''); }
@@ -178,60 +189,101 @@ export default function Profile() {
   const sizeName = TEXT_SIZES.find((t) => t.id === textSize)?.name || 'Normal';
   const access = [settings.highContrast && 'More contrast', settings.bold && 'Bold', settings.bigButtons && 'Bigger buttons', settings.calmMotion && 'Calm'].filter(Boolean);
   const connected = (guardians.data || []).filter((g) => g.deviceCount > 0).length;
-  // "Show me" in How to use MyDay lands here with { open: 'guardians' } and
-  // opens + scrolls to that section, even when Profile is already on screen.
-  const fold = (id) => ({ defaultOpen: false, reveal: reveal?.id === id ? reveal.n : null });
 
-  return (
-    <div className="stack">
-      {/* identity — tap to view and edit your details */}
-      <Card>
-        <div className="account-card">
-          <div className="avatar-edit">
-            <Avatar name={profile?.full_name} color={profile?.avatar_color} size={64} src={profile?.avatar_url} />
-            <button type="button" className="avatar-edit__btn" aria-label="Change profile photo" disabled={uploading} onClick={() => fileRef.current?.click()}>
-              <Icon name={uploading ? 'clock' : 'plus'} size={16} />
-            </button>
-            <input ref={fileRef} type="file" accept="image/*" hidden onChange={onPickPhoto} />
-          </div>
-          <button type="button" className="account-card__main account-card__btn" onClick={() => setEditProfile(true)}>
-            <span className="account-card__name">{profile?.full_name || 'Your profile'}</span>
-            <span className="account-card__sub">{age != null ? `${age} years old — tap to view and edit` : 'View and manage your profile'}</span>
+  // One settings home with a short list; each row opens its own page with a
+  // back button, so nothing is ever more than one tap deep.
+  const pages = {
+    access: { title: 'Accessibility', desc: 'Make MyDay easier to see and use.' },
+    alerts: { title: 'Alerts & reminders', desc: 'When MyDay reminds you, and how it sounds.' },
+    guardians: { title: 'Guardians', desc: 'Family who are told if you miss a medicine.' },
+    contacts: { title: 'My contacts', desc: 'Family, doctor and pharmacy, one tap away.' },
+    language: { title: 'Language', desc: 'Show MyDay in your language.' },
+    appearance: { title: 'Appearance', desc: 'Light or dark, and your colour theme.' },
+    info: { title: 'My information', desc: 'Your details, health and goals.' },
+    howto: { title: 'How to use MyDay', desc: 'A step-by-step guide.' },
+  };
+  const current = page && pages[page];
+  const languageName = (LANGUAGES.concat(MORE_LANGUAGES).find((l) => l.code === currentLanguage())?.name) || 'English';
+  const contrastLevel = !settings.highContrast ? 'default' : settings.extraContrast ? 'extra' : 'high';
+  const featured = ['light', 'dark', 'warm'];
+  const shownThemes = showAllThemes ? THEMES : THEMES.filter((t) => featured.includes(t.id) || t.id === theme);
+
+  if (current) {
+    return (
+      <div className="stack settings-page">
+        <div className="settings-page__head">
+          <button type="button" className="settings-back" aria-label="Back to Settings" onClick={() => openPage(null)}>
+            <Icon name="back" size={24} />
           </button>
-          <Icon name="chevron" size={24} />
+          <div>
+            <h2 className="settings-page__t">{current.title}</h2>
+            <p className="settings-page__d">{current.desc}</p>
+          </div>
         </div>
-      </Card>
 
-      <div className="stack">
-      {/* accessibility first — bigger text and more contrast help with reading
-          everything else on this page */}
-      <Collapsible id="access" icon="eye" title="Accessibility" {...fold('access')} summary={[`${sizeName} text`, ...access].join(' · ')}>
-        <p className="muted" style={{ margin: '0 0 4px' }}>Make MyDay easier to see and use — changes apply straight away.</p>
-        <SettingRow icon="notes" title="Text size" desc="Make everything on screen bigger." stacked>
-          <SegmentedControl label="Text size" value={textSize} onChange={setTextSize} options={TEXT_SIZES.map((s) => ({ value: s.id, label: s.name }))} />
-          <p className="size-preview">Sample: today's medicine is ready.</p>
-        </SettingRow>
-        <SettingRow icon="sun" title="More contrast" desc="Stronger text and outlines, in any theme.">
-          <Toggle checked={settings.highContrast} onChange={(v) => setSetting({ highContrast: v })} label="More contrast" />
-        </SettingRow>
-        <SettingRow icon="edit" title="Bold text" desc="Thicker letters that are easier to read.">
-          <Toggle checked={settings.bold} onChange={(v) => setSetting({ bold: v })} label="Bold text" />
-        </SettingRow>
-        <SettingRow icon="plus" title="Bigger buttons" desc="Even larger tap targets for steadier pressing.">
-          <Toggle checked={settings.bigButtons} onChange={(v) => setSetting({ bigButtons: v })} label="Bigger buttons" />
-        </SettingRow>
-        <SettingRow icon="moon" title="Calm screen" desc="Turns off moving animations.">
-          <Toggle checked={settings.calmMotion} onChange={(v) => setSetting({ calmMotion: v })} label="Calm screen" />
-        </SettingRow>
-      </Collapsible>
+        {page === 'access' && (
+          <>
+            <Card className="pref-card">
+              <div className="pref-card__head"><span className="pref-card__ic pref-card__ic--violet"><b aria-hidden="true">Aa</b></span>
+                <div><div className="pref-card__t">Text size</div><div className="pref-card__d">Adjust the size of text in the app.</div></div></div>
+              <div className="choice-tiles" role="radiogroup" aria-label="Text size">
+                {TEXT_SIZES.map((t, i) => (
+                  <button key={t.id} type="button" role="radio" aria-checked={textSize === t.id}
+                    className={`choice-tile${textSize === t.id ? ' is-active' : ''}`} onClick={() => setTextSize(t.id)}>
+                    <span className="choice-tile__aa" style={{ fontSize: 18 + i * 5 }} aria-hidden="true">Aa</span>
+                    <span>{t.name}</span>
+                  </button>
+                ))}
+              </div>
+            </Card>
 
-      <h2 className="settings-group">Safety &amp; care</h2>
-      {/* guardians — the family link is what keeps someone safe, so with nobody
-          connected the card is outlined and says what it is for */}
-      <Collapsible id="guardians" icon="user" title="Guardians" {...fold('guardians')}
-        attention={guardians.data && !connected}
-        summary={!guardians.data ? '' : !connected ? 'Add a family guardian to enable safety alerts'
-          : `${guardians.data.length} added · ${connected} connected`}>
+            <Card className="pref-card">
+              <div className="pref-card__head"><span className="pref-card__ic pref-card__ic--orange"><Icon name="sun" size={22} /></span>
+                <div><div className="pref-card__t">Display contrast</div><div className="pref-card__d">Make text and buttons easier to see.</div></div></div>
+              <div className="choice-tiles" role="radiogroup" aria-label="Display contrast">
+                {[
+                  { id: 'default', name: 'Default', patch: { highContrast: false, extraContrast: false } },
+                  { id: 'high', name: 'High contrast', patch: { highContrast: true, extraContrast: false } },
+                  { id: 'extra', name: 'Extra high', patch: { highContrast: true, extraContrast: true } },
+                ].map((c) => (
+                  <button key={c.id} type="button" role="radio" aria-checked={contrastLevel === c.id}
+                    className={`choice-tile${contrastLevel === c.id ? ' is-active' : ''}`} onClick={() => setSetting(c.patch)}>
+                    <span className={`contrast-sample contrast-sample--${c.id}`} aria-hidden="true"><i /><i /></span>
+                    <span>{c.name}</span>
+                  </button>
+                ))}
+              </div>
+            </Card>
+
+            <Card className="pref-card">
+              <div className="pref-card__head"><span className="pref-card__ic pref-card__ic--orange"><Icon name="sun" size={22} /></span>
+                <div><div className="pref-card__t">Theme</div><div className="pref-card__d">Choose a look you like.</div></div></div>
+              <ThemeGrid themes={shownThemes} theme={theme} setTheme={setTheme} />
+              <Button variant="ghost" size="sm" onClick={() => setShowAllThemes((v) => !v)}>
+                {showAllThemes ? 'Show fewer themes' : `More themes (${THEMES.length})`}
+              </Button>
+            </Card>
+
+            <Card className="pref-card pref-list">
+              <MenuRow icon="bell" title="Sound & vibration" desc="Control alert sounds and vibration" onClick={() => openPage('alerts')} />
+              <SettingRow icon="plus" title="Larger touch targets" desc="Bigger buttons, easier to tap.">
+                <Toggle checked={settings.bigButtons} onChange={(v) => setSetting({ bigButtons: v })} label="Larger touch targets" />
+              </SettingRow>
+              <SettingRow icon="edit" title="Bold text" desc="Thicker letters that are easier to read.">
+                <Toggle checked={settings.bold} onChange={(v) => setSetting({ bold: v })} label="Bold text" />
+              </SettingRow>
+              <SettingRow icon="moon" title="Calm screen" desc="Turns off moving animations.">
+                <Toggle checked={settings.calmMotion} onChange={(v) => setSetting({ calmMotion: v })} label="Calm screen" />
+              </SettingRow>
+            </Card>
+
+            <p className="settings-note"><Icon name="info" size={22} /> These settings help make MyDay simpler and easier to use.</p>
+          </>
+        )}
+
+        {page === 'alerts' && <AlertsSettings reveal={reveal?.id === 'alerts' ? reveal.n : null} />}
+
+        {page === 'guardians' && <Card>
         {guardians.data && !connected && (
           <p className="fold__alert"><Icon name="shield" size={20} /> No one gets an alert yet if you miss a medicine. Add a family guardian to turn on safety alerts.</p>
         )}
@@ -266,11 +318,9 @@ export default function Profile() {
             ))}
           </div>
         ) : null}
-      </Collapsible>
+              </Card>}
 
-      {/* contacts — vertical list, never scrolls sideways */}
-      <Collapsible id="contacts" icon="phone" title="My contacts" {...fold('contacts')}
-        summary={contacts.data?.length ? `${contacts.data.length} saved${contacts.data.some((c) => c.is_emergency) ? ' · emergency contact set' : ''}` : 'None yet'}>
+        {page === 'contacts' && <Card>
         <Button variant="ghost" icon="plus" onClick={() => setEditContact({})}>Add a contact</Button>
         <div style={{ height: 10 }} />
         {contacts.loading ? <Spinner label="" /> : !contacts.data?.length ? (
@@ -311,14 +361,32 @@ export default function Profile() {
         <p className="muted" style={{ margin: '12px 0 0', fontSize: 15 }}>
           In an emergency, call 911. MyDay never calls or messages anyone for you.
         </p>
-      </Collapsible>
+              </Card>}
 
-      {/* Alerts are part of staying safe, so they sit here rather than on a
-          separate page someone has to know to look for. */}
-      <h2 className="settings-group">Alerts &amp; reminders</h2>
-      <AlertsSettings reveal={reveal?.id === 'alerts' ? reveal.n : null} />
+        {page === 'language' && <Card>
+        <label className="muted" htmlFor="lang-select" style={{ display: 'block', margin: '0 0 10px' }}>Show MyDay in your language. The page reloads once.</label>
+        <select id="lang-select" className="lang-select notranslate input input--select" translate="no" value={currentLanguage()}
+          onChange={(e) => setLanguage(e.target.value)}>
+          {LANGUAGES.map((l) => <option key={l.code} value={l.code}>{l.en ? `${l.name} — ${l.en}` : l.name}</option>)}
+          <optgroup label="More languages">
+            {MORE_LANGUAGES.map((l) => <option key={l.code} value={l.code}>{`${l.name} — ${l.en}`}</option>)}
+          </optgroup>
+        </select>
+              </Card>}
 
-      <h2 className="settings-group">Personal info &amp; health</h2>
+        {page === 'appearance' && (
+          <Card>
+            <SettingRow icon="monitor" title="Light or dark" desc="System matches your phone or computer, day and night." stacked>
+              <SegmentedControl label="Light or dark" value={mode} onChange={(m) => setTheme(themeForMode(m, theme))}
+                options={MODES.map((m) => ({ value: m.id, label: m.name }))} />
+            </SettingRow>
+            <p className="muted" style={{ margin: '14px 0 12px' }}>Or pick a colour theme that's comfortable for you.</p>
+            <ThemeGrid themes={THEMES} theme={theme} setTheme={setTheme} />
+          </Card>
+        )}
+
+        {page === 'info' && (
+          <>
       {completeness.pct < 100 && (
         <Card>
           <div className="progress-card">
@@ -342,58 +410,82 @@ export default function Profile() {
         </Card>
       )}
 
-      <Collapsible id="info" icon="user" title="My information" {...fold('info')} summary="Name, birthday, health and goals">
+            <Card>
         <div className="menu-list">
           <MenuRow icon="user" title="Personal information" desc="Your name, birthday and more" onClick={() => setEditProfile(true)} />
           <MenuRow icon="cross" title="Health information" desc="Medications, supplements and conditions" onClick={() => setEditProfile(true)} />
           <MenuRow icon="star" title="Health goals" desc="Set and track what you're working toward" onClick={() => setEditProfile(true)} />
         </div>
-      </Collapsible>
+            </Card>
+          </>
+        )}
 
+        {page === 'howto' && <Card><HowToGuide /></Card>}
 
-      <h2 className="settings-group">App settings</h2>
-      {/* language — first in App settings, with a globe icon that reads in any
-          language, for someone who can't read English */}
-      <Collapsible id="language" icon="globe" title="Language" {...fold('language')}
-        summary={(LANGUAGES.concat(MORE_LANGUAGES).find((l) => l.code === currentLanguage())?.name) || 'English'}>
-        <label className="muted" htmlFor="lang-select" style={{ display: 'block', margin: '0 0 10px' }}>Show MyDay in your language. The page reloads once.</label>
-        <select id="lang-select" className="lang-select notranslate input input--select" translate="no" value={currentLanguage()}
-          onChange={(e) => setLanguage(e.target.value)}>
-          {LANGUAGES.map((l) => <option key={l.code} value={l.code}>{l.en ? `${l.name} — ${l.en}` : l.name}</option>)}
-          <optgroup label="More languages">
-            {MORE_LANGUAGES.map((l) => <option key={l.code} value={l.code}>{`${l.name} — ${l.en}`}</option>)}
-          </optgroup>
-        </select>
-      </Collapsible>
+        {renderOverlays()}
+      </div>
+    );
+  }
 
-      {/* appearance */}
-      <Collapsible id="appearance" icon="sun" title="Appearance" {...fold('appearance')} summary={`${themeName} theme`}>
-        <SettingRow icon="monitor" title="Light or dark" desc="System matches your phone or computer, day and night." stacked>
-          <SegmentedControl label="Light or dark" value={mode} onChange={(m) => setTheme(themeForMode(m, theme))}
-            options={MODES.map((m) => ({ value: m.id, label: m.name }))} />
-        </SettingRow>
-        <p className="muted" id="theme-label" style={{ margin: '14px 0 12px' }}>Or pick a colour theme that's comfortable for you.</p>
-        <div className="theme-grid" role="radiogroup" aria-labelledby="theme-label">
-          {THEMES.map((t) => (
-            <button key={t.id} type="button" role="radio" aria-checked={theme === t.id}
-              className={`theme-swatch${theme === t.id ? ' is-active' : ''}`} onClick={() => setTheme(t.id)}>
-              <span className="theme-swatch__preview" style={{ background: t.bg, color: t.ink }} aria-hidden="true">
-                <span className="theme-swatch__bar" style={{ background: t.ink, opacity: 0.18 }} />
-                <span className="theme-swatch__bar theme-swatch__bar--short" style={{ background: t.ink, opacity: 0.12 }} />
-                <span className="theme-swatch__btn" style={{ background: t.primary }} />
-              </span>
-              <span className="theme-swatch__name">{t.name}{theme === t.id ? ' ✓' : ''}</span>
-            </button>
-          ))}
+  return (
+    <div className="stack settings-home">
+      {/* identity */}
+      <Card className="me-card">
+        <div className="avatar-edit">
+          <Avatar name={profile?.full_name} color={profile?.avatar_color} size={84} src={profile?.avatar_url} />
+          <button type="button" className="avatar-edit__btn" aria-label="Change profile photo" disabled={uploading} onClick={() => fileRef.current?.click()}>
+            <Icon name={uploading ? 'clock' : 'plus'} size={16} />
+          </button>
+          <input ref={fileRef} type="file" accept="image/*" hidden onChange={onPickPhoto} />
         </div>
-      </Collapsible>
+        <div className="me-card__main">
+          <div className="me-card__name">{profile?.full_name || 'Your profile'}</div>
+          {age != null && <div className="me-card__sub">{age} years old</div>}
+          <button type="button" className="me-card__edit" onClick={() => setEditProfile(true)}>
+            <Icon name="user" size={18} /> Edit profile
+          </button>
+        </div>
+      </Card>
 
-      {/* the guide — at the very bottom, closed until tapped */}
-      <Collapsible id="howto" icon="info" title="How to use MyDay" {...fold('howto')} summary="A step-by-step guide">
-        <HowToGuide />
-      </Collapsible>
+      <div>
+        <h2 className="settings-group">Safety &amp; Support</h2>
+        <p className="settings-group__d">Add family or trusted contacts for extra support.</p>
+      </div>
+      <div className="safety-tiles">
+        <button type="button" className={`safety-tile${guardians.data && !connected ? ' needs-attention' : ''}`} onClick={() => openPage('guardians')}>
+          <span className="safety-tile__ic safety-tile__ic--orange"><Icon name="user" size={26} /></span>
+          <span className="safety-tile__t">Guardians</span>
+          <span className="safety-tile__d">{!guardians.data ? '' : !connected ? 'Add a family guardian to enable safety alerts' : `${connected} connected`}</span>
+        </button>
+        <button type="button" className="safety-tile" onClick={() => openPage('contacts')}>
+          <span className="safety-tile__ic safety-tile__ic--green"><Icon name="phone" size={26} /></span>
+          <span className="safety-tile__t">My contacts</span>
+          <span className="safety-tile__d">{contacts.data?.length ? `${contacts.data.length} saved` : 'Family, doctor and pharmacy'}</span>
+        </button>
       </div>
 
+      <h2 className="settings-group">Health &amp; App Preferences</h2>
+      <Card className="pref-list">
+        <MenuRow icon="eye" title="Accessibility" desc="Text size, contrast, buttons" onClick={() => openPage('access')} />
+        <MenuRow icon="bell" title="Alerts & reminders" desc="Notifications and sound" onClick={() => openPage('alerts')} />
+        <MenuRow icon="globe" title="Language" desc={languageName} onClick={() => openPage('language')} />
+        <MenuRow icon="sun" title="Appearance" desc={`${themeName} theme`} onClick={() => openPage('appearance')} />
+        <MenuRow icon="cross" title="My information" desc={completeness.pct < 100 ? `Profile ${completeness.pct}% complete` : 'Name, birthday, health and goals'} onClick={() => openPage('info')} />
+      </Card>
+
+      <h2 className="settings-group">Help &amp; Information</h2>
+      <Card className="pref-list">
+        <MenuRow icon="info" title="How to use MyDay" desc="Step-by-step guide" onClick={() => openPage('howto')} />
+      </Card>
+
+      <Button variant="danger" icon="logout" onClick={onSignOut}>Sign out</Button>
+      {renderOverlays()}
+    </div>
+  );
+
+  function renderOverlays() {
+    return (
+      <>
       {inviteOpen && (
         <Modal title={createdInvite ? `${createdInvite.name}'s code` : 'Invite a guardian'} onClose={closeInvite}>
           {createdInvite ? (
@@ -428,12 +520,32 @@ export default function Profile() {
         </Modal>
       )}
 
-      <Button variant="danger" icon="logout" onClick={onSignOut}>Sign out</Button>
-
       {editProfile && <ProfileForm profile={profile} onClose={() => setEditProfile(false)}
         onSaved={async (patch) => { await updateProfile(patch); await reloadProfile(); setEditProfile(false); ui.toast('Saved.'); }} />}
       {editContact && <ContactForm contact={editContact.id ? editContact : null} initialType={editContact.type} onClose={() => setEditContact(null)}
         onSaved={() => { setEditContact(null); contacts.reload(); }} />}
+      </>
+    );
+  }
+}
+
+const PAGE_IDS = { access: 1, alerts: 1, guardians: 1, contacts: 1, language: 1, appearance: 1, info: 1, howto: 1 };
+
+// The colour theme picker: a preview swatch per theme.
+function ThemeGrid({ themes, theme, setTheme }) {
+  return (
+    <div className="theme-grid" role="radiogroup" aria-label="Colour theme">
+      {themes.map((t) => (
+        <button key={t.id} type="button" role="radio" aria-checked={theme === t.id}
+          className={`theme-swatch${theme === t.id ? ' is-active' : ''}`} onClick={() => setTheme(t.id)}>
+          <span className="theme-swatch__preview" style={{ background: t.bg, color: t.ink }} aria-hidden="true">
+            <span className="theme-swatch__bar" style={{ background: t.ink, opacity: 0.18 }} />
+            <span className="theme-swatch__bar theme-swatch__bar--short" style={{ background: t.ink, opacity: 0.12 }} />
+            <span className="theme-swatch__btn" style={{ background: t.primary }} />
+          </span>
+          <span className="theme-swatch__name">{t.name}{theme === t.id ? ' ✓' : ''}</span>
+        </button>
+      ))}
     </div>
   );
 }

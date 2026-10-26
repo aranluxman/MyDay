@@ -98,7 +98,7 @@ function Root() {
         <Route path="/profile/notifications" element={<Navigate to="/profile" state={{ open: 'alerts' }} replace />} />
         <Route path="/games" element={<LazyScreen><Games /></LazyScreen>} />
         {/* The guide now lives at the bottom of Settings; old links land there. */}
-        <Route path="/help" element={<Navigate to="/profile" replace />} />
+        <Route path="/help" element={<Navigate to="/profile" state={{ open: 'howto' }} replace />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

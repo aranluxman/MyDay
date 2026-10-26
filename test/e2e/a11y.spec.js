@@ -74,7 +74,7 @@ test('colour swatches have names and selected state; contact type is a radio gro
   await context.close();
 
   const p2 = await openApp(browser, { path: '/profile' });
-  await p2.page.getByRole('button', { name: /My contacts/ }).evaluate((b) => b.getAttribute('aria-expanded') === 'false' && b.click());
+  await p2.page.getByRole('button', { name: /^My contacts/ }).click();
   await p2.page.getByRole('button', { name: 'Add a contact' }).click();
   const pharmacy = p2.page.getByRole('radio', { name: 'Pharmacy' });
   await expect(pharmacy).toHaveAttribute('aria-checked', 'true');
@@ -98,35 +98,34 @@ test('skip link and meaningful route titles', async ({ browser }) => {
   await expect(page.locator('main#main')).toBeFocused();
   // Alerts are a section of Profile now; the old address opens it there.
   await page.goto('/profile/notifications');
-  await expect(page).toHaveURL(/\/profile$/);
+  await expect(page).toHaveURL(/\/profile\?section=alerts$/);
   await expect(page).toHaveTitle('Profile · MyDay');
   await expect(page.getByRole('switch', { name: 'All notifications' })).toBeInViewport();
   await context.close();
 });
 
-test('settings fold to one line each and open on tap, with the guide at the bottom', async ({ browser }) => {
+test('settings is one list; each row opens its own page with a back button', async ({ browser }) => {
   const { page, context } = await openApp(browser, { path: '/profile' });
-  // Sections start folded with summaries; there is no "Show all" button.
+  // Every row says what is inside before it is opened.
   const appearance = page.getByRole('button', { name: /^Appearance/ });
-  await expect(appearance).toHaveAttribute('aria-expanded', 'false');
   await expect(appearance).toContainText('Light theme');
   await expect(page.getByRole('button', { name: 'Show all' })).toHaveCount(0);
-  await appearance.click();
-  await expect(appearance).toHaveAttribute('aria-expanded', 'true');
-  await appearance.click();
-  await expect(appearance).toHaveAttribute('aria-expanded', 'false');
-  // One section opens on tap, and stays open after a reload.
+  // A row opens its page; the back button returns to the list.
   await page.getByRole('button', { name: /^Accessibility/ }).click();
+  await expect(page).toHaveURL(/section=access/);
   await expect(page.getByRole('radiogroup', { name: 'Text size' })).toBeVisible();
+  await expect(page.getByRole('radiogroup', { name: 'Display contrast' })).toBeVisible();
+  // The page survives a reload, and the phone's back goes to the list.
   await page.reload();
-  await expect(page.getByRole('button', { name: /^Accessibility/ })).toHaveAttribute('aria-expanded', 'true');
-  // "How to use MyDay" is the last section, and its old page sends you here.
-  const guide = page.getByRole('button', { name: /^How to use MyDay/ });
-  await guide.click();
+  await expect(page.getByRole('radiogroup', { name: 'Text size' })).toBeVisible();
+  await page.getByRole('button', { name: 'Back to Settings' }).click();
+  await expect(page).toHaveURL(/\/profile$/);
+  // "How to use MyDay" is the last row, and its old page sends you to Settings.
+  await page.getByRole('button', { name: /^How to use MyDay/ }).click();
   await page.getByRole('button', { name: /Taking today/ }).click();
   await expect(page.getByText('Tap the blue “Take” button')).toBeVisible();
   await page.goto('/help');
-  await expect(page).toHaveURL(/\/profile$/);
+  await expect(page).toHaveURL(/\/profile/);
   await context.close();
 });
 
