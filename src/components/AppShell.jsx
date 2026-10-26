@@ -4,6 +4,7 @@ import { BottomNav } from './BottomNav.jsx';
 import { Avatar } from './ui.jsx';
 import { Icon } from './Icon.jsx';
 import { InstallButton } from './InstallButton.jsx';
+import { DueAlarm } from './DueAlarm.jsx';
 import { useApp } from '../context/AppContext.jsx';
 import { playAlarmOnce } from '../lib/alarm.js';
 import { modeOf, nextMode, themeForMode } from '../lib/appearance.js';
@@ -91,6 +92,7 @@ export function AppShell() {
     <div className={`app-shell${showAdd ? ' has-fab' : ''}`} data-page={pathname}>
       <a className="skip-link" href="#main" onClick={(e) => { e.preventDefault(); mainRef.current?.focus(); }}>Skip to main content</a>
       <Ambient />
+      <DueAlarm />
       {/* Honest about the network: an action taken offline is NOT saved, and
           the screens say so rather than pretending. */}
       {!online && (

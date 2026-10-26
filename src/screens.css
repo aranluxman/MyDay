@@ -14,7 +14,7 @@
   --tint-orange: color-mix(in srgb, var(--warn) 13%, var(--surface));
   --tint-grey: color-mix(in srgb, var(--ink-soft) 9%, var(--surface));
 }
-[data-theme='dark'], [data-theme='midnight'] { --violet: #a78bfa; }
+[data-theme='dark'], [data-theme='midnight'], [data-theme='forest-night'], [data-theme='plum-night'] { --violet: #a78bfa; }
 
 /* ---------- top bar ---------- */
 .topbar__tools { display: flex; align-items: center; gap: 10px; flex: none; }
@@ -67,7 +67,7 @@
 .hs-lake { fill: color-mix(in srgb, var(--primary) 18%, var(--surface)); opacity: 0.8; }
 .hs-ripple { stroke: color-mix(in srgb, #ffffff 70%, transparent); stroke-width: 2; stroke-linecap: round; fill: none; }
 .hs-pine path { fill: color-mix(in srgb, #1f7a55 55%, var(--surface)); }
-[data-theme='dark'] .dayhero__scene, [data-theme='midnight'] .dayhero__scene { opacity: 0.55; }
+[data-theme='dark'] .dayhero__scene, [data-theme='midnight'] .dayhero__scene, [data-theme='forest-night'] .dayhero__scene, [data-theme='plum-night'] .dayhero__scene { opacity: 0.55; }
 html[data-contrast='1'] .dayhero__scene { display: none; }
 
 .dayhero__hi { margin: 0; display: flex; flex-direction: column; line-height: 1.1; letter-spacing: -0.01em; }
@@ -130,7 +130,7 @@ html[data-text='xlarge'] .qcalls, html[data-text='huge'] .qcalls { grid-template
 .mood.is-on { border-color: var(--mood); background: var(--mood-bg); box-shadow: 0 0 0 2px var(--mood) inset; }
 .mood-done .mood__ic { background: var(--mood-bg); }
 .mood-done .mood__ic svg { width: 32px; height: 32px; }
-[data-theme='dark'] .mood__ic, [data-theme='midnight'] .mood__ic { filter: none; }
+[data-theme='dark'] .mood__ic, [data-theme='midnight'] .mood__ic, [data-theme='forest-night'] .mood__ic, [data-theme='plum-night'] .mood__ic { filter: none; }
 
 /* Today's Medicines */
 .tmeds__head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
@@ -206,7 +206,7 @@ div.drow__btn { cursor: default; }
   color: var(--med); background: var(--surface);
   box-shadow: 0 2px 8px rgba(16, 24, 40, 0.08), inset 0 0 0 1px color-mix(in srgb, var(--med) 18%, transparent);
 }
-[data-theme='dark'] .drow__ic, [data-theme='midnight'] .drow__ic { color: color-mix(in srgb, var(--med) 55%, #fff); }
+[data-theme='dark'] .drow__ic, [data-theme='midnight'] .drow__ic, [data-theme='forest-night'] .drow__ic, [data-theme='plum-night'] .drow__ic { color: color-mix(in srgb, var(--med) 55%, #fff); }
 .drow__main { display: flex; flex-direction: column; min-width: 0; gap: 1px; }
 .drow__name { font-size: 18px; font-weight: 750; line-height: 1.2; overflow-wrap: anywhere; }
 .drow__dose { font-size: 15px; color: var(--ink-soft); }
@@ -359,7 +359,7 @@ button.daystrip__d:active { transform: scale(0.94); }
 .ontime__glass { fill: color-mix(in srgb, #ffffff 55%, transparent); stroke: color-mix(in srgb, var(--primary) 30%, #ffffff); stroke-width: 1.5; }
 .ontime__water { fill: color-mix(in srgb, #4aa3ff 60%, #ffffff); }
 .ontime__bubble { fill: #ffffff; }
-[data-theme='dark'] .ontime__cloud, [data-theme='midnight'] .ontime__cloud { fill: rgba(255, 255, 255, 0.08); }
+[data-theme='dark'] .ontime__cloud, [data-theme='midnight'] .ontime__cloud, [data-theme='forest-night'] .ontime__cloud, [data-theme='plum-night'] .ontime__cloud { fill: rgba(255, 255, 255, 0.08); }
 
 .subhead { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
 .subhead__back {
@@ -661,3 +661,24 @@ html[data-text='huge'] .daystrip { grid-template-columns: repeat(4, minmax(0, 1f
 @media (max-width: 379px) {
   html[data-text='xlarge'] .drow__info, html[data-text='huge'] .drow__info { padding-left: 0; }
 }
+
+/* ---------- full-screen "Time for your medicine" alarm ---------- */
+.due-alarm {
+  position: fixed; inset: 0; z-index: 1000;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+  padding: max(24px, env(safe-area-inset-top)) 24px max(24px, env(safe-area-inset-bottom));
+  background: var(--bg); color: var(--ink); text-align: center;
+}
+.due-alarm__ring {
+  width: 128px; height: 128px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--primary); color: var(--on-primary);
+  animation: due-pulse 1.2s ease-in-out infinite;
+}
+@keyframes due-pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.08); } }
+.due-alarm__t { font-size: clamp(30px, 8vw, 40px); line-height: 1.15; margin: 10px 0 0; }
+.due-alarm__med { display: flex; flex-direction: column; gap: 4px; font-size: 22px; margin: 0; }
+.due-alarm__med strong { font-size: 28px; }
+.due-alarm__time { color: var(--ink-soft); font-size: 18px; }
+.due-alarm__note { color: var(--ink-soft); font-size: 18px; max-width: 30ch; margin: 0; }
+.due-alarm__actions { display: flex; flex-direction: column; gap: 12px; width: 100%; max-width: 360px; margin-top: 18px; }
+.due-alarm__actions .btn--lg { min-height: 64px; font-size: 22px; }

@@ -19,7 +19,7 @@ import { sendPush, type Vapid } from '../_shared/webpush.ts';
 // test/notifications.test.js, so the sender cannot drift from the settings
 // screen's promises.
 import {
-  shouldSend, dedupeKey, localHHMM, appointmentReminderAt, PREF_DEFAULTS,
+  shouldSend, dedupeKey, localHHMM, appointmentReminderAt, repeatTimes, PREF_DEFAULTS,
 } from '../_shared/notificationRules.js';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
@@ -130,10 +130,16 @@ Deno.serve(async (req) => {
       const { data: due } = await admin.from('myday_doses')
         .select('id, due_at, scheduled_time, status, medication:myday_medications(name, dose, note, reminders_enabled)')
         .eq('user_id', userId).eq('dose_date', today).eq('status', 'pending')
-        .gte('due_at', new Date(now - WINDOW_MINUTES * 60_000).toISOString())
+        // Reaches back far enough to catch "Remind me again" repeats of doses
+        // that are still not taken.
+        .gte('due_at', new Date(now - (WINDOW_MINUTES + repeatLookback(prefs)) * 60_000).toISOString())
         .lte('due_at', new Date(now + 60_000).toISOString());
 
       for (const dose of due || []) {
+        // Which reminder is due now: 0 is the first, 1.. are the repeats.
+        const attempt = [dose.due_at, ...repeatTimes(dose.due_at, prefs)]
+          .findIndex((at) => inWindow(new Date(at).getTime(), now));
+        if (attempt < 0) continue;
         // A medicine with its own reminders switched off still tracks doses.
         if (dose.medication?.reminders_enabled === false) { skipped++; continue; }
         // Re-check per dose: status may have changed since the query.
@@ -154,10 +160,10 @@ Deno.serve(async (req) => {
         const name = dose.medication?.name || 'your medicine';
         await deliver(
           userId,
-          dedupeKey({ type: 'dose_due', userId, refId: dose.id, date: today }),
+          dedupeKey({ type: 'dose_due', userId, refId: dose.id, date: today, attempt }),
           'dose_due', dose.id,
           {
-            title: `Time for ${name}${dose.medication?.dose ? ` — ${dose.medication.dose}` : ''}`,
+            title: `${attempt ? 'Reminder: time' : 'Time'} for ${name}${dose.medication?.dose ? ` — ${dose.medication.dose}` : ''}`,
             body: dose.medication?.note || 'Tap "I took it" once you have taken it.',
             url: '/medication',
             kind: 'dose_due',
@@ -295,6 +301,18 @@ Deno.serve(async (req) => {
   console.log(JSON.stringify({ fn: 'send-reminders', sent, skipped }));
   return json({ ok: true, sent, skipped });
 });
+
+/** True when a reminder time falls inside this cron run's window. */
+function inWindow(atMs: number, now: number) {
+  return atMs >= now - WINDOW_MINUTES * 60_000 && atMs <= now + 60_000;
+}
+
+/** How far after a dose's time its last repeat can land, in minutes. */
+function repeatLookback(prefs: any) {
+  const every = Number(prefs.repeat_every_minutes) || 0;
+  const max = Math.max(0, Number(prefs.repeat_max_times) || 0);
+  return every * max;
+}
 
 /** Distance in minutes between two 'HH:MM' wall-clock times. */
 function minutesApart(a: string, b: string) {
