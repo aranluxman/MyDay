@@ -23,7 +23,7 @@ const TITLES = {
 // Medicine has its own "+ Add" in the top bar instead.
 const ADD_PAGES = new Set(['/', '/appointments', '/updates']);
 // Pages that carry the profile photo in the top bar, as a way into Profile.
-const AVATAR_PAGES = new Set(['/', '/updates']);
+const AVATAR_PAGES = new Set(['/', '/updates', '/games']);
 
 const ADD_ACTIONS = [
   { icon: 'pill', label: 'Add a medicine', desc: 'Pills, vitamins, drops', to: '/medication', add: 'med' },

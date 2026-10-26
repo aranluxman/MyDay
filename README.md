@@ -44,8 +44,9 @@ Built with **React + Vite (JSX)**, **Supabase** (Auth + Postgres + Edge Function
   working toward*), typed **contacts** (pharmacy, provider, clinic, insurance,
   merchant, other), **Alerts & reminders** (delivery check, missed doses, quiet
   hours, sound, devices), **light/dark theme**, and sign out.
-- **Brain Games** — its own bottom-nav tab, with six games: Match the Pairs, Word
-  Puzzle, Number Patterns, Quick Math, Odd One Out, and Today (orientation).
+- **Brain Games** — its own bottom-nav tab: a streak card with this week's days,
+  *Today's Game for You*, a two-column list of all eleven games and Your Progress;
+  **All Categories** groups them into Word Games, Memory & Focus and Math & Logic.
   **10 difficulty levels** with a level picker plus adaptive difficulty. Scores
   are saved with a progress view, and a result that fails to upload is kept on
   the device and replayed on reconnect rather than lost.
