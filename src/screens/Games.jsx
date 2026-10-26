@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useUI } from '../context/UIContext.jsx';
 import { useAsync } from '../hooks/useAsync.js';
 import { Card, Button, Spinner, EmptyState } from '../components/ui.jsx';
@@ -11,6 +10,7 @@ import {
   buildMathQuestions, buildOddOneOut,
 } from '../lib/games.js';
 import { WordSearch, Unscramble, MemorySequence, MiniSudoku, ShoppingRecall } from '../components/NewGames.jsx';
+import { GameArt, HeroArt } from '../components/GameArt.jsx';
 
 const BUILDERS = {
   word_puzzle: buildWordQuestions, number_pattern: buildNumberQuestions,
@@ -29,32 +29,34 @@ const CUSTOM_GAMES = {
 };
 const HOWTO_SEEN_KEY = 'myday_game_howto_seen';
 const GAME_ICONS = { match_pairs: 'brain', word_puzzle: 'notes', number_pattern: 'pulse', quick_math: 'plus', odd_one_out: 'eye', orientation: 'calendar', word_search: 'eye', unscramble: 'notes', memory_sequence: 'sparkle', mini_sudoku: 'calendar', shopping_recall: 'cart' };
-const GAME_COLORS = { match_pairs: 'teal', word_puzzle: 'violet', number_pattern: 'orange', quick_math: '', odd_one_out: 'pink', orientation: 'green', word_search: 'violet', unscramble: 'pink', memory_sequence: 'teal', mini_sudoku: 'orange', shopping_recall: 'green' };
 
-// Consecutive days (ending today or yesterday) with at least one game played.
 // One game suggested per day, rotating through the list. Eleven games on a
 // screen is a choice, and a choice is exactly what someone who is tired does
-// not want — so the app picks one and the grid stays there for anyone who
-// would rather browse.
-function SuggestedGame({ onPick }) {
-  // Seeded by the date so it is the same all day and different tomorrow,
-  // rather than changing every time the screen re-renders.
-  const game = useMemo(() => {
-    const d = new Date();
-    const dayNumber = Math.floor(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 86400000);
-    return GAMES[dayNumber % GAMES.length];
-  }, []);
-
-  return (
-    <button className="suggest" onClick={() => onPick(game)}>
-      <span className="suggest__badge"><Icon name="sparkle" size={18} /> Suggested for you today</span>
-      <span className="suggest__name">{GAME_NAMES[game]}</span>
-      <span className="suggest__sub">{GAME_SUB[game]}</span>
-      <span className="suggest__go">Play <Icon name="chevron" size={20} /></span>
-    </button>
-  );
+// not want — so the app picks one and the list stays there for anyone who
+// would rather browse. Seeded by the date so it is the same all day and
+// different tomorrow, rather than changing every time the screen re-renders.
+function todaysGame() {
+  const d = new Date();
+  const dayNumber = Math.floor(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 86400000);
+  return GAMES[dayNumber % GAMES.length];
 }
 
+// The order games are listed in on the menu: the everyday favourites first.
+const MENU_ORDER = [
+  'word_search', 'match_pairs', 'word_puzzle', 'quick_math', 'number_pattern', 'mini_sudoku',
+  'memory_sequence', 'shopping_recall', 'unscramble', 'odd_one_out', 'orientation',
+];
+const CATEGORIES = [
+  { id: 'word', tint: 'pink', glyph: 'Abc', title: 'Word Games', sub: 'Improve memory, focus and vocabulary.',
+    games: ['word_search', 'word_puzzle', 'unscramble', 'odd_one_out'] },
+  { id: 'memory', tint: 'green', icon: 'sparkle', title: 'Memory & Focus', sub: 'Train your memory and concentration.',
+    games: ['match_pairs', 'memory_sequence', 'shopping_recall', 'orientation'] },
+  { id: 'math', tint: 'blue', title: 'Math & Logic', sub: 'Keep your brain sharp.',
+    games: ['quick_math', 'number_pattern', 'mini_sudoku'] },
+];
+const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+// Consecutive days (ending today or yesterday) with at least one game played.
 function streakFromResults(results) {
   const days = new Set(results.map((r) => new Date(r.played_at).toDateString()));
   let streak = 0;
@@ -64,91 +66,178 @@ function streakFromResults(results) {
   return streak;
 }
 
+// This week, Sunday to Saturday: which days had a game.
+function weekFromResults(results) {
+  const days = new Set(results.map((r) => new Date(r.played_at).toDateString()));
+  const today = new Date();
+  const d = new Date(today);
+  d.setDate(d.getDate() - d.getDay());
+  return DAY_NAMES.map((name, i) => {
+    const day = { name, played: days.has(d.toDateString()), today: i === today.getDay(), future: i > today.getDay() };
+    d.setDate(d.getDate() + 1);
+    return day;
+  });
+}
+
 // Encouraging, never a scorecard: no "0 days", and milestones are celebrated
 // gently rather than turned into something to lose.
 function streakMessage(streak) {
-  if (!streak) return 'Play one game today to start your streak — any game counts.';
-  if (streak >= 30) return `${streak} days in a row — that's a wonderful habit. Well done!`;
-  if (streak >= 7) return `A whole week or more in a row. Your brain thanks you!`;
-  if (streak >= 3) return `${streak} days in a row — lovely. Keep it going if you can.`;
+  if (!streak) return 'Play any game to begin.';
+  if (streak >= 30) return "That's a wonderful habit. Well done!";
+  if (streak >= 7) return 'A whole week or more. Your brain thanks you!';
+  if (streak >= 3) return 'Lovely. Keep it going if you can.';
   return 'Nice start! Come back tomorrow to keep it going.';
 }
 
 export default function Games() {
-  const navigate = useNavigate();
-  const [screen, setScreen] = useState('menu'); // menu | level | play | result | progress
+  const [screen, setScreen] = useState('menu'); // menu | categories | level | play | result | progress
+  const [browse, setBrowse] = useState('menu'); // the list a game was picked from, to go back to
   const [game, setGame] = useState(null);
   const [level, setLevel] = useState(1);
   const [result, setResult] = useState(null);
 
-  function pickGame(g) { setGame(g); setScreen('level'); }
+  // Each screen starts at its top, as a new page would.
+  useEffect(() => { window.scrollTo(0, 0); }, [screen]);
+
+  function pickGame(g) { setBrowse(screen); setGame(g); setScreen('level'); }
   function start(lvl) { setLevel(lvl); setResult(null); setScreen('play'); }
   function finish(r) { setResult(r); setScreen('result'); }
+  const back = () => setScreen(browse);
 
-  if (screen === 'menu') return <Menu onPick={pickGame} onProgress={() => setScreen('progress')} onHome={() => navigate('/')} />;
+  if (screen === 'menu') return <Menu onPick={pickGame} onCategories={() => setScreen('categories')} onProgress={() => setScreen('progress')} />;
+  if (screen === 'categories') return <Categories onPick={pickGame} onBack={() => setScreen('menu')} />;
   if (screen === 'progress') return <Progress onBack={() => setScreen('menu')} />;
-  if (screen === 'level') return <LevelPicker game={game} onStart={start} onBack={() => setScreen('menu')} />;
-  if (screen === 'play') return <Play key={`${game}-${level}-${result ? 'r' : 'f'}`} game={game} level={level} onComplete={finish} onQuit={() => setScreen('menu')} />;
-  if (screen === 'result') return <Result result={result} onAgain={() => start(result.newLevel)} onMenu={() => setScreen('menu')} />;
+  if (screen === 'level') return <LevelPicker game={game} onStart={start} onBack={back} />;
+  if (screen === 'play') return <Play key={`${game}-${level}-${result ? 'r' : 'f'}`} game={game} level={level} onComplete={finish} onQuit={back} />;
+  if (screen === 'result') return <Result result={result} onAgain={() => start(result.newLevel)} onMenu={back} />;
   return null;
 }
 
-function Menu({ onPick, onProgress, onHome }) {
+function Menu({ onPick, onCategories, onProgress }) {
   const { data: results } = useAsync(() => recentResults(200), []);
   const played = results?.length ?? 0;
   const streak = results ? streakFromResults(results) : 0;
+  const week = weekFromResults(results || []);
+  const playedDays = week.filter((d) => d.played).map((d) => d.name);
   const best = results?.length
     ? Math.max(...results.map((r) => (r.max_score ? Math.round((100 * r.score) / r.max_score) : 0)))
     : 0;
+  const today = useMemo(todaysGame, []);
 
   return (
-    <div className="stack">
-      <div className="games-head">
-        <h2 className="section" style={{ fontSize: 23 }}>Challenge your mind <span aria-hidden="true">🧠</span></h2>
-        {streak > 0
-          ? <span className="streak-badge"><span aria-hidden="true">🔥</span> {streak} day streak</span>
-          : <span className="streak-badge streak-badge--start"><span aria-hidden="true">🌱</span> Start a streak today</span>}
-      </div>
-      <p className="muted" style={{ margin: 0 }}>{streakMessage(streak)}</p>
-      <SuggestedGame onPick={onPick} />
+    <div className="stack games">
+      <p className="games__intro">Keep your mind active, have fun and build healthy habits.</p>
 
-      <div className="game-grid">
-        {/* Suggested card is rendered above the grid, see below. */}
-        {GAMES.map((g) => (
-          <div key={g} className="game-card" role="button" tabIndex={0} aria-label={`Play ${GAME_NAMES[g]}`}
-            onClick={() => onPick(g)}
-            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onPick(g); } }}>
-            <span className={`game-card__icon${GAME_COLORS[g] ? ` game-card__icon--${GAME_COLORS[g]}` : ''}`}>
-              <Icon name={GAME_ICONS[g] || 'brain'} size={28} />
+      <div className="gstreak">
+        <span className="gstreak__ic"><Icon name={streak ? 'flame' : 'leaf'} size={26} stroke={2.4} /></span>
+        <div className="gstreak__main">
+          <p className="gstreak__t">{streak ? `${streak}-day streak!` : 'Start a streak today!'}</p>
+          <p className="gstreak__d">{streakMessage(streak)}</p>
+        </div>
+        <div className="gweek" role="img"
+          aria-label={playedDays.length ? `Played this week: ${playedDays.join(', ')}` : 'No games played yet this week'}>
+          {week.map((d) => (
+            <span key={d.name} className={`gweek__d${d.played ? ' is-played' : ''}${d.today ? ' is-today' : ''}${d.future ? ' is-future' : ''}`}>
+              <i>{d.played && <Icon name="check" size={12} stroke={3.4} />}</i>
+              <b>{d.name[0]}</b>
             </span>
-            <span className="game-card__title">{GAME_NAMES[g]}</span>
-            <span className="game-card__sub">{GAME_SUB[g]}</span>
-            <span className="game-card__play" aria-hidden="true">Play</span>
-          </div>
+          ))}
+        </div>
+      </div>
+
+      <button type="button" className="ghero" aria-label={`Play today's game: ${GAME_NAMES[today]}`} onClick={() => onPick(today)}>
+        <span className="ghero__main">
+          <span className="ghero__badge"><Icon name="sparkle" size={20} /> Today's Game for You</span>
+          <span className="ghero__name">{GAME_NAMES[today]}</span>
+          <span className="ghero__sub">{GAME_SUB[today]}</span>
+          <span className="ghero__go"><Icon name="play" size={20} /> Play Now</span>
+        </span>
+        <HeroArt game={today} />
+      </button>
+
+      <div className="section-head">
+        <h3>All Games</h3>
+        <button type="button" className="gfilter" onClick={onCategories}>
+          All Categories <Icon name="chevron" size={18} stroke={2.6} />
+        </button>
+      </div>
+      <div className="glist">
+        {MENU_ORDER.map((g) => (
+          <button key={g} type="button" className="glist__item" onClick={() => onPick(g)}>
+            <GameArt game={g} />
+            <span className="glist__main">
+              <span className="glist__t">{GAME_NAMES[g]}</span>
+              <span className="glist__d">{GAME_SUB[g]}</span>
+            </span>
+            <Icon name="chevron" size={20} className="glist__go" />
+          </button>
         ))}
       </div>
+
       <div className="section-head">
-        <h3>Your progress</h3>
+        <h3>Your Progress</h3>
         <button className="section-head__link" onClick={onProgress}>See all</button>
       </div>
       <div className="stat-tiles">
         <div className="stat-tile">
-          <span className="stat-tile__ic stat-tile__ic--orange"><Icon name="star" size={20} /></span>
+          <span className="stat-tile__ic stat-tile__ic--gold"><Icon name="star" size={24} /></span>
           <span className="stat-tile__n">{played}</span>
           <span className="stat-tile__l">Games played</span>
         </div>
         <div className="stat-tile">
-          <span className="stat-tile__ic stat-tile__ic--gold"><Icon name="pulse" size={20} /></span>
+          <span className="stat-tile__ic stat-tile__ic--flame"><Icon name="flame" size={24} /></span>
           <span className="stat-tile__n">{streak ? `${streak} day${streak === 1 ? '' : 's'}` : 'Ready'}</span>
           <span className="stat-tile__l">{streak ? 'Current streak' : 'Play today to start'}</span>
         </div>
         <div className="stat-tile">
-          <span className="stat-tile__ic stat-tile__ic--blue"><Icon name="sparkle" size={20} /></span>
+          <span className="stat-tile__ic stat-tile__ic--trophy"><Icon name="trophy" size={24} /></span>
           <span className="stat-tile__n">{best}%</span>
           <span className="stat-tile__l">Best score</span>
         </div>
       </div>
-      <Button variant="ghost" icon="home" onClick={onHome}>Back to home</Button>
+    </div>
+  );
+}
+
+// Every game, grouped by what it exercises. Today's game carries the one
+// filled Play button so the eye lands on it first.
+function Categories({ onPick, onBack }) {
+  const today = useMemo(todaysGame, []);
+  return (
+    <div className="stack games">
+      <div className="ghead">
+        <button type="button" className="ghead__back" aria-label="Back to Brain Games" onClick={onBack}>
+          <Icon name="back" size={24} stroke={2.4} />
+        </button>
+        <h2 className="ghead__t">All Categories</h2>
+      </div>
+      {CATEGORIES.map((c) => (
+        <section key={c.id} className={`gcat gcat--${c.tint}`} aria-labelledby={`gcat-${c.id}`}>
+          <div className="gcat__head">
+            <span className="gcat__badge" aria-hidden="true">
+              {c.icon ? <Icon name={c.icon} size={30} stroke={2.3} />
+                : c.glyph ? <span className="gcat__abc">{c.glyph}</span>
+                  : <span className="gcat__ops">+−<br />×=</span>}
+            </span>
+            <div>
+              <h3 className="gcat__t" id={`gcat-${c.id}`}>{c.title}</h3>
+              <p className="gcat__d">{c.sub}</p>
+            </div>
+          </div>
+          <div className="gcat__list">
+            {c.games.map((g) => (
+              <button key={g} type="button" className="grow" aria-label={`Play ${GAME_NAMES[g]}: ${GAME_SUB[g]}`} onClick={() => onPick(g)}>
+                <GameArt game={g} size="md" />
+                <span className="grow__main">
+                  <span className="grow__t">{GAME_NAMES[g]}</span>
+                  <span className="grow__d">{GAME_SUB[g]}</span>
+                </span>
+                <span className={`gplay${g === today ? ' gplay--main' : ''}`}><Icon name="play" size={18} /> Play</span>
+              </button>
+            ))}
+          </div>
+        </section>
+      ))}
     </div>
   );
 }

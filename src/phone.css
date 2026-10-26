@@ -83,7 +83,7 @@ html[data-contrast='1'] .switch__track { outline: 2px solid var(--ink); outline-
 [data-theme='dark'] .segmented__item.is-active, [data-theme='midnight'] .segmented__item.is-active, [data-theme='forest-night'] .segmented__item.is-active, [data-theme='plum-night'] .segmented__item.is-active { background: #3a3b45; }
 
 /* ---------- readable baseline type ---------- */
-.menu-row__d, .setting-row__d, .ns-row__d, .row-card__d, .quick__sub, .game-card__sub,
+.menu-row__d, .setting-row__d, .ns-row__d, .row-card__d, .quick__sub,
 .field__hint, .progress-card__d, .tl__time, .account-card__sub { font-size: 15px; }
 .g-badge { font-size: 14px; }
 .medrow__tag, .stat__label, .glance__l, .reminder__kicker, .cal__legend span { font-size: 14px; }
@@ -492,9 +492,6 @@ html:not([data-theme]), [data-theme='light'] {
   background: var(--surface-2); border: 1px solid var(--line); color: var(--ink);
   font-size: 16px; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere;
 }
-
-/* Games: an encouraging "start" badge instead of a zero. */
-.streak-badge--start { background: var(--good-bg); color: var(--good-ink); }
 
 /* Settings: group headings, and an outlined Guardians card while nobody is connected. */
 .settings-group { margin: 12px 4px 0; font-size: 15px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-soft); }

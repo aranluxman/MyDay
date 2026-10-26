@@ -491,12 +491,6 @@ h3.subsection { font-size: 21px; margin: 8px 0 0; }
 .type-chip.is-active { border-color: var(--primary); color: var(--primary); background: var(--surface-2); }
 
 /* ---------- games ---------- */
-.game-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.game-card { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 18px; border: 1px solid var(--line); border-radius: 18px; background: var(--surface); box-shadow: var(--shadow); cursor: pointer; text-align: left; }
-.game-card:active { transform: scale(0.985); }
-.game-card__icon { width: 48px; height: 48px; border-radius: 14px; display: grid; place-items: center; background: var(--surface-2); color: var(--primary); margin-bottom: 6px; }
-.game-card__title { font-size: 18px; font-weight: 800; }
-.game-card__sub { font-size: 14px; color: var(--ink-soft); }
 .level-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
 .level-chip { aspect-ratio: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 2px solid var(--line); border-radius: 16px; background: var(--surface); color: var(--ink); cursor: pointer; }
 .level-chip:active { transform: scale(0.95); }
@@ -709,8 +703,8 @@ html[data-motion='calm'] .skeleton { animation: none !important; transition: non
    HOVER & FOCUS POLISH (pointer devices only)
    ===================================================================== */
 @media (hover: hover) {
-  .card--tap, .quick, .game-card { transition: transform 0.16s ease, box-shadow 0.2s ease, border-color 0.2s ease; }
-  .card--tap:hover, .quick:hover, .game-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-lg); border-color: color-mix(in srgb, var(--primary) 35%, var(--line)); }
+  .card--tap, .quick { transition: transform 0.16s ease, box-shadow 0.2s ease, border-color 0.2s ease; }
+  .card--tap:hover, .quick:hover { transform: translateY(-3px); box-shadow: var(--shadow-lg); border-color: color-mix(in srgb, var(--primary) 35%, var(--line)); }
   .btn { transition: transform 0.1s ease, box-shadow 0.2s ease, filter 0.2s ease, opacity 0.15s ease; }
   .btn:not(:disabled):hover { filter: brightness(1.05); box-shadow: 0 8px 22px color-mix(in srgb, var(--primary) 30%, transparent); transform: translateY(-1px); }
   .btn--ghost:not(:disabled):hover { background: color-mix(in srgb, var(--primary) 10%, transparent); box-shadow: none; }
@@ -856,22 +850,6 @@ html[data-motion='calm'] .skeleton { animation: none !important; transition: non
 .account-card > svg { color: var(--ink-soft); flex: none; }
 
 /* ---- brain games ---- */
-.streak-badge { display: inline-flex; align-items: center; gap: 6px; padding: 7px 13px; border-radius: 999px;
-  background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow); font-size: 14px; font-weight: 800; color: var(--ink); white-space: nowrap; }
-.games-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-.games-head h2 { margin: 0; }
-.game-card { align-items: stretch; }
-.game-card__icon--green { background: var(--good-bg); color: var(--good-ink); }
-.game-card__icon--orange { background: var(--warn-bg); color: var(--warn-ink); }
-.game-card__icon--pink { background: color-mix(in srgb, #db2777 12%, var(--surface)); color: #db2777; }
-.game-card__icon--teal { background: color-mix(in srgb, #0d9488 12%, var(--surface)); color: #0d9488; }
-.game-card__icon--violet { background: color-mix(in srgb, #7c3aed 12%, var(--surface)); color: #7c3aed; }
-[data-theme='dark'] .game-card__icon--pink, [data-theme='midnight'] .game-card__icon--pink, [data-theme='forest-night'] .game-card__icon--pink, [data-theme='plum-night'] .game-card__icon--pink { background: rgba(244, 114, 182, 0.16); color: #f472b6; }
-[data-theme='dark'] .game-card__icon--teal, [data-theme='midnight'] .game-card__icon--teal, [data-theme='forest-night'] .game-card__icon--teal, [data-theme='plum-night'] .game-card__icon--teal { background: rgba(45, 212, 191, 0.14); color: #2dd4bf; }
-[data-theme='dark'] .game-card__icon--violet, [data-theme='midnight'] .game-card__icon--violet, [data-theme='forest-night'] .game-card__icon--violet, [data-theme='plum-night'] .game-card__icon--violet { background: rgba(167, 139, 250, 0.16); color: #b9a5f8; }
-.game-card__play { margin-top: 10px; min-height: 44px; display: grid; place-items: center; border: 0; border-radius: 12px; font-size: 16px; font-weight: 800;
-  background: var(--primary-soft); color: var(--primary); width: 100%; }
-.game-card:active .game-card__play { transform: scale(0.97); }
 .stat-tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
 .stat-tile { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 16px 8px 14px;
   background: var(--surface); border: 1px solid var(--line); border-radius: 18px; box-shadow: var(--shadow); }
@@ -960,11 +938,6 @@ html[data-text='huge'] .bottom-nav__item { font-size: 12px; }
   display: flex; align-items: center; gap: 8px; margin: 0;
   color: var(--good-ink); font-weight: 700;
 }
-
-/* Game cards sit in a two-column grid, so their Play buttons have to line up
-   across a row even when one title wraps onto a second line. */
-.game-card { justify-content: space-between; }
-.game-card__play { margin-top: auto; }
 
 /* "Brain Games" and "Appointments" were wrapping onto two lines in the top bar
    and pushing the theme button out of alignment. The title shrinks to fit
@@ -1846,22 +1819,6 @@ html[data-motion='calm'] .wiz__disclose svg { transition: none !important; }
    Part F — the five new brain games
    Large targets, calm feedback, and never a colour-only signal.
    ===================================================================== */
-
-/* ---- suggested for you today ---- */
-.suggest {
-  display: flex; flex-direction: column; align-items: flex-start; gap: 4px;
-  width: 100%; text-align: left; padding: 18px; margin-bottom: 14px; cursor: pointer;
-  border: 0; border-radius: var(--radius); color: var(--on-primary); font: inherit;
-  background: linear-gradient(140deg, var(--primary-2), var(--primary));
-  box-shadow: var(--shadow-lg);
-}
-.suggest__badge {
-  display: inline-flex; align-items: center; gap: 6px;
-  font-size: 13px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; opacity: 0.92;
-}
-.suggest__name { font-size: 24px; font-weight: 800; letter-spacing: -0.01em; }
-.suggest__sub { font-size: 16px; opacity: 0.92; }
-.suggest__go { display: inline-flex; align-items: center; gap: 4px; margin-top: 8px; font-weight: 800; }
 
 /* ---- how to play ---- */
 .howto {
