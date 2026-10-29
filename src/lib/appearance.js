@@ -1,7 +1,7 @@
 // Appearance options. Each theme id maps to a [data-theme] block in index.css;
 // the swatch colors here are just for the picker preview.
 export const THEMES = [
-  { id: 'light', name: 'Light', bg: '#eef3f9', primary: '#2563a8', ink: '#15243b' },
+  { id: 'light', name: 'Light', bg: '#eaf5f1', primary: '#19694c', ink: '#10291f' },
   { id: 'dark', name: 'Dark', bg: '#0e1622', primary: '#4a9fe0', ink: '#e9f1f9' },
   { id: 'contrast', name: 'High contrast', bg: '#ffffff', primary: '#0a3aa6', ink: '#000000' },
   { id: 'warm', name: 'Warm', bg: '#fbf3e8', primary: '#a1520e', ink: '#3a2a1a' },

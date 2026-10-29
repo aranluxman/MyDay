@@ -771,3 +771,56 @@ html[data-text='xlarge'] .safety-tiles, html[data-text='huge'] .safety-tiles { g
 .theme-pic--warm .theme-pic__art { background: linear-gradient(180deg, #ffd9b0, #fff1e2); color: #f08a24; }
 .theme-pic__name { padding: 8px 4px 10px; font-size: 16px; font-weight: 700; text-align: center; }
 .needs-taking__list { list-style: none; margin: 0; padding: 0; }
+.medhead { min-height: 64px; } .medhead > .medhead__back { flex: none; margin: 0; }
+
+/* ---------- October 2026 screens: About me, Alerts, Guardians, Contacts ---------- */
+.btn--soft { background: var(--primary-soft); color: var(--primary-text, var(--primary)); border: 0; }
+.btn--warm { background: var(--warn-bg); color: var(--warn-ink); border: 1px solid color-mix(in srgb, var(--warn) 30%, transparent); }
+
+/* Contacts: one row per kind of contact */
+.kind-row { display: flex; align-items: center; gap: 14px; width: 100%; padding: 14px 16px; border: 0; background: none;
+  color: var(--ink); font: inherit; text-align: left; border-bottom: 1px solid var(--line); }
+.kind-row:last-child { border-bottom: 0; }
+.kind-row__ic { flex: none; width: 50px; height: 50px; border-radius: 14px; display: grid; place-items: center; }
+.kind-row__ic--blue { background: #e3edff; color: #2457c5; }
+.kind-row__ic--teal { background: #dff3ee; color: #13795e; }
+.kind-row__ic--red { background: #fde4e4; color: #c22b2b; }
+.kind-row__ic--rose { background: #fde8ea; color: #b4233b; }
+.kind-row__ic--grey { background: var(--surface-2); color: var(--ink); }
+.kind-row__main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.kind-row__t { font-size: 19px; font-weight: 800; }
+.kind-row__d { font-size: 15px; color: var(--ink-soft); }
+
+/* Guardians */
+.g-banner { display: flex; gap: 12px; align-items: flex-start; margin: 0; padding: 14px 16px; border-radius: var(--radius);
+  background: var(--warn-bg); color: var(--warn-ink); border: 1px solid color-mix(in srgb, var(--warn) 35%, transparent); font-size: 16px; }
+.g-banner svg { flex: none; margin-top: 2px; }
+.family-pic { display: block; width: 100%; max-width: 340px; height: auto; margin: 4px auto 0; }
+.g-lead { margin: 0; font-size: 18px; line-height: 1.45; }
+.settings-note--lock { align-items: flex-start; background: var(--primary-soft); color: var(--ink); }
+
+/* About me */
+.about-rows { display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px; }
+.about-row { display: grid; grid-template-columns: 130px 1fr; align-items: center; gap: 10px; }
+.about-row__l { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 17px; }
+.about-row__l svg { color: var(--primary); }
+.about-row__age { display: flex; align-items: center; gap: 10px; }
+.about-row__age .input { max-width: 90px; }
+.about-h { margin: 10px 0 8px; font-weight: 800; font-size: 17px; }
+.about-whom { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 6px; }
+.about-whom__b { min-height: 56px; border-radius: 14px; border: 2px solid transparent; background: var(--surface-2);
+  color: var(--ink); font: inherit; font-size: 17px; font-weight: 700; }
+.about-whom__b.is-on { border-color: var(--primary); background: var(--primary-soft); color: var(--primary-text, var(--primary)); }
+.about-chips { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 14px; }
+.about-chip { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 6px 0 14px; border-radius: 999px;
+  background: #e3edff; color: #1d4fb8; font-weight: 700; }
+.about-chip button { width: 30px; height: 30px; border-radius: 50%; border: 0; background: transparent; color: inherit; font-size: 20px; }
+.about-add { display: inline-flex; align-items: center; gap: 6px; flex: 1 1 220px; }
+.about-add__in { flex: 1; min-width: 0; min-height: 40px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--line);
+  background: var(--surface); color: var(--ink); font: inherit; }
+.about-add__b { display: inline-flex; align-items: center; gap: 4px; min-height: 40px; padding: 0 14px; border-radius: 999px; border: 0;
+  background: var(--primary-soft); color: var(--primary-text, var(--primary)); font: inherit; font-weight: 700; }
+@media (max-width: 380px) { .about-row { grid-template-columns: 1fr; gap: 4px; } }
+html[data-text='xlarge'] .about-row, html[data-text='huge'] .about-row { grid-template-columns: 1fr; gap: 4px; }
+.about-add { flex: 1 1 100%; min-width: 0; }
+.about-add__b { flex: none; }
