@@ -210,8 +210,11 @@ function TodayView({ state, meds, actions, onAdd, onHistory, onManage, windowMin
             <div className="medhead__text">
               <h2 className="medhead__t" aria-live="polite">{title}</h2>
               <p className="medhead__d">{subtitle}</p>
-              {backToToday}
             </div>
+            {/* Beside the title, not under it: a button that comes and goes
+                under the date pushed the week strip and every dose up and
+                down each time the day changed. */}
+            {backToToday}
           </div>
           <DayStrip day={day} today={today} onPick={pick} />
           <div className="dayview" key={day}>

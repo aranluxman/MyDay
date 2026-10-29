@@ -771,3 +771,4 @@ html[data-text='xlarge'] .safety-tiles, html[data-text='huge'] .safety-tiles { g
 .theme-pic--warm .theme-pic__art { background: linear-gradient(180deg, #ffd9b0, #fff1e2); color: #f08a24; }
 .theme-pic__name { padding: 8px 4px 10px; font-size: 16px; font-weight: 700; text-align: center; }
 .needs-taking__list { list-style: none; margin: 0; padding: 0; }
+.medhead { min-height: 64px; } .medhead > .medhead__back { flex: none; margin: 0; }
