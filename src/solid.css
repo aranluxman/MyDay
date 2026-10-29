@@ -27,3 +27,21 @@
 /* Active tab label in the darker text shade, so it stays readable on the tint. */
 .bottom-nav__item.is-active, .bottom-nav__item.is-active .bottom-nav__label,
 .bottom-nav__more.is-active, .bottom-nav__more.is-active .bottom-nav__label { color: var(--primary-text, var(--primary)); }
+
+/* ---------- the MyDay look (October 2026): soft mint and deep green ----------
+   The default Light theme. Medicine and Games keep their orange, Visits its
+   purple (pages.css); every other theme keeps its own colours. */
+:root:not([data-theme]), [data-theme='light'] {
+  --bg: #eaf5f1;
+  --surface: #ffffff;
+  --surface-2: #e3f1eb;
+  --ink: #10291f;
+  --ink-soft: #485f56;
+  --line: #d3e6dd;
+  --primary: #19694c;
+  --primary-2: #23845f;
+  --primary-fill: #19694c;
+  --on-primary: #ffffff;
+  --primary-soft: #d9efe5;
+  --aura-1: #8fd3b6; --aura-2: #f6c58f; --aura-3: #9ad8cf;
+}

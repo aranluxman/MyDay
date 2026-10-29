@@ -201,7 +201,7 @@ export function AlertsSettings({ reveal }) {
             <div style={{ height: 12 }} />
             {!devices.data?.some((d) => d.endpoint === myEndpoint && d.push_enabled !== false) &&
               <Button icon="bell" onClick={turnOn}>Turn on alerts on this device</Button>}
-            <Button variant="ghost" icon="bell" onClick={sendTest}>Send a test alert</Button>
+            <Button variant="ghost" className="btn--warm" icon="bell" onClick={sendTest}>Send a test alert</Button>
           </>
         )}
       </Card>

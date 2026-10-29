@@ -281,46 +281,55 @@ export default function Profile() {
 
         {page === 'alerts' && <AlertsSettings reveal={reveal?.id === 'alerts' ? reveal.n : null} />}
 
-        {page === 'guardians' && <Card>
+        {page === 'guardians' && <>
         {guardians.data && !connected && (
-          <p className="fold__alert"><Icon name="shield" size={20} /> No one gets an alert yet if you miss a medicine. Add a family guardian to turn on safety alerts.</p>
+          <p className="g-banner" role="status"><Icon name="shield" size={22} />
+            <span><b>No one gets an alert yet if you miss a medicine.</b><br />Add a family guardian to turn on safety alerts.</span></p>
         )}
-        <p className="muted" style={{ margin: '0 0 12px' }}>
+        <FamilyPicture />
+        <p className="g-lead">
           A guardian is someone in your family who can check on their own phone or tablet whether you have
-          taken your medicines, and gets an alert if you miss one. Tap <b>Show code</b> and read them the
-          6-digit code — it works for 15 minutes and once only. They don't need an account.
+          taken your medicines, and gets an alert if you miss one. They don't need an account.
         </p>
-        {/* Two ways in, side by side: someone can watch over you, or you can
-            watch over someone who invited you. */}
-        <p style={{ margin: '0 0 10px', fontWeight: 700 }}>You can invite a guardian, or become a guardian for someone else.</p>
-        <div className="guardian-choice">
-          <Button icon="plus" onClick={() => setInviteOpen(true)}>Invite a guardian</Button>
-          <Button variant="ghost" icon="user" onClick={() => navigate('/guardian')}>Become a guardian</Button>
-        </div>
-        <p className="muted" style={{ margin: '8px 0 0' }}>
+        <Button icon="plus" size="lg" onClick={() => setInviteOpen(true)}>Invite a guardian</Button>
+        <Button variant="soft" icon="user" size="lg" onClick={() => navigate('/guardian')}>Become a guardian</Button>
+        <p className="muted" style={{ margin: 0, fontSize: 16 }}>
           <b>Become a guardian</b> if a family member gave you their 6-digit code, so you can check on their medicines.
         </p>
-        <p className="muted" style={{ margin: '12px 0' }}>
-          They can only <b>look</b>. A guardian can never change your medicines or appointments, and can never
-          mark a dose as taken. A guardian is not an emergency service: nobody is called or alerted for you
-          except the missed-dose alerts you turn on.
-        </p>
+        <p className="settings-note settings-note--lock"><Icon name="lock" size={22} />
+          <span><b>Guardians can only look.</b> They can never change your medicines or appointments, and can never
+          mark a dose as taken. MyDay never calls anyone for you.</span></p>
         {guardians.data?.length ? (
-          <div className="guardian-list">
-            {guardians.data.map((g) => (
-              <GuardianRow key={g.id} guardian={g}
-                onShowCode={() => newCode(g)}
-                onRevokeDevice={(d) => revokeDevice(g, d)}
-                onToggleDiary={(v) => toggleDiary(g, v)}
-                onRemove={() => removeGuardian(g)} />
-            ))}
-          </div>
+          <>
+            <h3 className="settings-group">Your guardians</h3>
+            <Card>
+              <div className="guardian-list">
+                {guardians.data.map((g) => (
+                  <GuardianRow key={g.id} guardian={g}
+                    onShowCode={() => newCode(g)}
+                    onRevokeDevice={(d) => revokeDevice(g, d)}
+                    onToggleDiary={(v) => toggleDiary(g, v)}
+                    onRemove={() => removeGuardian(g)} />
+                ))}
+              </div>
+            </Card>
+          </>
         ) : null}
-              </Card>}
+        </>}
 
-        {page === 'contacts' && <Card>
-        <Button variant="ghost" icon="plus" onClick={() => setEditContact({})}>Add a contact</Button>
-        <div style={{ height: 10 }} />
+        {page === 'contacts' && <>
+        <Button icon="plus" size="lg" onClick={() => setEditContact({})}>Add a contact</Button>
+        <Card className="pref-list">
+          {CONTACT_KINDS.map((k) => (
+            <button key={k.id} type="button" className="kind-row" onClick={() => setEditContact({ type: k.type, emergency: k.emergency })}>
+              <span className={`kind-row__ic kind-row__ic--${k.tone}`} aria-hidden="true"><Icon name={k.icon} size={24} /></span>
+              <span className="kind-row__main"><span className="kind-row__t">{k.title}</span><span className="kind-row__d">{k.desc}</span></span>
+              <Icon name="chevron" size={22} />
+            </button>
+          ))}
+        </Card>
+        {contacts.data?.length > 0 && <h3 className="settings-group">Saved contacts</h3>}
+        <Card>
         {contacts.loading ? <Spinner label="" /> : !contacts.data?.length ? (
           <EmptyState>Add your pharmacy, doctor, an emergency contact and more so they're one tap away.</EmptyState>
         ) : (
@@ -359,7 +368,8 @@ export default function Profile() {
         <p className="muted" style={{ margin: '12px 0 0', fontSize: 15 }}>
           In an emergency, call 911. MyDay never calls or messages anyone for you.
         </p>
-              </Card>}
+              </Card>
+        </>}
 
         {page === 'language' && <Card>
         <label className="muted" htmlFor="lang-select" style={{ display: 'block', margin: '0 0 10px' }}>Show MyDay in your language. The page reloads once.</label>
@@ -530,12 +540,53 @@ export default function Profile() {
 
       {editProfile && <ProfileForm profile={profile} onClose={() => setEditProfile(false)}
         onSaved={async (patch) => { await updateProfile(patch); await reloadProfile(); setEditProfile(false); ui.toast('Saved.'); }} />}
-      {editContact && <ContactForm contact={editContact.id ? editContact : null} initialType={editContact.type} onClose={() => setEditContact(null)}
+      {editContact && <ContactForm contact={editContact.id ? editContact : null} initialType={editContact.type} initialEmergency={editContact.emergency} onClose={() => setEditContact(null)}
         onSaved={() => { setEditContact(null); contacts.reload(); }} />}
       </>
     );
   }
 }
+
+// Three generations around a bell: a grandparent, a parent and a grandchild.
+// Drawn here rather than shipped as an image, so it suits every theme.
+function FamilyPicture() {
+  const face = '#f3c9a6';
+  return (
+    <svg className="family-pic" viewBox="0 0 320 170" role="img" aria-label="A grandparent, a parent and a grandchild together">
+      <ellipse cx="160" cy="160" rx="150" ry="10" fill="var(--surface-2)" />
+      {/* grandparent */}
+      <path d="M40 165c0-40 18-58 50-58s50 18 50 58z" fill="#9db3c9" />
+      <circle cx="90" cy="78" r="30" fill={face} />
+      <path d="M60 74c0-22 14-34 30-34s30 12 30 34c-6-10-16-14-30-14s-24 4-30 14z" fill="#e8e8ea" />
+      <circle cx="80" cy="80" r="7" fill="none" stroke="#4b5563" strokeWidth="2.5" /><circle cx="100" cy="80" r="7" fill="none" stroke="#4b5563" strokeWidth="2.5" />
+      <path d="M87 80h6" stroke="#4b5563" strokeWidth="2.5" /><path d="M82 94q8 6 16 0" stroke="#7c4a2d" strokeWidth="2.5" fill="none" strokeLinecap="round" />
+      {/* parent */}
+      <path d="M110 165c0-48 20-68 50-68s50 20 50 68z" fill="var(--primary)" />
+      <circle cx="160" cy="66" r="31" fill={face} />
+      <path d="M127 70c-4-30 12-46 33-46s38 16 33 46c-2-16-12-26-33-26s-31 10-33 26z" fill="#1f2a44" />
+      <circle cx="150" cy="70" r="3" fill="#1f2a44" /><circle cx="170" cy="70" r="3" fill="#1f2a44" />
+      <path d="M151 82q9 7 18 0" stroke="#7c4a2d" strokeWidth="2.5" fill="none" strokeLinecap="round" />
+      {/* grandchild */}
+      <path d="M190 165c0-38 16-54 42-54s42 16 42 54z" fill="#2f9e6e" />
+      <circle cx="232" cy="88" r="26" fill={face} />
+      <path d="M206 86c0-18 11-28 26-28s26 10 26 28c-6-8-14-12-26-12s-20 4-26 12z" fill="#5b3a29" />
+      <circle cx="224" cy="90" r="2.6" fill="#1f2a44" /><circle cx="240" cy="90" r="2.6" fill="#1f2a44" />
+      <path d="M225 100q7 5 14 0" stroke="#7c4a2d" strokeWidth="2.5" fill="none" strokeLinecap="round" />
+      {/* bell */}
+      <circle cx="160" cy="138" r="22" fill="var(--surface)" stroke="var(--primary)" strokeWidth="3" />
+      <path d="M152 145v-7a8 8 0 0116 0v7l3 3h-22zM157 151a3 3 0 006 0" fill="none" stroke="var(--primary)" strokeWidth="2.6" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+// The quick ways to add a contact, as on the My contacts page.
+const CONTACT_KINDS = [
+  { id: 'family', title: 'Family', desc: 'Add family members', icon: 'user', tone: 'blue', type: 'other' },
+  { id: 'doctor', title: 'Doctor', desc: 'Add your doctor', icon: 'cross', tone: 'teal', type: 'provider' },
+  { id: 'pharmacy', title: 'Pharmacy', desc: 'Add your pharmacy', icon: 'pill', tone: 'red', type: 'pharmacy' },
+  { id: 'sos', title: 'Emergency contact', desc: 'Add an emergency contact', icon: 'phone', tone: 'rose', type: 'other', emergency: true },
+  { id: 'other', title: 'Other contact', desc: 'Add another contact', icon: 'more', tone: 'grey', type: 'other' },
+];
 
 const PAGE_IDS = { access: 1, alerts: 1, guardians: 1, contacts: 1, language: 1, appearance: 1, info: 1, howto: 1 };
 
@@ -701,7 +752,11 @@ function ProfileForm({ profile, onClose, onSaved }) {
   const ui = useUI();
   const [full_name, setName] = useState(profile?.full_name || '');
   const [birthday, setBirthday] = useState(profile?.birthday || '');
-  const [age, setAge] = useState(profile?.age != null ? String(profile.age) : '');
+  const [age, setAge] = useState(() => {
+    if (profile?.age != null) return String(profile.age);
+    const a = ageFromBirthday(profile?.birthday);
+    return a != null ? String(a) : '';
+  });
   const [for_whom, setForWhom] = useState(profile?.for_whom || '');
   const [on_treatment, setOn] = useState(profile?.on_treatment || '');
   const [goal, setGoal] = useState(profile?.goal || '');
@@ -721,23 +776,64 @@ function ProfileForm({ profile, onClose, onSaved }) {
     catch (e) { ui.toast(e?.message || 'Could not save.', 'bad'); setBusy(false); }
   }
 
+  // Medicines are kept as one comma-separated line, shown as chips.
+  const meds = on_treatment.split(',').map((m) => m.trim()).filter(Boolean);
+  const [adding, setAdding] = useState('');
+  function addMed() {
+    const m = adding.trim();
+    if (!m) return;
+    setOn([...meds, m].join(', '));
+    setAdding('');
+  }
+  function onBirthday(v) {
+    setBirthday(v);
+    const a = ageFromBirthday(v);
+    if (a != null) setAge(String(a));
+  }
+
   return (
-    <Modal title="About me" onClose={onClose}>
-      <Field label="Name"><Input value={full_name} onChange={(e) => setName(e.target.value)} maxLength={60} /></Field>
-      <Field label="Birthday"><Input type="date" value={birthday} onChange={(e) => setBirthday(e.target.value)} /></Field>
-      <Field label="Age" hint="Optional - filled in from your birthday if set."><Input type="number" min="0" max="130" value={age} onChange={(e) => setAge(e.target.value)} /></Field>
-      <Field label="Who is MyDay for?"><SegmentedControl value={for_whom} onChange={setForWhom} options={WHOM_OPTS} /></Field>
-      <Field label="Medications & supplements" hint="Current treatments, medicines, or conditions."><Textarea rows={2} value={on_treatment} onChange={(e) => setOn(e.target.value)} maxLength={300} /></Field>
-      <Field label="What I'm working toward" hint="Your health goals."><Textarea rows={2} value={goal} onChange={(e) => setGoal(e.target.value)} maxLength={300} /></Field>
-      <div className="btn-row" style={{ marginTop: 8 }}>
-        <Button variant="ghost" onClick={onClose}>Cancel</Button>
-        <Button disabled={busy} icon={busy ? 'clock' : undefined} onClick={save}>{busy ? 'Saving…' : 'Save'}</Button>
+    <Modal title="About me" onClose={onClose}
+      footer={(
+        <div className="btn-row">
+          <Button variant="ghost" onClick={onClose}>Cancel</Button>
+          <Button disabled={busy} icon={busy ? 'clock' : undefined} onClick={save}>{busy ? 'Saving…' : 'Save'}</Button>
+        </div>
+      )}>
+      <p className="muted" style={{ margin: '0 0 14px' }}>Tell us a bit about yourself.</p>
+      <div className="about-rows">
+        <label className="about-row"><span className="about-row__l"><Icon name="user" size={22} /> Name</span>
+          <Input value={full_name} onChange={(e) => setName(e.target.value)} maxLength={60} autoComplete="name" /></label>
+        <label className="about-row"><span className="about-row__l"><Icon name="calendar" size={22} /> Birthday</span>
+          <Input type="date" value={birthday} onChange={(e) => onBirthday(e.target.value)} /></label>
+        <label className="about-row"><span className="about-row__l"><Icon name="clock" size={22} /> Age</span>
+          <span className="about-row__age"><Input type="number" min="0" max="130" value={age} onChange={(e) => setAge(e.target.value)} />
+            <small className="muted">Filled automatically from your birthday.</small></span></label>
       </div>
+      <p className="about-h" id="about-whom">Who is MyDay for?</p>
+      <div className="about-whom" role="radiogroup" aria-labelledby="about-whom">
+        {WHOM_OPTS.map((o) => (
+          <button key={o.value} type="button" role="radio" aria-checked={for_whom === o.value}
+            className={`about-whom__b${for_whom === o.value ? ' is-on' : ''}`} onClick={() => setForWhom(o.value)}>{o.label}</button>
+        ))}
+      </div>
+      <p className="about-h" id="about-meds">Medicines &amp; supplements</p>
+      <div className="about-chips" aria-labelledby="about-meds">
+        {meds.map((m, i) => (
+          <span key={`${m}-${i}`} className="about-chip">{m}
+            <button type="button" aria-label={`Remove ${m}`} onClick={() => setOn(meds.filter((_, k) => k !== i).join(', '))}>×</button></span>
+        ))}
+        <span className="about-add">
+          <input className="about-add__in" value={adding} onChange={(e) => setAdding(e.target.value)} placeholder="Type a medicine"
+            aria-label="Add a medicine or supplement" onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addMed(); } }} maxLength={60} />
+          <button type="button" className="about-add__b" onClick={addMed}><Icon name="plus" size={18} /> Add</button>
+        </span>
+      </div>
+      <Field label="What I'm working toward" hint="Your health goals."><Textarea rows={2} value={goal} onChange={(e) => setGoal(e.target.value)} maxLength={300} /></Field>
     </Modal>
   );
 }
 
-function ContactForm({ contact, initialType, onClose, onSaved }) {
+function ContactForm({ contact, initialType, initialEmergency, onClose, onSaved }) {
   const ui = useUI();
   const editing = !!contact;
   const [type, setType] = useState(contact?.type || initialType || 'pharmacy');
@@ -747,7 +843,7 @@ function ContactForm({ contact, initialType, onClose, onSaved }) {
   const [address, setAddress] = useState(contact?.address || '');
   const [notes, setNotes] = useState(contact?.notes || '');
   const [relationship, setRelationship] = useState(contact?.relationship || '');
-  const [emergency, setEmergency] = useState(!!contact?.is_emergency);
+  const [emergency, setEmergency] = useState(!!(contact?.is_emergency ?? initialEmergency));
   const [errors, setErrors] = useState({});
   const [busy, setBusy] = useState(false);
   const typeRefs = useRef([]);
