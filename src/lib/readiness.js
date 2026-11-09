@@ -97,3 +97,58 @@ export function describeDevice(d, { myEndpoint, index = 0, all = [], shortDate =
     lastSent: sent ? `Last alert sent ${prettyClock(new Date(sent))}` : 'No alert sent yet',
   };
 }
+
+// ---------- the short version, for the Medicines page ----------
+//
+// Three separate questions, because each fails differently and a single
+// switch cannot answer them: is MyDay set to remind, can THIS device show
+// alerts, and has the person actually seen one arrive here? "Seen" is only
+// ever what the person told us after a test (stored on this device): the
+// server can only say it handed the alert to the push service.
+
+export const TEST_SEEN_KEY = 'myday_test_alert_seen_at';
+
+const DEVICE_WORDS = {
+  ready: 'Allowed',
+  not_asked: 'Not turned on yet',
+  blocked: 'Blocked',
+  needs_install: 'Needs MyDay on the home screen',
+  unsupported: 'Cannot show alerts',
+};
+const NEXT_FOR_DEVICE = {
+  not_asked: 'Turn on alerts for this device',
+  needs_install: 'How to add MyDay to the home screen',
+  blocked: 'How to allow notifications',
+  unsupported: 'See other ways to get reminders',
+};
+
+/**
+ * @param prefs     notification preferences (or null while loading)
+ * @param status    deliveryStatus() for this device
+ * @param testSeenAt ISO time the person confirmed seeing a test here, or null
+ * @returns {{ lines: {id,title,value,detail,state}[], next: {label, reason}|null, prefOn: boolean }}
+ */
+export function reminderSummary({ prefs, status, testSeenAt = null, formatDate = (iso) => iso.slice(0, 10) }) {
+  const prefOn = !!prefs && prefs.master !== false && prefs.dose_due !== false;
+  const lines = [
+    {
+      id: 'pref', title: 'MyDay reminders', value: prefOn ? 'On' : 'Off', state: prefOn ? 'ok' : 'warn',
+      detail: prefOn ? 'MyDay sends a reminder when a dose is due.' : 'MyDay will not send dose reminders.',
+    },
+    {
+      id: 'device', title: 'This device', value: DEVICE_WORDS[status?.code] || 'Unknown',
+      state: status?.ok ? 'ok' : status?.code === 'not_asked' ? 'info' : 'warn',
+      detail: status?.ok ? 'Notifications are allowed here.' : status?.fix || '',
+    },
+    {
+      id: 'test', title: 'Test alert', value: testSeenAt ? 'Seen' : 'Not checked',
+      state: testSeenAt ? 'ok' : 'info',
+      detail: testSeenAt ? `You saw a test alert on this device on ${formatDate(testSeenAt)}.`
+        : 'Only a test you see on this screen shows that alerts arrive here.',
+    },
+  ];
+  let next = null;
+  if (prefOn && status && !status.ok) next = { label: NEXT_FOR_DEVICE[status.code] || 'Check alert settings', reason: 'device' };
+  else if (prefOn && status?.ok && !testSeenAt) next = { label: 'Send a test alert', reason: 'test' };
+  return { lines, next, prefOn };
+}

@@ -34,8 +34,8 @@ const TOPICS = [
     steps: [
       'Open Medicines and tap the blue “Add” button at the top. (On Today, “Add” at the top opens a short menu — tap “Add a medicine”.)',
       'Answer one question at a time: its name, how much, what time, how often.',
-      'Tip: on the Medicines page you can tap “Add from a photo” and take up to 3 pictures of the box (front, back and the pharmacy label) — MyDay reads them all and fills it in for you to check.',
-      'Tap Save on the last step.',
+      'Check the summary, then tap “Save medicine” — or “Save and add another” to go straight on to the next one.',
+      'Adding several at once? Open Manage medicines and tap “Add several at once”: you check the whole list before anything is saved.',
     ],
     go: '/medication', state: { add: 'med' }, goLabel: 'Add a medicine now',
   },

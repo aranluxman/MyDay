@@ -194,10 +194,13 @@ html[data-text='xlarge'] .today-side > *, html[data-text='huge'] .today-side > *
 /* A dose row decides by its own width where the button goes: beside the
    name when there is room, a full-width button underneath when there is not.
    "Mark as taken" never squeezes the medicine name. */
-.drow { container: drow / inline-size; }
-@container drow (max-width: 520px) {
-  .drow__row { flex-wrap: wrap; }
-  .drow__act { flex: 1 1 100%; }
+.drow { container: drow / inline-size; display: flex; flex-direction: column; }
+@container drow (max-width: 440px) {
+  /* Medicine, then its times and status, then the button: the button never
+     sits between a name and the times that belong to it. */
+  .drow__row { display: contents; }
+  .drow__act { order: 2; margin-top: 10px; }
+  .drow__more { order: 3; }
   .drow__take, .drow__done { width: 100%; }
   .drow__done { flex-direction: row; justify-content: center; }
 }
@@ -258,10 +261,67 @@ html[data-text='xlarge'] .today-side > *, html[data-text='huge'] .today-side > *
 /* A narrow phone keeps the page title whole: Add on Today and Health diary
    becomes its icon (its name, "Add" / "Add health note", stays for screen readers). */
 @container (max-width: 440px) {
-  .app-shell:is([data-page='/'], [data-page='/updates']) .topbar__add { padding: 0; width: 48px; min-height: 48px; justify-content: center; }
-  .app-shell:is([data-page='/'], [data-page='/updates']) .topbar__add span { display: none; }
+  .topbar__add { padding: 0; width: 48px; min-height: 48px; justify-content: center; }
+  .topbar__add span { display: none; }
 }
 
 /* The month calendar is a picker, not a poster: capped so day circles stay
    about 60px and the day's doses below it stay in view on a tablet. */
 .cal { max-width: 520px; margin-left: auto; margin-right: auto; width: 100%; }
+
+/* =====================================================================
+   Medicines (phase 2)
+   Wide: the chosen day's doses beside a compact month calendar. The page
+   gets more room on a laptop so the doses never squeeze.
+   ===================================================================== */
+@media (min-width: 1280px) {
+  .app-shell[data-page='/medication'] .content { max-width: 1120px; margin-left: auto; margin-right: auto; }
+  .app-shell[data-page='/medication'] .topbar { padding-left: max(28px, calc((100% - 1120px) / 2 + 24px)); padding-right: max(28px, calc((100% - 1120px) / 2 + 24px)); }
+}
+.med-split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(300px, 340px); gap: 24px; align-items: start; }
+.med-split__day { min-width: 0; display: flex; flex-direction: column; gap: 14px; }
+.med-split__cal { position: sticky; top: 84px; }
+.cal--compact { max-width: none; padding: 14px 10px 12px; }
+.cal--compact .cal__grid { gap: 4px 2px; }
+.cal--compact .cal__grid .cal__cell { min-height: 38px; }
+.cal--compact .cal__day { font-size: 15px; }
+.cal--compact .cal__title { font-size: 17px; }
+.cal--compact .cal__keyrow { gap: 6px 12px; font-size: 14px; }
+.cal--compact .cal__hint { font-size: 14px; }
+/* A visible focus ring on the day the arrow keys are on. */
+.cal__grid .cal__cell:focus-visible { outline: 3px solid var(--primary); outline-offset: 2px; }
+
+/* "Not recorded" is attention (amber), never urgent red. */
+.today__headline.is-missed, .ring-card .today__headline.is-missed { color: var(--warn-ink); }
+.drow--missed { box-shadow: inset 4px 0 0 var(--warn), var(--shadow); }
+
+/* ---- Reminders checklist (Medicines) ---- */
+.remind-card { display: flex; flex-direction: column; gap: 12px; }
+.remind-card__t { margin: 0; font-size: 20px; font-weight: 800; }
+.remind-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.remind-line {
+  display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 14px;
+  background: var(--surface-2); min-height: 56px;
+}
+.remind-line__ic { flex: none; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; }
+.remind-line--ok .remind-line__ic { background: var(--good-bg); color: var(--good-ink); }
+.remind-line--warn .remind-line__ic { background: var(--warn-bg); color: var(--warn-ink); }
+.remind-line--info .remind-line__ic { background: var(--primary-soft); color: var(--primary-text, var(--primary)); }
+.remind-line__main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.remind-line__t { font-size: 17px; font-weight: 650; }
+.remind-line__t b { font-weight: 800; }
+.remind-line--warn .remind-line__t b { color: var(--warn-ink); }
+.remind-line__d { font-size: 15px; color: var(--ink-soft); line-height: 1.4; }
+.medlist__adds { flex-wrap: wrap; justify-content: flex-end; }
+
+/* Last step of a new medicine: Back and Save side by side, "Save and add
+   another" on its own full-width row underneath, so no label is squeezed. */
+.wiz__foot { flex-wrap: wrap; }
+.wiz__foot > .wiz__another { order: 3; flex: 1 1 100%; }
+.wiz__foot > .btn { overflow-wrap: normal; word-break: normal; hyphens: none; }
+@media (max-width: 480px) {
+  html:is([data-text='xlarge'], [data-text='huge']) .wiz__foot > .btn { flex: 1 1 100%; }
+  html:is([data-text='xlarge'], [data-text='huge']) .wiz__foot > .btn--primary { order: -1; }
+  html:is([data-text='xlarge'], [data-text='huge']) .wiz__foot > .wiz__another { order: 0; }
+  html:is([data-text='xlarge'], [data-text='huge']) .wiz__foot > .btn:not(.btn--primary):not(.wiz__another) { order: 1; }
+}

@@ -19,7 +19,7 @@ import {
 import { deviceLabel, platformTag } from '../lib/guardian.js';
 import { setAlarmEnabled } from '../lib/alarm.js';
 import { prettyClock, prettyTime, shortDate } from '../lib/format.js';
-import { readinessChecklist, describeDevice } from '../lib/readiness.js';
+import { readinessChecklist, describeDevice, TEST_SEEN_KEY } from '../lib/readiness.js';
 
 // Everything about notifications, as a section of Profile. It used to be a
 // page of its own; one fewer place to find means one fewer place to get lost.
@@ -124,8 +124,19 @@ export function AlertsSettings({ reveal }) {
         ui.toast('The test could not be sent to any notification service. Check the devices below.', 'bad');
         return;
       }
-      ui.toast(`Test alert sent to the notification service for ${data.delivered} device${data.delivered === 1 ? '' : 's'}.`, 'info');
       devices.reload();
+      // Sent is not seen. Only the person can say it appeared on this screen,
+      // and that answer (kept on this device) is what Medicines shows as "Seen".
+      const saw = await ui.confirm({
+        title: 'Did the test alert appear?',
+        message: `MyDay sent it to the notification service for ${data.delivered} device${data.delivered === 1 ? '' : 's'}. Wait a few seconds: did a MyDay test alert appear on this screen?`,
+        confirmLabel: 'Yes, I saw it', cancelLabel: 'No, nothing appeared',
+      });
+      try {
+        if (saw) localStorage.setItem(TEST_SEEN_KEY, new Date().toISOString());
+        else localStorage.removeItem(TEST_SEEN_KEY);
+      } catch {}
+      ui.toast(saw ? 'Good — alerts reach this device.' : 'Then alerts are not reaching this screen yet. Check the steps under “Will reminders reach me?”.', saw ? 'good' : 'bad');
     } catch { ui.toast('Could not send a test alert.', 'bad'); }
   }
 

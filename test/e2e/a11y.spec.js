@@ -7,33 +7,35 @@ import { openNewMedicine, nameAndAmount, cont, openFold } from './helpers.js';
 const require = createRequire(import.meta.url);
 const AXE = require.resolve('axe-core/axe.min.js');
 
-test('Medicine: History and Manage medicines open from the main page and come back', async ({ browser }) => {
+test('Medicines: opens on today; History and Manage medicines open from it and come back', async ({ browser }) => {
   const { page, context } = await openApp(browser, { path: '/medication' });
-  await expect(page.getByRole('radio', { name: 'Calendar' })).toHaveAttribute('aria-checked', 'true');
-  await expect(page.getByRole('heading', { name: 'Today · Wed, Oct 7' })).toBeVisible();
-  await expect(page.locator('.cal__grid [aria-current="date"]')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('radio', { name: 'Today' })).toHaveAttribute('aria-checked', 'true');
+  await expect(page.getByRole('heading', { name: 'Today', exact: true })).toBeVisible();
+  await expect(page.locator('.daystrip')).toBeVisible();
   await page.getByRole('button', { name: 'Your history' }).click();
   await expect(page.getByRole('heading', { name: 'History' })).toBeVisible();
-  await page.getByRole('button', { name: 'Medicine', exact: true }).click();
+  await page.getByRole('button', { name: 'Medicines', exact: true }).click();
   await page.getByRole('button', { name: 'Manage medicines' }).click();
   await expect(page.getByRole('heading', { name: 'Manage medicines' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Add medicines' }).first()).toBeVisible();
-  await page.getByRole('button', { name: 'Medicine', exact: true }).click();
-  await expect(page.locator('.cal')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Add medicine', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Add several at once' })).toBeVisible();
+  await page.getByRole('button', { name: 'Medicines', exact: true }).click();
+  await expect(page.locator('.daystrip')).toBeVisible();
   await context.close();
 });
 
-test('Medicine: the calendar shows the day you tap underneath it, and remembers List', async ({ browser }) => {
+test('Medicines: Calendar shows the day you tap underneath it, and the choice is remembered', async ({ browser }) => {
   const { page, context } = await openApp(browser, { path: '/medication' });
+  await page.getByRole('radio', { name: 'Calendar' }).click();
   await page.locator('.cal__grid').getByRole('button', { name: /^Tuesday, October 6/ }).click();
   await expect(page.getByRole('heading', { name: 'Yesterday · Tue, Oct 6' })).toBeVisible();
   await expect(page.locator('.dayhead__pill')).toContainText('taken');
   await page.getByRole('button', { name: 'Back to today' }).click();
   await expect(page.getByRole('heading', { name: 'Today · Wed, Oct 7' })).toBeVisible();
-  await page.getByRole('radio', { name: 'List' }).click();
-  await expect(page.locator('.daystrip')).toBeVisible();
   await page.reload();
-  await expect(page.getByRole('radio', { name: 'List' })).toHaveAttribute('aria-checked', 'true');
+  await expect(page.getByRole('radio', { name: 'Calendar' })).toHaveAttribute('aria-checked', 'true');
+  await page.getByRole('radio', { name: 'Today' }).click();
+  await expect(page.locator('.daystrip')).toBeVisible();
   await expect(page.locator('.ring-card')).toBeVisible();
   await context.close();
 });

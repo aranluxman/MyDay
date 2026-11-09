@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useUI } from '../context/UIContext.jsx';
 import { useDayRefresh } from '../hooks/useDayRefresh.js';
@@ -18,6 +18,7 @@ import {
   getNotificationPrefs, saveNotificationPrefs,
 } from '../lib/db.js';
 import { deliveryStatus } from '../lib/notifications.js';
+import { reminderSummary, TEST_SEEN_KEY } from '../lib/readiness.js';
 import { pushSupported } from '../lib/push.js';
 import { platformTag } from '../lib/guardian.js';
 import { useInstallPrompt } from '../hooks/useInstallPrompt.js';
@@ -26,6 +27,7 @@ import { summarise, adherence, STATE_UI } from '../lib/doseState.js';
 import { medIcon } from '../lib/medIcon.js';
 import { DoseHistory } from '../components/DoseHistory.jsx';
 import { useNavigate } from 'react-router-dom';
+import { useWidth } from '../hooks/useWidth.js';
 import { describeSchedule, isDueOn, normaliseTimes } from '../lib/schedule.js';
 import { selectMedicines } from '../lib/medicineList.js';
 import { describeDoseWithStrength, ROUTES, UNITS, parseAmountInput } from '../lib/doseUnits.js';
@@ -42,6 +44,12 @@ export default function Medication() {
   const [view, setView] = useState(() => location.state?.view || 'today');
   const [editing, setEditing] = useState(null);
   const [copying, setCopying] = useState(null);
+  // "Add medicine" opens the form straight away; adding several at once (and
+  // saving them together after a review) is the optional path in Manage.
+  const [adding, setAdding] = useState(false);
+  // What opened the form, so focus goes back to it when the form closes.
+  const addOpener = useRef(null);
+  const startAdd = () => { addOpener.current = document.activeElement; setAdding(true); };
   const [batchOpen, setBatchOpen] = useState(false);
   const [selectedDay, setSelectedDay] = useState(() => location.state?.day || localDateStr());
   // History opens as a list; Home's calendar links straight to a day, so that
@@ -52,7 +60,7 @@ export default function Medication() {
   const today = useAsync(() => todaysDoses(), []);
 
   useEffect(() => {
-    if (location.state?.add === 'med') { setBatchOpen(true); window.history.replaceState({}, ''); }
+    if (location.state?.add === 'med') { startAdd(); window.history.replaceState({}, ''); }
     else if (location.state?.view) {
       setView(location.state.view);
       if (location.state.day) { setSelectedDay(location.state.day); setHistoryMode('calendar'); }
@@ -95,7 +103,7 @@ export default function Medication() {
   return (
     <div className="stack">
       {view === 'today' && <TodayView state={today} meds={meds.data || []} actions={actions} windowMinutes={windowMinutes}
-        onAdd={() => setBatchOpen(true)}
+        onAdd={startAdd}
         onHistory={() => go('calendar')} onManage={() => go('medicines')} />}
 
       {view === 'calendar' && (
@@ -120,7 +128,7 @@ export default function Medication() {
       {view === 'medicines' && (
         <div className="stack">
           <SubHead title="Manage medicines" onBack={() => go('today')} />
-          <MedicinesView state={meds} onAdd={() => setBatchOpen(true)} onEdit={setEditing}
+          <MedicinesView state={meds} onAdd={startAdd} onAddSeveral={() => setBatchOpen(true)} onEdit={setEditing}
             onRemove={remove} onDuplicate={(m) => setCopying(m)} onChanged={reloadAll} />
         </div>
       )}
@@ -130,6 +138,8 @@ export default function Medication() {
       {/* A copy is reviewed before it exists: nothing is saved until confirmed. */}
       {copying && <MedicineWizard prefill={{ form: copyOfMedication(copying), copiedFrom: copying.name }}
         onClose={() => setCopying(null)} onSaved={() => { setCopying(null); reloadAll(); }} />}
+      {adding && <MedicineWizard key={adding === true ? 'add' : adding} returnFocus={addOpener.current} onClose={() => setAdding(false)}
+        onSaved={(another) => { reloadAll(); setAdding(another ? Date.now() : false); }} />}
       {batchOpen && <MedicineBatch userId={user?.id} onClose={() => setBatchOpen(false)}
         onSaved={() => { setBatchOpen(false); reloadAll(); }} />}
     </div>
@@ -141,7 +151,7 @@ function SubHead({ title, sub, onBack }) {
   return (
     <div className="subhead">
       <button type="button" className="subhead__back" onClick={onBack}>
-        <Icon name="back" size={22} /> Medicine
+        <Icon name="back" size={22} /> Medicines
       </button>
       <h2 className="subhead__t">{title}</h2>
       {sub && <p className="subhead__d">{sub}</p>}
@@ -157,15 +167,20 @@ const shiftDay = (iso, n) => { const d = atNoon(iso); d.setDate(d.getDate() + n)
 
 const shortDate = (d) => d.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
 const VIEW_KEY = 'myday_med_view';
-function savedView() { try { return localStorage.getItem(VIEW_KEY) === 'list' ? 'list' : 'calendar'; } catch { return 'calendar'; } }
+// List (today, big) unless the person has chosen Calendar before on this device.
+function savedView() { try { return localStorage.getItem(VIEW_KEY) === 'calendar' ? 'calendar' : 'list'; } catch { return 'list'; } }
+// Room for the day's doses (~460px) beside a compact calendar (~330px).
+const SIDE_BY_SIDE = 780;
 
-// The Medicine page. It opens on the month: every day marked taken, missed or
-// partly taken, and the day picked on it shown underneath — today is the live
-// list with Take buttons; another day swaps in that day's record (or plan),
-// with a clear way back to today. "List" is the week-strip view for anyone
-// who would rather see one day big. The choice is remembered on the device.
+// The Medicines page opens on today's doses. Where there is room (a laptop,
+// an iPad on its side) the day sits beside a compact month calendar, with no
+// switch to learn. Narrower screens show today with its week strip, and the
+// month is one tap away under Calendar; that choice is remembered. Picking
+// another day swaps in its record (or plan), with a clear way back to today.
 function TodayView({ state, meds, actions, onAdd, onHistory, onManage, windowMinutes }) {
   const today = localDateStr();
+  const [boxRef, width] = useWidth();
+  const wide = width >= SIDE_BY_SIDE;
   const [mode, setModeState] = useState(savedView);
   const [picked, setPicked] = useState(null);
   function setMode(m) { setModeState(m); try { localStorage.setItem(VIEW_KEY, m); } catch {} }
@@ -187,15 +202,47 @@ function TodayView({ state, meds, actions, onAdd, onHistory, onManage, windowMin
   // "1 of 3 taken" beside it, instead of a ring.
   const dayHeading = { title: relative || atNoon(day).toLocaleDateString([], { weekday: 'long' }), date: shortDate(atNoon(day)), back: backToToday };
 
-  return (
-    <div className="stack">
-      <p className="page-intro">Record each dose and see your history at a glance.</p>
-      <SegmentedControl className="segmented--accent" label="Show your medicines as" value={mode} onChange={setMode} options={[
-        { value: 'calendar', label: 'Calendar', icon: 'calendar' },
-        { value: 'list', label: 'List', icon: 'list' },
-      ]} />
+  const header = (
+    <div className="medhead">
+      <div className="medhead__text">
+        <h2 className="medhead__t" aria-live="polite">{title}</h2>
+        <p className="medhead__d">{subtitle}</p>
+      </div>
+      {/* Beside the title, not under it: a button that comes and goes
+          under the date pushed the week strip and every dose up and
+          down each time the day changed. */}
+      {backToToday}
+    </div>
+  );
+  const dayList = (
+    <div className="dayview" key={day}>
+      {isToday
+        ? <TodayList state={state} meds={meds} actions={actions} onAdd={onAdd} windowMinutes={windowMinutes} />
+        : <OtherDay day={day} today={today} lateMark={day === yesterday} meds={meds} windowMinutes={windowMinutes} />}
+    </div>
+  );
 
-      {mode === 'calendar' ? (
+  return (
+    <div className="stack" ref={boxRef}>
+      <p className="page-intro">Record each dose and see your history at a glance.</p>
+      {!wide && (
+        <SegmentedControl className="segmented--accent" label="Show your medicines as" value={mode} onChange={setMode} options={[
+          { value: 'list', label: 'Today', icon: 'list' },
+          { value: 'calendar', label: 'Calendar', icon: 'calendar' },
+        ]} />
+      )}
+
+      {wide ? (
+        <div className="med-split">
+          <section className="med-split__day" aria-label="Doses for the chosen day">
+            {header}
+            {dayList}
+          </section>
+          <aside className="med-split__cal" aria-label="Month calendar">
+            <MedCalendar selected={day} onPick={pick} windowMinutes={windowMinutes} meds={meds} inlineKey compact />
+          </aside>
+        </div>
+      ) : mode === 'calendar' ? (
         <>
           <MedCalendar selected={day} onPick={pick} windowMinutes={windowMinutes} meds={meds} inlineKey />
           <div className="dayview" key={day}>
@@ -206,22 +253,9 @@ function TodayView({ state, meds, actions, onAdd, onHistory, onManage, windowMin
         </>
       ) : (
         <>
-          <div className="medhead">
-            <div className="medhead__text">
-              <h2 className="medhead__t" aria-live="polite">{title}</h2>
-              <p className="medhead__d">{subtitle}</p>
-            </div>
-            {/* Beside the title, not under it: a button that comes and goes
-                under the date pushed the week strip and every dose up and
-                down each time the day changed. */}
-            {backToToday}
-          </div>
+          {header}
           <DayStrip day={day} today={today} onPick={pick} />
-          <div className="dayview" key={day}>
-            {isToday
-              ? <TodayList state={state} meds={meds} actions={actions} onAdd={onAdd} windowMinutes={windowMinutes} />
-              : <OtherDay day={day} today={today} lateMark={day === yesterday} meds={meds} windowMinutes={windowMinutes} />}
-          </div>
+          {dayList}
         </>
       )}
 
@@ -236,7 +270,6 @@ function TodayView({ state, meds, actions, onAdd, onHistory, onManage, windowMin
         <Icon name="chevron" size={22} />
       </button>
       <RemindersCard />
-      <TakeOnTime />
     </div>
   );
 }
@@ -271,7 +304,7 @@ function TodayList({ state, meds, actions, onAdd, windowMinutes, heading }) {
   if (!scheduled.length && !asNeeded.length) {
     return (
       <HeroEmpty icon="pill" title="No doses scheduled today"
-        action={<Button icon="plus" onClick={onAdd}>Add a medicine</Button>}>
+        action={<Button icon="plus" onClick={onAdd}>Add medicine</Button>}>
         When you add a medicine and its times, today's doses will appear here.
       </HeroEmpty>
     );
@@ -477,6 +510,11 @@ function timeToday(hhmm) {
 // The dose-reminder switch, right where the doses are. It is the same
 // setting as "Dose reminders" in Profile → Alerts & reminders, and it says so
 // when this device cannot actually show a reminder yet.
+// Reminders, as three separate answers instead of one switch that could be
+// "on" while nothing reaches this device: is MyDay set to remind, can this
+// device show alerts, and has a test been seen here? One button for the next
+// thing to do. Nothing here asks the device for permission; that only
+// happens when the person taps "Turn on alerts" in Settings.
 function RemindersCard() {
   const ui = useUI();
   const navigate = useNavigate();
@@ -484,61 +522,52 @@ function RemindersCard() {
   const [prefs, setPrefs] = useState(null);
   useEffect(() => { getNotificationPrefs().then(setPrefs).catch(() => setPrefs(false)); }, []);
   if (prefs === false) return null;
-  const on = !!prefs && prefs.master !== false && prefs.dose_due !== false;
   const status = deliveryStatus({
     supported: pushSupported(),
     permission: typeof Notification !== 'undefined' ? Notification.permission : 'default',
     installed, platform: platformTag(),
   });
+  let testSeenAt = null;
+  try { testSeenAt = localStorage.getItem(TEST_SEEN_KEY); } catch {}
+  const { lines, next, prefOn } = reminderSummary({ prefs, status, testSeenAt, formatDate: (iso) => prettyDate(iso.slice(0, 10)) });
   async function set(v) {
     const patch = v ? { dose_due: true, ...(prefs.master === false ? { master: true } : {}) } : { dose_due: false };
     const before = prefs;
     setPrefs({ ...prefs, ...patch });
-    try { await saveNotificationPrefs(patch); ui.toast(v ? 'Dose reminders are on.' : 'Dose reminders are off.', 'info'); }
+    try { await saveNotificationPrefs(patch); ui.toast(v ? 'MyDay reminders are on.' : 'MyDay reminders are off.', 'info'); }
     catch { setPrefs(before); ui.toast('Could not save that setting.', 'bad'); }
   }
+  const ICON = { ok: 'check', warn: 'alert', info: 'info' };
   return (
     <Card className="remind-card">
       <div className="remind-card__row">
         <span className="remind-card__ic" aria-hidden="true"><Icon name="bell" size={22} /></span>
         <div className="remind-card__main">
-          <div className="remind-card__t" id="remind-t">Reminders</div>
-          <div className="remind-card__d" id="remind-d">Get a friendly reminder when it's time to take your medicine.</div>
+          <h3 className="remind-card__t" id="remind-t">Reminders</h3>
+          <div className="remind-card__d">What MyDay is set to do, and whether this device can show it.</div>
         </div>
-        <Toggle checked={on} disabled={!prefs} onChange={set} labelledBy="remind-t" describedBy="remind-d" />
       </div>
-      {on && !status.ok && (
-        <button type="button" className="remind-card__fix" onClick={() => navigate('/profile', { state: { open: 'alerts' } })}>
-          <Icon name="alert" size={18} /> <span>{status.code === 'not_asked' ? 'Turn on alerts for this device' : 'Reminders cannot reach this device yet'}</span>
-          <Icon name="chevron" size={18} />
-        </button>
+      <ul className="remind-list">
+        {lines.map((l) => (
+          <li key={l.id} className={`remind-line remind-line--${l.state}`}>
+            <span className="remind-line__ic" aria-hidden="true"><Icon name={ICON[l.state]} size={18} stroke={2.6} /></span>
+            <span className="remind-line__main">
+              <span className="remind-line__t" id={`remind-${l.id}-t`}>{l.title}: <b>{l.value}</b></span>
+              {l.detail && <span className="remind-line__d" id={`remind-${l.id}-d`}>{l.detail}</span>}
+            </span>
+            {l.id === 'pref' && (
+              <Toggle checked={prefOn} disabled={!prefs} onChange={set} labelledBy="remind-pref-t" describedBy="remind-pref-d" />
+            )}
+          </li>
+        ))}
+      </ul>
+      {next && (
+        <Button variant={next.reason === 'test' ? 'ghost' : undefined} icon={next.reason === 'test' ? 'bell' : 'chevron'}
+          onClick={() => navigate('/profile', { state: { open: 'alerts' } })}>
+          {next.label}
+        </Button>
       )}
     </Card>
-  );
-}
-
-// A friendly closing note with a little picture: the bottle and a glass of water.
-function TakeOnTime() {
-  return (
-    <div className="ontime">
-      <div className="ontime__text">
-        <h3 className="ontime__t">Take your medicine on time</h3>
-        <p className="ontime__d">Staying on track helps you feel better.</p>
-      </div>
-      <svg className="ontime__art" viewBox="0 0 150 120" aria-hidden="true">
-        <ellipse cx="80" cy="112" rx="66" ry="6" className="ontime__shadow" />
-        <circle cx="34" cy="68" r="22" className="ontime__cloud" />
-        <circle cx="120" cy="58" r="26" className="ontime__cloud" />
-        <rect x="46" y="22" width="44" height="14" rx="4" className="ontime__cap" />
-        <rect x="40" y="34" width="56" height="78" rx="10" className="ontime__bottle" />
-        <rect x="48" y="54" width="40" height="36" rx="6" className="ontime__label" />
-        <path d="M68 82s-11-6.5-11-14a6 6 0 0111-3.2A6 6 0 0179 68c0 7.5-11 14-11 14z" className="ontime__heart" />
-        <path d="M100 58h34l-4 52a4 4 0 01-4 3.6h-18a4 4 0 01-4-3.6z" className="ontime__glass" />
-        <path d="M102.5 76h29l-2.6 33.6a3 3 0 01-3 2.4h-17.8a3 3 0 01-3-2.4z" className="ontime__water" />
-        <circle cx="128" cy="26" r="13" className="ontime__bubble" />
-        <path d="M128 32s-6-3.6-6-7.6a3.2 3.2 0 016-1.7 3.2 3.2 0 016 1.7c0 4-6 7.6-6 7.6z" className="ontime__heart" />
-      </svg>
-    </div>
   );
 }
 
@@ -635,7 +664,7 @@ function DayDoses({ dateStr, windowMinutes, meds }) {
   );
 }
 
-function MedicinesView({ state, onAdd, onEdit, onRemove, onDuplicate, onChanged }) {
+function MedicinesView({ state, onAdd, onAddSeveral, onEdit, onRemove, onDuplicate, onChanged }) {
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState('name');
   const contacts = useAsync(() => listContacts().catch(() => []), []);
@@ -648,15 +677,18 @@ function MedicinesView({ state, onAdd, onEdit, onRemove, onDuplicate, onChanged 
     <div className="stack">
       {!meds.length && (
         <HeroEmpty icon="pill" title="No medicines yet"
-          action={<Button icon="plus" onClick={onAdd}>Add medicines</Button>}>
-          Type each medicine, check the list, then save them together.
+          action={<Button icon="plus" onClick={onAdd}>Add medicine</Button>}>
+          Add one medicine at a time, or several at once and check them together before saving.
         </HeroEmpty>
       )}
       {!!meds.length && (
         <>
           <div className="medlist__toolbar">
             <div className="medlist__count" aria-live="polite">{query ? `${visible.length} of ${meds.length}` : meds.length} {meds.length === 1 ? 'medicine' : 'medicines'}</div>
-            <Button icon="plus" full={false} onClick={onAdd}>Add medicines</Button>
+            <div className="btn-row medlist__adds">
+              <Button variant="ghost" full={false} onClick={onAddSeveral}>Add several at once</Button>
+              <Button icon="plus" full={false} onClick={onAdd}>Add medicine</Button>
+            </div>
           </div>
           {meds.length > 3 && (
             <div className="medlist__controls">

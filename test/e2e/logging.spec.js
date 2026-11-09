@@ -104,7 +104,7 @@ test('Copy opens a review and saves nothing until confirmed', async ({ browser }
   await expect(page.locator('.wiz__title')).toHaveText('Does this look right?');
   await expect(page.locator('.aiscan-note')).toContainText('This is a copy of Synthetic Vitamin D');
   expect(mock.db.myday_medications.length).toBe(before);
-  await page.getByRole('button', { name: 'Add this medicine' }).click();
+  await page.getByRole('button', { name: 'Save medicine' }).click();
   await expect(page.locator('.toast').first()).toContainText('Synthetic Vitamin D (copy) added: 1000 IU');
   expect(mock.db.myday_medications.length).toBe(before + 1);
   await context.close();

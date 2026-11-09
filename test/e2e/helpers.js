@@ -1,8 +1,15 @@
 import { expect } from '@playwright/test';
 
+/** "Add" on Medicines: the form opens straight away. */
 export async function openNewMedicine(page) {
+  await page.getByRole('button', { name: 'Add a medicine' }).click();
+  await expect(page.getByRole('dialog', { name: 'Add medicine' })).toBeVisible();
+}
+
+/** The optional path: several medicines, reviewed together before saving. */
+export async function openBatchMedicine(page) {
   await page.getByRole('button', { name: 'Manage medicines' }).click();
-  await page.getByRole('button', { name: 'Add medicines' }).first().click();
+  await page.getByRole('button', { name: 'Add several at once' }).click();
   await page.getByRole('button', { name: 'Type a medicine' }).click();
   await expect(page.getByRole('dialog', { name: 'Add medicine' })).toBeVisible();
 }

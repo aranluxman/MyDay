@@ -36,12 +36,10 @@ test('Escape closes only the time picker, then the wizard, and focus returns', a
 
   await page.keyboard.press('Escape');
   await expect(page.locator('.sheet--wizard')).toHaveCount(0);
-  // Back in the batch sheet, on the control that opened the wizard.
-  await expect.poll(async () => (await activeInTopDialog(page)).inside).toBe(true);
-  await page.keyboard.press('Escape');
+  // Straight back to the page, on the Add button that opened the form.
   await expect(page.getByRole('dialog')).toHaveCount(0);
   expect(await page.evaluate(() => document.getElementById('root').inert)).toBe(false);
-  await expect(page.getByRole('button', { name: 'Add medicines' }).first()).toBeFocused();
+  await expect(page.getByRole('button', { name: 'Add a medicine' })).toBeFocused();
   await context.close();
 });
 

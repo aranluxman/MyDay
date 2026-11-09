@@ -295,27 +295,6 @@ button.daystrip__d:active { transform: scale(0.94); }
 }
 .remind-card__fix span { flex: 1; }
 
-.ontime {
-  position: relative; display: flex; align-items: center; gap: 8px; overflow: hidden;
-  padding: 18px 0 18px 18px; border-radius: var(--radius);
-  background: linear-gradient(120deg, var(--tint-blue), color-mix(in srgb, var(--primary) 18%, var(--surface)));
-  border: 1px solid var(--glass-edge, var(--line));
-}
-.ontime__text { flex: 1 1 55%; min-width: 0; }
-.ontime__t { margin: 0; font-size: 21px; font-weight: 800; line-height: 1.2; }
-.ontime__d { margin: 6px 0 0; font-size: 15px; color: var(--ink-soft); }
-.ontime__art { flex: 0 0 auto; width: 150px; max-width: 42%; height: auto; }
-.ontime__shadow { fill: color-mix(in srgb, var(--primary) 16%, transparent); }
-.ontime__cloud { fill: color-mix(in srgb, #ffffff 70%, transparent); }
-.ontime__cap { fill: #f2f4f8; stroke: #d5dbe6; stroke-width: 1.5; }
-.ontime__bottle { fill: #f59a2c; }
-.ontime__label { fill: #ffffff; opacity: 0.94; }
-.ontime__heart { fill: #ef4b3f; }
-.ontime__glass { fill: color-mix(in srgb, #ffffff 55%, transparent); stroke: color-mix(in srgb, var(--primary) 30%, #ffffff); stroke-width: 1.5; }
-.ontime__water { fill: color-mix(in srgb, #4aa3ff 60%, #ffffff); }
-.ontime__bubble { fill: #ffffff; }
-[data-theme='dark'] .ontime__cloud, [data-theme='midnight'] .ontime__cloud, [data-theme='forest-night'] .ontime__cloud, [data-theme='plum-night'] .ontime__cloud { fill: rgba(255, 255, 255, 0.08); }
-
 .subhead { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
 .subhead__back {
   display: inline-flex; align-items: center; gap: 4px; min-height: 48px; padding: 0 14px 0 8px; margin-left: -8px;
@@ -442,13 +421,9 @@ html[data-motion='calm'] .ring-card__fill, html[data-motion='calm'] .drow__chev 
 @media (max-width: 379px) {
   .drow__ic { width: 44px; height: 44px; }
   .drow__ic svg { width: 20px; height: 20px; }
-  .ontime__art { display: none; }
-  .ontime { padding-right: 18px; }
   .topbar__add span { display: none; }
   .topbar__add { padding: 0; width: 44px; justify-content: center; }
 }
-html[data-text='xlarge'] .ontime__art, html[data-text='huge'] .ontime__art { display: none; }
-html[data-text='xlarge'] .ontime, html[data-text='huge'] .ontime { padding-right: 18px; }
 html[data-text='huge'] .ring-card__ring { width: 64px; height: 64px; }
 html[data-text='huge'] .ring-card__ring svg { width: 64px; height: 64px; }
 html[data-text='huge'] .ring-card__ic { inset: 11px; }
@@ -520,10 +495,10 @@ html[data-motion='calm'] .drow__done, html[data-motion='calm'] .drow__tick svg p
 .dayhero__greet { letter-spacing: -0.015em; }
 .medhead__t { letter-spacing: -0.022em; }
 .subhead__t, .ring-card__n { letter-spacing: -0.02em; }
-.tmeds__t, .mood-card__q, .feel__q, .tl-day__h, .updates-head__t, .ontime__t { letter-spacing: -0.012em; line-height: 1.2; }
+.tmeds__t, .mood-card__q, .feel__q, .tl-day__h, .updates-head__t { letter-spacing: -0.012em; line-height: 1.2; }
 .drow__name, .tl .card__title, .chatbar__t, .medlink__t { letter-spacing: -0.006em; }
 .daystrip__w, .tile__k, .drow__flag, .tl .tl__cat, .tl .tl__time { letter-spacing: 0.01em; }
-.updates-head__d, .feel__d, .remind-card__d, .ontime__d, .tile__d, .drow__dose { line-height: 1.4; }
+.updates-head__d, .feel__d, .remind-card__d, .tile__d, .drow__dose { line-height: 1.4; }
 
 /* ---------- materials: never glass on glass; solid when asked ---------- */
 .tmeds .drow { -webkit-backdrop-filter: none; backdrop-filter: none; }

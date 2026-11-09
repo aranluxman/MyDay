@@ -259,7 +259,7 @@ test('dragging the edit wizard down still asks before discarding changes', async
 
 test('Medicine: tapping a day shows it right there, with scheduled and taken times', async ({ browser }) => {
   const { page, mock, context } = await openApp(browser, { path: '/medication' });
-  await page.getByRole('radio', { name: 'List' }).click();
+  await page.getByRole('radio', { name: 'Today' }).click();
   const strip = page.getByRole('group', { name: 'Pick a day this week' });
   await expect(strip.getByRole('button', { name: /^Today, Wednesday, October 7/ })).toHaveAttribute('aria-pressed', 'true');
 
