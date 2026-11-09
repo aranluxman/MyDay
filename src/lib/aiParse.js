@@ -87,8 +87,8 @@ const PROFILE_LABELS = {
   on_treatment: 'Medications & conditions', for_whom: 'Who MyDay is for',
 };
 const NAV_LABELS = {
-  '/': 'Home', '/medication': 'Medicine', '/appointments': 'Visits', '/updates': 'Updates',
-  '/games': 'Brain Games', '/profile/notifications': 'Alerts & reminders',
+  '/': 'Today', '/medication': 'Medicines', '/appointments': 'Appointments', '/updates': 'Health diary',
+  '/games': 'Games', '/profile/notifications': 'Alerts & reminders',
 };
 
 /** A real calendar date, YYYY-MM-DD, not after `today`. */

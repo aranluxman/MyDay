@@ -13,15 +13,16 @@ const MODE_WORDS = { system: 'match my device', light: 'light mode', dark: 'dark
 
 const TITLES = {
   '/': 'MyDay',
-  '/updates': 'Updates',
-  '/medication': 'Medicine',
+  '/updates': 'Health diary',
+  '/medication': 'Medicines',
   '/appointments': 'Appointments',
-  '/profile': 'Profile',
-  '/games': 'Brain Games',
+  '/profile': 'Settings',
+  '/games': 'Games',
   '/medication/ask': 'Ask about medicines',
 };
 
-// Medicine and Appointments have their own "+ Add" in the top bar instead.
+// Medicines and Appointments have their own "+ Add" in the top bar; these two
+// get one too (Today's opens a short menu).
 const ADD_PAGES = new Set(['/', '/updates']);
 // Each of these tabs wears its own colour (games.css): Medicine and Games a
 // toasted orange, Appointments purple. Set on <html> so sheets, which render
@@ -32,7 +33,7 @@ const AVATAR_PAGES = new Set(['/', '/updates', '/games']);
 
 const ADD_ACTIONS = [
   { icon: 'pill', label: 'Add a medicine', desc: 'Pills, vitamins, drops', to: '/medication', add: 'med' },
-  { icon: 'calendar', label: 'Add a visit', desc: 'Doctor, clinic, dentist', to: '/appointments', add: 'appt' },
+  { icon: 'calendar', label: 'Add an appointment', desc: 'Doctor, clinic, dentist', to: '/appointments', add: 'appt' },
   { icon: 'notes', label: 'Add a health note', desc: 'How you feel today', to: '/updates', add: 'diary' },
   { icon: 'phone', label: 'Add a contact', desc: 'Pharmacy, doctor, family', to: '/profile', add: 'contact' },
 ];
@@ -48,17 +49,18 @@ export function AppShell() {
   const next = nextMode(theme);
   const modeIcon = mode === 'system' ? 'monitor' : mode === 'dark' ? 'moon' : 'sun';
   const isHome = pathname === '/';
-  const labeledFab = isHome || pathname === '/updates';
-  // The floating + belongs where adding things is the job. On settings,
-  // games and the guide it only covers controls — at 320px it sat
-  // squarely on the "All notifications" switch.
+  // Adding lives in the top bar on every page, never floating over the
+  // content or beside the tab bar. Health diary's button does that page's one
+  // job directly; only Today keeps the short menu of everything addable.
   const showAdd = ADD_PAGES.has(pathname);
+  const addDirect = pathname === '/updates' ? ADD_ACTIONS.find((a) => a.add === 'diary') : null;
+  const addRef = useRef(null);
   const mainRef = useRef(null);
   const firstRoute = useRef(true);
   const online = useOnline();
 
   // A meaningful page title for every route (tabs, history, screen readers).
-  useEffect(() => { document.title = pathname === '/' ? 'Home · MyDay' : `${title} · MyDay`; }, [pathname, title]);
+  useEffect(() => { document.title = pathname === '/' ? 'Today · MyDay' : `${title} · MyDay`; }, [pathname, title]);
   useEffect(() => {
     const tab = TAB_COLOURS.find(([p]) => pathname === p || pathname.startsWith(`${p}/`))?.[1];
     if (tab) document.documentElement.setAttribute('data-tab', tab);
@@ -98,7 +100,7 @@ export function AppShell() {
   }
 
   return (
-    <div className={`app-shell${showAdd ? ' has-fab' : ''}`} data-page={pathname}>
+    <div className="app-shell" data-page={pathname}>
       <a className="skip-link" href="#main" onClick={(e) => { e.preventDefault(); mainRef.current?.focus(); }}>Skip to main content</a>
       <Ambient />
       <DueAlarm />
@@ -113,6 +115,14 @@ export function AppShell() {
         <h1 className="topbar__title" id="page-title">{isHome ? <>My<span className="topbar__accent">Day</span></> : title}</h1>
         <div className="topbar__tools">
           <InstallButton />
+          {showAdd && (
+            <button type="button" ref={addRef} className={`topbar__add${addOpen ? ' is-open' : ''}`}
+              aria-haspopup={addDirect ? undefined : 'menu'} aria-expanded={addDirect ? undefined : addOpen}
+              aria-label={addDirect ? 'Add health note' : 'Add'}
+              onClick={() => (addDirect ? doAdd(addDirect) : setAddOpen((v) => !v))}>
+              <Icon name="plus" size={22} stroke={2.6} /> <span>{addDirect ? 'Add note' : 'Add'}</span>
+            </button>
+          )}
           {pathname === '/medication' && (
             <button type="button" className="topbar__add" aria-label="Add a medicine" onClick={() => navigate('/medication', { state: { add: 'med' } })}>
               <Icon name="plus" size={22} stroke={2.6} /> <span>Add</span>
@@ -130,7 +140,7 @@ export function AppShell() {
             {pathname === '/updates' && <span className="topbar__btn-l">Theme</span>}
           </button>
           {AVATAR_PAGES.has(pathname) && (
-            <button type="button" className="topbar__avatar" aria-label="Profile" onClick={() => navigate('/profile')}>
+            <button type="button" className="topbar__avatar" aria-label="Settings and about me" onClick={() => navigate('/profile')}>
               <Avatar name={profile?.full_name} color={profile?.avatar_color} size={48} src={profile?.avatar_url} />
             </button>
           )}
@@ -140,40 +150,30 @@ export function AppShell() {
       {/* Keyed on the route so each screen plays its entrance. */}
       <main className="content" id="main" ref={mainRef} tabIndex={-1} aria-labelledby="page-title"><div className="page" key={pathname}><Outlet /></div></main>
 
-      {showAdd && addOpen && <AddMenu onPick={doAdd} onClose={() => setAddOpen(false)} />}
-
-      {showAdd && (
-        <button className={`fab${labeledFab ? ' fab--labeled' : ''}${addOpen ? ' is-open' : ''}`}
-          aria-label={addOpen ? 'Close the add menu' : 'Add something'} aria-haspopup="menu" aria-expanded={addOpen}
-          onClick={() => setAddOpen((v) => !v)}>
-          <Icon name="plus" size={30} stroke={2.6} className="fab__ic" />
-          {labeledFab && <span className="fab__label">{addOpen ? 'Close' : 'Add'}</span>}
-        </button>
-      )}
+      {showAdd && addOpen && <AddMenu anchor={addRef} onPick={doAdd} onClose={() => { setAddOpen(false); addRef.current?.focus(); }} />}
 
       <BottomNav />
     </div>
   );
 }
 
-// The + button's menu: a short list that drops out of the button itself, so it
-// reads as "the things this button does" rather than a new screen to learn.
-function AddMenu({ onPick, onClose }) {
+// The Add button's menu: a short list that drops out of the button itself, so
+// it reads as "the things this button does" rather than a new screen to learn.
+function AddMenu({ anchor, onPick, onClose }) {
   const ref = useRef(null);
   const [pos, setPos] = useState(null);
-  // Hang the menu off the button wherever the layout has put it (phone bar,
-  // tablet rail, desktop corner) instead of repeating each breakpoint here.
+  // Hang the menu below the top-bar button, wherever the layout has put it.
   useLayoutEffect(() => {
     const place = () => {
-      const fab = document.querySelector('.fab');
-      if (!fab) return;
-      const r = fab.getBoundingClientRect();
-      setPos({ right: Math.max(12, window.innerWidth - r.right), bottom: window.innerHeight - r.top + 12 });
+      const btn = anchor?.current;
+      if (!btn) return;
+      const r = btn.getBoundingClientRect();
+      setPos({ right: Math.max(12, window.innerWidth - r.right), top: r.bottom + 8, bottom: 'auto' });
     };
     place();
     window.addEventListener('resize', place);
     return () => window.removeEventListener('resize', place);
-  }, []);
+  }, [anchor]);
   useEffect(() => {
     ref.current?.querySelector('button')?.focus();
     const onKey = (e) => {

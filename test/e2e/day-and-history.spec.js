@@ -3,15 +3,18 @@ import { openApp } from './harness.js';
 
 test('a morning completion survives reopening and evening has its own dose', async ({ browser }) => {
   const { page, mock, context } = await openApp(browser, { path: '/medication' });
-  const morning = page.getByRole('button', { name: 'Take Synthetic Metformin, 8:00 AM dose' });
+  const morning = page.getByRole('button', { name: /^Review dose: Synthetic Metformin, 8:00 AM/ });
   await morning.click();
+  await page.getByRole('button', { name: 'I took it — record the time' }).click();
+  await page.getByLabel('Type a time').fill('08:10');
+  await page.getByRole('button', { name: 'Use 8:10 AM' }).click();
   await expect(page.locator('.toast').first()).toContainText('Recorded: Synthetic Metformin');
   const recorded = mock.db.myday_doses.find((d) => d.medication_id === 'm-met' && d.dose_date === '2026-10-07' && d.scheduled_time === '08:00');
   const timestamp = recorded.taken_at;
   await page.clock.fastForward(10 * 3600_000);
   await page.evaluate(() => window.dispatchEvent(new Event('focus')));
   await expect(morning).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Take Synthetic Metformin, 8:00 PM dose' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Mark as taken: Synthetic Metformin, 8:00 PM dose' })).toBeVisible();
   await page.reload();
   await expect(morning).toHaveCount(0);
   expect(recorded.status).toBe('taken');
@@ -35,14 +38,15 @@ test('history date dropdown shows all medicines on only the selected day', async
   await context.close();
 });
 
-test('phone navigation opens Games directly and Profile from More', async ({ browser }) => {
+test('phone navigation keeps Appointments direct and opens Games and Settings from More', async ({ browser }) => {
   const { page, context } = await openApp(browser);
-  await expect(page.getByRole('region', { name: 'Quick calls' })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Contacts' })).toBeVisible();
   const nav = page.getByRole('navigation', { name: 'Main navigation' });
-  await expect(nav.getByRole('link', { name: 'Games', exact: true })).toBeVisible();
-  await expect(nav.getByRole('link', { name: 'Profile', exact: true })).toBeHidden();
+  await expect(nav.getByRole('link', { name: 'Appointments', exact: true })).toBeVisible();
+  await expect(nav.getByRole('link', { name: 'Games', exact: true })).toBeHidden();
+  await expect(nav.getByRole('link', { name: 'Settings', exact: true })).toBeHidden();
   await nav.getByRole('button', { name: 'More', exact: true }).click();
-  await page.getByRole('dialog').getByRole('button', { name: /Profile/ }).click();
+  await page.getByRole('dialog').getByRole('button', { name: /^Settings/ }).click();
   await expect(page).toHaveURL(/\/profile$/);
   await context.close();
 });

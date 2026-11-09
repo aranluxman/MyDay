@@ -6,7 +6,7 @@ import { Card, Button, Modal, Field, Input, Textarea, SegmentedControl, Skeleton
 import { Icon } from '../components/Icon.jsx';
 import { NoteChat } from '../components/NoteChat.jsx';
 import { listDiary, saveDiary, deleteDiary } from '../lib/db.js';
-import { prettyClock, prettyDate, localDateStr } from '../lib/format.js';
+import { prettyClock, prettyDate, localDateStr, present } from '../lib/format.js';
 
 // Diary words, not chart words: "How I felt" in a warm tone rather than
 // SYMPTOM in alarm red, which read like a medical alert on a personal note.
@@ -51,8 +51,8 @@ const CHECK_IN = { category: 'note', title: 'Checking in', body: 'I would like t
 // this prefix. Split them back out so the helper's words show as its own
 // speech bubble rather than reading as part of what the person wrote.
 const CHAT_PREFIX = 'From my chat with MyDay: ';
-function splitChat(body = '') {
-  const parts = String(body).split(/\n{2}(?=From my chat with MyDay: )|^(?=From my chat with MyDay: )/);
+function splitChat(body) {
+  const parts = present(body).split(/\n{2}(?=From my chat with MyDay: )|^(?=From my chat with MyDay: )/);
   const own = [];
   const replies = [];
   for (const p of parts) {
@@ -73,7 +73,10 @@ function dayHeading(isoDate) {
 function groupByDay(rows) {
   const groups = [];
   for (const e of rows) {
-    const day = localDateStr(undefined, new Date(e.entry_at));
+    // A note without a usable date is kept, under "Undated notes", rather
+    // than crashing the page or printing an empty or invalid date.
+    const at = e?.entry_at ? new Date(e.entry_at) : null;
+    const day = at && !Number.isNaN(at.getTime()) ? localDateStr(undefined, at) : '';
     const last = groups[groups.length - 1];
     if (last && last.day === day) last.rows.push(e); else groups.push({ day, rows: [e] });
   }
@@ -133,10 +136,10 @@ export default function Updates() {
       )}
 
       {groupByDay(data).map((g, gi) => (
-        <section key={g.day} className="tl-day" aria-label={dayHeading(g.day)}>
+        <section key={g.day || 'undated'} className="tl-day" aria-label={g.day ? dayHeading(g.day) : 'Undated notes'}>
           <div className="tl-day__head">
-            <h3 className="tl-day__h">{dayHeading(g.day)}</h3>
-            <span className="tl-day__date"><Icon name="calendar" size={18} /> {shortDay(g.day)}</span>
+            <h3 className="tl-day__h">{g.day ? dayHeading(g.day) : 'Undated notes'}</h3>
+            {g.day && <span className="tl-day__date"><Icon name="calendar" size={18} /> {shortDay(g.day)}</span>}
           </div>
           <ol className="timeline">
             {g.rows.map((e, i) => (
@@ -165,12 +168,14 @@ function DiaryItem({ entry: e, first, onChat, onEdit, onDelete }) {
   const look = lookOf(e);
   const { text, replies } = splitChat(e.body);
   const toolsId = `note-tools-${e.id}`;
-  const name = e.title || look.label;
+  const title = present(e.title);
+  const name = title || look.label;
+  const when = e.entry_at && !Number.isNaN(new Date(e.entry_at).getTime()) ? prettyClock(new Date(e.entry_at)) : '';
   return (
     <li className="tl">
       <div className="tl__side">
         <span className={`tl__dot tl__dot--${look.cls}`} aria-hidden="true"><Icon name={look.icon} size={22} /></span>
-        <span className="tl__time">{prettyClock(new Date(e.entry_at))}</span>
+        {when && <span className="tl__time">{when}</span>}
       </div>
       <Card className="tl__card">
         <div className="tl__top">
@@ -180,7 +185,7 @@ function DiaryItem({ entry: e, first, onChat, onEdit, onDelete }) {
             <Icon name="dots" size={24} stroke={3} className="tl__dots" />
           </button>
         </div>
-        {e.title && <div className="card__title">{e.title}</div>}
+        {title && <div className="card__title">{title}</div>}
         {text && <div className="tl__body">{text}</div>}
         {!!replies.length && (
           <details className="tl__chat">
@@ -228,8 +233,8 @@ function DiaryForm({ entry, draft, onClose, onSaved }) {
   const editing = !!entry;
   const seed = entry || draft || {};
   const [category, setCategory] = useState(seed.category || 'symptom');
-  const [title, setTitle] = useState(seed.title || '');
-  const [body, setBody] = useState(seed.body || '');
+  const [title, setTitle] = useState(present(seed.title));
+  const [body, setBody] = useState(present(seed.body));
   const [busy, setBusy] = useState(false);
 
   async function save() {

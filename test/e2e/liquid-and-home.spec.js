@@ -9,13 +9,13 @@ for (const [width, height] of LAPTOPS) {
   test(`every page is reachable from the side rail at ${width}x${height}`, async ({ browser }) => {
     const { page, context } = await openApp(browser, { width, height, mobile: false });
     const rail = page.getByRole('navigation', { name: 'Main navigation' });
-    for (const label of ['Home', 'Medicine', 'Updates', 'Visits', 'Games', 'Profile']) {
+    for (const label of ['Today', 'Medicines', 'Appointments', 'Health diary', 'Games', 'Settings', 'Help']) {
       await expect(rail.getByRole('link', { name: label, exact: true })).toBeVisible();
     }
-    // My cards is gone, and Alerts is a section of Profile rather than a page.
+    // My cards is gone, and Alerts is a section of Settings rather than a page.
     await expect(rail.getByRole('link', { name: 'My cards' })).toHaveCount(0);
     await expect(rail.getByRole('link', { name: 'Alerts' })).toHaveCount(0);
-    await rail.getByRole('link', { name: 'Profile', exact: true }).click();
+    await rail.getByRole('link', { name: 'Settings', exact: true }).click();
     await expect(page).toHaveURL(/\/profile$/);
     await page.getByRole('button', { name: /^Alerts & reminders/ }).click();
     await expect(page.getByRole('switch', { name: 'All notifications' })).toBeVisible();
@@ -39,7 +39,7 @@ test('sliding a finger along the tab bar moves the glass and opens the tab it st
   const { page, context } = await openApp(browser, { mobile: false });
   const nav = page.locator('.bottom-nav');
   const b = await nav.boundingBox();
-  const target = await page.locator('.bottom-nav__item', { hasText: 'Updates' }).boundingBox();
+  const target = await page.locator('.bottom-nav__item', { hasText: 'Health diary' }).boundingBox();
   const y = b.y + b.height / 2;
   await page.mouse.move(b.x + 40, y);
   await page.mouse.down();
@@ -53,8 +53,8 @@ test('sliding a finger along the tab bar moves the glass and opens the tab it st
   const active = await page.locator('.bottom-nav__item.is-active').boundingBox();
   expect(Math.abs(lens.x - active.x)).toBeLessThan(2);
   // A plain tap still works.
-  await page.locator('.bottom-nav__item', { hasText: 'Games' }).click();
-  await expect(page).toHaveURL(/\/games$/);
+  await page.locator('.bottom-nav__item', { hasText: 'Appointments' }).click();
+  await expect(page).toHaveURL(/\/appointments$/);
   await context.close();
 });
 
@@ -103,21 +103,23 @@ test('the guide’s "Open Guardians" opens and scrolls to Guardians', async ({ b
   await context.close();
 });
 
-test('Home can be rearranged, and a mood tap is saved with Undo', async ({ browser }) => {
+test('Today can be rearranged, and a mood tap is saved with Undo', async ({ browser }) => {
   const { page, mock, context } = await openApp(browser);
-  await page.getByRole('button', { name: 'Edit Home' }).click();
-  await page.getByRole('switch', { name: 'Quick calls' }).click();
+  await page.getByRole('button', { name: 'Edit Today' }).click();
+  await page.getByRole('switch', { name: 'Contacts' }).click();
   await page.getByRole('switch', { name: 'This week' }).click();
-  await page.getByRole('button', { name: 'Move Next visit up' }).click();
+  await page.getByRole('button', { name: 'Move Health diary up' }).click();
   await page.getByRole('button', { name: 'Done' }).click();
-  await expect(page.getByRole('region', { name: 'Quick calls' })).toHaveCount(0);
+  await expect(page.getByRole('region', { name: 'Contacts' })).toHaveCount(0);
   await expect(page.getByRole('region', { name: 'Medicines this week' })).toBeVisible();
   await page.reload();
-  await page.waitForSelector('.home-grid');
-  await expect(page.getByRole('region', { name: 'Quick calls' })).toHaveCount(0);
+  await page.waitForSelector('.today-side');
+  await expect(page.getByRole('region', { name: 'Contacts' })).toHaveCount(0);
   await expect(page.getByRole('region', { name: 'Medicines this week' })).toBeVisible();
   const order = await page.locator('.home-w').evaluateAll((els) => els.map((e) => e.className.match(/home-w--(\w+)/)[1]));
-  expect(order.indexOf('nextVisit')).toBeLessThan(order.indexOf('today'));
+  expect(order.indexOf('diary')).toBeLessThan(order.indexOf('feeling'));
+  // Today's medicines is never a widget that can be hidden or moved.
+  await expect(page.getByRole('heading', { name: 'Today’s medicines' })).toBeVisible();
 
   await page.getByRole('button', { name: 'Okay' }).click();
   await expect(page.getByText('Today you felt: Okay')).toBeVisible();
@@ -151,30 +153,31 @@ test('asking about medicines says it is not medical advice', async ({ browser })
   await context.close();
 });
 
-test('quick calls dial saved contacts, offer to add a missing one, and 911 asks first', async ({ browser }) => {
+test('contacts dial saved numbers, say plainly when one is missing, and 911 asks first', async ({ browser }) => {
   const { page, mock, context } = await openApp(browser);
   const uid = mock.db.myday_profiles[0].user_id;
   mock.db.myday_contacts.push({ id: 'c-doc', user_id: uid, name: 'Dr. Synthetic', type: 'provider', phone: '(555) 123-4567' });
   await page.reload();
-  const quick = page.getByRole('region', { name: 'Quick calls' });
-  await expect(quick.getByRole('link', { name: /^Call Doctor: Dr\. Synthetic/ })).toHaveAttribute('href', 'tel:5551234567');
+  const quick = page.getByRole('region', { name: 'Contacts' });
+  await expect(quick.getByRole('link', { name: /^Call doctor\s*:\s*Dr\. Synthetic\s*,\s*\(555\) 123-4567/ })).toHaveAttribute('href', 'tel:5551234567');
   // Nothing dials 911 on a single tap.
   await expect(page.locator('a[href="tel:911"]')).toHaveCount(0);
-  await quick.getByRole('button', { name: 'Emergency' }).click();
+  await quick.getByRole('button', { name: 'Emergency call' }).click();
   const sos = page.getByRole('dialog', { name: 'Call 911?' });
   await expect(sos.getByRole('link', { name: 'Call 911 now' })).toHaveAttribute('href', 'tel:911');
   await sos.getByRole('button', { name: 'Cancel' }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
-  // No family number saved: the tile opens the contact form with that kind picked.
-  await quick.getByRole('button', { name: /^Call Family: no number saved/ }).click();
+  // No family number saved: it says "Add family contact", never looks like a call button.
+  await expect(quick.getByRole('link', { name: /family/i })).toHaveCount(0);
+  await quick.getByRole('button', { name: 'Add family contact' }).click();
   await expect(page).toHaveURL(/\/profile$/);
   await expect(page.getByRole('radio', { name: 'Family or other' })).toHaveAttribute('aria-checked', 'true');
   await context.close();
 });
 
-test('the Medicine page marks a dose with Take, and the reminders switch saves', async ({ browser }) => {
+test('the Medicines page records a dose with Mark as taken, and the reminders switch saves', async ({ browser }) => {
   const { page, mock, context } = await openApp(browser, { path: '/medication' });
-  await page.getByRole('button', { name: 'Take Synthetic Vitamin D, 9:00 AM dose' }).click();
+  await page.getByRole('button', { name: 'Mark as taken: Synthetic Vitamin D, 9:00 AM dose' }).click();
   const row = page.locator('.drow', { hasText: 'Synthetic Vitamin D' });
   await expect(row.locator('.drow__done')).toHaveText('Taken');
   // A later dose cannot be marked yet; its outline button says when it can.
@@ -205,7 +208,7 @@ test('Updates: a feeling tile starts a note and the general chat saves nothing',
 test('a sheet follows a drag on its grabber: a short pull springs back, a long one closes', async ({ browser }) => {
   // Full motion here, so the springs actually run.
   const { page, context } = await openApp(browser, { mobile: false, settings: { calmMotion: false } });
-  await page.getByRole('button', { name: 'Today', exact: true }).click();
+  await page.getByRole('button', { name: 'Calendar', exact: true }).click();
   const sheet = page.getByRole('dialog', { name: 'Your calendar' });
   await expect(sheet).toBeVisible();
   await page.waitForTimeout(400); // let it finish arriving
@@ -291,6 +294,6 @@ test('Medicine: tapping a day shows it right there, with scheduled and taken tim
   await expect(page.locator('.ring-card')).toContainText('doses planned');
   await page.getByRole('button', { name: 'Back to today' }).click();
   await expect(page.getByRole('heading', { name: 'Today', exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Take Synthetic Vitamin D, 9:00 AM dose' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Mark as taken: Synthetic Vitamin D, 9:00 AM dose' })).toBeVisible();
   await context.close();
 });

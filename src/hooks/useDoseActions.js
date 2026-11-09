@@ -99,5 +99,24 @@ export function useDoseActions(onChange) {
     } finally { unlock(key); }
   }, [onChange, ui]);
 
-  return { take, skip, takeAsNeeded, pending };
+  // Correcting a record after the toast's Undo has gone: asks first, then
+  // removes the taken / "Not today" record so the dose is open again. The
+  // server keeps one row per scheduled dose, so this can never duplicate.
+  const undo = useCallback(async (dose) => {
+    const name = dose.medication?.name || 'this medicine';
+    const ok = await ui.confirm({
+      title: 'Remove this record?',
+      message: `The ${prettyTime(dose.scheduled_time)} dose of ${name} will no longer be recorded. You can record it again afterwards.`,
+      confirmLabel: 'Remove record',
+    });
+    if (!ok || !lock(dose.id)) return;
+    try {
+      await undoDose(dose.id);
+      onChange?.();
+      ui.toast(`Removed. The ${prettyTime(dose.scheduled_time)} dose of ${name} is no longer recorded.`, 'info');
+    } catch (e) { ui.toast(e.message || 'Could not remove it. The record is unchanged.', 'bad'); }
+    finally { unlock(dose.id); }
+  }, [onChange, ui]);
+
+  return { take, skip, takeAsNeeded, undo, pending };
 }

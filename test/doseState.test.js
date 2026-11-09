@@ -73,15 +73,15 @@ test('summarise handles an empty and a fully taken day', () => {
   const done = summarise([dose(-100, 'taken'), dose(-50, 'taken')], { now: NOW });
   assert.equal(done.allTaken, true);
   assert.equal(done.pct, 100);
-  assert.equal(done.headline, 'All doses taken today');
+  assert.equal(done.headline, 'All doses recorded today');
 });
 
 test('the headline leads with the state, not a score', () => {
-  assert.equal(headlineFor({ total: 3, taken: 0, missed: 0, overdue: 0, due: 0 }), '3 doses to take today');
-  assert.equal(headlineFor({ total: 3, taken: 0, missed: 3, overdue: 0, due: 0 }), '3 doses missed today');
-  assert.equal(headlineFor({ total: 3, taken: 1, missed: 0, overdue: 1, due: 0 }), '1 dose overdue');
+  assert.equal(headlineFor({ total: 3, taken: 0, missed: 0, overdue: 0, due: 0 }), '3 doses scheduled today');
+  assert.equal(headlineFor({ total: 3, taken: 0, missed: 3, overdue: 0, due: 0 }), '3 doses not recorded');
+  assert.equal(headlineFor({ total: 3, taken: 1, missed: 0, overdue: 1, due: 0 }), '1 dose not recorded yet');
   assert.equal(headlineFor({ total: 2, taken: 0, missed: 0, overdue: 0, due: 1 }), '1 dose due now');
-  assert.equal(headlineFor({ total: 3, taken: 1, missed: 0, overdue: 0, due: 0 }), '2 doses still to take');
+  assert.equal(headlineFor({ total: 3, taken: 1, missed: 0, overdue: 0, due: 0 }), '2 more doses scheduled today');
 });
 
 test('a mixed day is partial, not wholly missed', () => {
@@ -187,7 +187,7 @@ test('the day summary treats skipped as settled, not outstanding', () => {
 
   const done = summarise([dose(-600, 'taken'), dose(-600, 'skipped')], { now: NOW });
   assert.equal(done.allTaken, true, 'nothing is left, so the day is done');
-  assert.equal(done.headline, 'All doses taken today');
+  assert.equal(done.headline, 'All doses recorded today');
   assert.equal(done.pct, 100);
 });
 

@@ -18,7 +18,7 @@ const PAGE = 7;
 const FILTERS = [
   { id: 'all', label: 'All' },
   { id: 'taken', label: 'Taken' },
-  { id: 'missed', label: 'Missed' },
+  { id: 'missed', label: 'Not recorded' },
   { id: 'skipped', label: 'Not today' },
 ];
 

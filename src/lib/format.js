@@ -72,3 +72,14 @@ export function relativeTime(iso) {
   if (diff < 2 * day) return 'Yesterday';
   return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
 }
+
+/**
+ * Text that is safe to show: null, undefined, and the literal strings "null"
+ * and "undefined" (left behind by older saves) become '' so they are omitted
+ * instead of rendered. Everything else is trimmed text.
+ */
+export function present(value) {
+  if (value == null) return '';
+  const s = String(value).trim();
+  return s === 'null' || s === 'undefined' ? '' : s;
+}

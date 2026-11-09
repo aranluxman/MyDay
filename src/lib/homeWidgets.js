@@ -1,16 +1,19 @@
 // The Home screen's widgets: which ones show, and in what order. Pure, so the
 // rules (new widgets appear, unknown ones are dropped) are tested.
 
+// Today's medicines is not in this list: it is always shown, first, as the
+// main task. These are the cards beside or below it, in the person's order.
+// Default order follows what matters next: the next appointment, contacts,
+// then the optional wellbeing check-in and diary.
 export const WIDGETS = [
-  { id: 'quick', name: 'Quick calls', desc: 'Call family, your doctor, your pharmacy or 911', icon: 'phone', on: true },
-  { id: 'feeling', name: 'How are you feeling?', desc: 'A one-tap check-in, saved to Updates', icon: 'smile', on: true },
-  { id: 'today', name: "Today's medicines", desc: "What's due now and how today is going", icon: 'pill', on: true },
-  { id: 'nextVisit', name: 'Next visit', desc: 'Your next appointment and how soon it is', icon: 'calendar', on: true },
-  { id: 'diary', name: 'Health diary', desc: 'Your latest note from Updates', icon: 'notes', on: true },
+  { id: 'nextVisit', name: 'Next appointment', desc: 'Your next appointment, when and where', icon: 'calendar', on: true },
+  { id: 'quick', name: 'Contacts', desc: 'Call family, your doctor or your pharmacy; emergency asks first', icon: 'phone', on: true },
+  { id: 'feeling', name: 'How are you feeling?', desc: 'A one-tap check-in, saved to your health diary', icon: 'smile', on: true },
+  { id: 'diary', name: 'Health diary', desc: 'Your latest health diary note', icon: 'notes', on: true },
   { id: 'watching', name: 'People I watch', desc: 'Check on someone you help', icon: 'user', on: true },
-  { id: 'glance', name: 'Today at a glance', desc: 'Medicines, visits and games in numbers', icon: 'layout', on: false },
+  { id: 'glance', name: 'Today at a glance', desc: 'Medicines, appointments and games in numbers', icon: 'layout', on: false },
   { id: 'week', name: 'This week', desc: 'Seven days of medicines at a glance', icon: 'calendar', on: false },
-  { id: 'visitHistory', name: 'Visit history', desc: 'Your last few appointments', icon: 'clock', on: false },
+  { id: 'visitHistory', name: 'Past appointments', desc: 'Your last few appointments', icon: 'clock', on: false },
   { id: 'games', name: 'Brain game reminder', desc: "A nudge when you haven't played today", icon: 'brain', on: false },
 ];
 const BY_ID = new Map(WIDGETS.map((w) => [w.id, w]));
@@ -54,7 +57,7 @@ export function toggleWidget(layout, id, on) {
 }
 
 // "How are you feeling today?" — each answer is saved as a diary note, so it
-// shows up in Updates like any other entry.
+// shows up in the Health diary like any other entry.
 export const MOODS = [
   { id: 'great', label: 'Great', icon: 'smile', category: 'other', title: 'Feeling great' },
   { id: 'good', label: 'Good', icon: 'smile', category: 'other', title: 'Feeling good' },
@@ -72,4 +75,21 @@ export function todaysMood(entries, todayIso, dayOf) {
     if (mood) return { mood, entry: e };
   }
   return null;
+}
+
+// Today's medicines, grouped by time of day with quiet labels (Morning before
+// noon, Afternoon until 5 PM, Evening after), each group in time order. Logged
+// as-needed doses come last under "When needed". Empty groups are left out.
+const DOSE_GROUPS = [
+  { id: 'morning', label: 'Morning', test: (h) => h < 12 },
+  { id: 'afternoon', label: 'Afternoon', test: (h) => h >= 12 && h < 17 },
+  { id: 'evening', label: 'Evening', test: (h) => h >= 17 },
+];
+export function groupDoses(doses) {
+  const byTime = [...(doses || [])].sort((a, b) => String(a.scheduled_time).localeCompare(String(b.scheduled_time)));
+  const scheduled = byTime.filter((d) => !d.as_needed);
+  const hour = (d) => Number(String(d.scheduled_time || '0').slice(0, 2)) || 0;
+  const out = DOSE_GROUPS.map(({ id, label, test }) => ({ id, label, doses: scheduled.filter((d) => test(hour(d))) }));
+  out.push({ id: 'prn', label: 'When needed', doses: byTime.filter((d) => d.as_needed) });
+  return out.filter((g) => g.doses.length);
 }

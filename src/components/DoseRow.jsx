@@ -14,7 +14,13 @@ const SKIP_REASONS = ['Doctor said to stop', 'I felt unwell', 'I ran out'];
 // calendar and the guardian dashboard use, so this row can never disagree
 // with the counters elsewhere.
 //
-// Everything that is not "take it now" — "I took it earlier", "Not today",
+// The wording records what happened; it never tells anyone to take a
+// medicine. A dose in its window offers "Mark as taken". A dose whose window
+// has passed says "Dose not recorded" and offers "Review dose", which opens
+// the row to record the real time it was taken, or "Not today" — never a
+// prompt to take it late. A recorded dose can be removed if it was a mistake.
+//
+// Everything that is not "mark as taken" — "I took it earlier", "Not today",
 // the instructions, why a later dose cannot be marked yet — sits one tap
 // away: tap the medicine to open it. `simple` (Home) leaves that out, and
 // `readOnly` (a past day) shows the record only. `lateMark` (yesterday) adds
@@ -90,11 +96,20 @@ export function DoseRow({ dose, actions, windowMinutes, simple, readOnly, lateMa
   let action = null;
   if (st === 'taken') {
     action = <span className="drow__done"><span className="drow__tick"><Icon name="check" size={18} stroke={2.8} /></span>Taken</span>;
+  } else if (!readOnly && st === 'missed' && expandable) {
+    // The window has passed. Opening the row lets them record the real time
+    // they took it, or "Not today"; it is a review, not a prompt to take it.
+    action = (
+      <button type="button" className="drow__take drow__take--review" disabled={busy} aria-expanded={open} aria-controls={detailsId}
+        aria-label={`Review dose: ${name}, ${time}, not recorded`} onClick={() => setOpen((v) => !v)}>
+        <Icon name={busy ? 'clock' : 'edit'} size={20} /> {busy ? 'Saving…' : 'Review dose'}
+      </button>
+    );
   } else if (!readOnly && markable) {
     action = (
       <button type="button" className="drow__take" disabled={busy}
-        aria-label={`Take ${name}, ${time} dose`} onClick={() => actions.take(dose)}>
-        <Icon name={busy ? 'clock' : 'pill'} size={20} /> {busy ? 'Saving…' : 'Take'}
+        aria-label={`Mark as taken: ${name}, ${time} dose`} onClick={() => actions.take(dose)}>
+        <Icon name={busy ? 'clock' : 'check'} size={20} stroke={2.6} /> {busy ? 'Saving…' : 'Mark as taken'}
       </button>
     );
   } else if (lateMark && !settled && st !== 'skipped') {
@@ -110,8 +125,8 @@ export function DoseRow({ dose, actions, windowMinutes, simple, readOnly, lateMa
     // which says when it will be.
     action = (
       <button type="button" className="drow__take drow__take--later" aria-expanded={open} aria-controls={detailsId}
-        aria-label={`Take ${name}, ${time} dose — not due yet, show when`} onClick={() => setOpen((v) => !v)}>
-        <Icon name="pill" size={20} /> Take
+        aria-label={`Upcoming: ${name}, ${time} dose — not due yet, show when`} onClick={() => setOpen((v) => !v)}>
+        <Icon name="clock" size={20} /> Upcoming
       </button>
     );
   }
@@ -133,6 +148,12 @@ export function DoseRow({ dose, actions, windowMinutes, simple, readOnly, lateMa
           {st === 'skipped' && (
             <p className="drow__note">{dose.skip_reason ? `Not today: ${dose.skip_reason}` : 'Marked as not needed today'}</p>
           )}
+          {st === 'missed' && (
+            <p className="drow__note drow__note--review">
+              No dose was recorded for {time}. If you already took it, record the time you took it.
+              If you are unsure what to do about a dose, ask your pharmacist or doctor.
+            </p>
+          )}
           {m.instructions && <p className="drow__note">{m.instructions}</p>}
           {m.note && <p className="drow__note">{m.note}</p>}
           {!settled && !markable && (
@@ -149,11 +170,18 @@ export function DoseRow({ dose, actions, windowMinutes, simple, readOnly, lateMa
             <div className="drow__opts">
               {markable && (
                 <button type="button" className="dose__skip" disabled={busy} onClick={() => setEarlier(true)}>
-                  <Icon name="clock" size={18} /> I took it earlier
+                  <Icon name="clock" size={18} /> {st === 'missed' ? 'I took it — record the time' : 'I took it earlier'}
                 </button>
               )}
               <button type="button" className="dose__skip" disabled={busy} onClick={() => setAsking(true)}>
                 <Icon name="minus" size={18} /> Not today
+              </button>
+            </div>
+          )}
+          {settled && actions?.undo && (
+            <div className="drow__opts">
+              <button type="button" className="dose__skip" disabled={busy} onClick={() => actions.undo(dose)}>
+                <Icon name="refresh" size={18} /> Remove this record
               </button>
             </div>
           )}

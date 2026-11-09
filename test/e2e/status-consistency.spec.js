@@ -6,17 +6,17 @@ import { openApp } from './harness.js';
 
 test('calendar, history list, Today and Home agree on missed doses', async ({ browser }) => {
   const { page, context } = await openApp(browser, { path: '/medication' });
-  await expect(page.locator('.today__headline')).toHaveText('1 dose missed today');
-  await expect(page.locator('.drow', { hasText: 'Synthetic Metformin' }).filter({ hasText: '8:00 AM' }).locator('.drow__flag')).toContainText('Missed');
+  await expect(page.locator('.today__headline')).toHaveText('1 dose not recorded');
+  await expect(page.locator('.drow', { hasText: 'Synthetic Metformin' }).filter({ hasText: '8:00 AM' }).locator('.drow__flag')).toContainText('Dose not recorded');
 
   await page.getByRole('button', { name: 'Your history' }).click();
   await page.getByRole('radio', { name: 'Calendar' }).click();
   const oct7 = page.getByRole('button', { name: /Wednesday, October 7:/ });
-  await expect(oct7).toHaveAttribute('aria-label', /1 missed/);
+  await expect(oct7).toHaveAttribute('aria-label', /1 not recorded/);
   await expect(oct7).not.toHaveAttribute('aria-label', /: to take/);
   for (const d of ['October 2', 'October 3', 'October 4']) {
     const cell = page.getByRole('button', { name: new RegExp(`, ${d}:`) });
-    await expect(cell).toHaveAttribute('aria-label', /2 missed/);
+    await expect(cell).toHaveAttribute('aria-label', /2 not recorded/);
     await expect(cell).toHaveAttribute('aria-label', /0 to take/);
   }
   // Future days are the plan, labelled as such — not empty.
@@ -27,8 +27,8 @@ test('calendar, history list, Today and Home agree on missed doses', async ({ br
   await expect(oct3.locator('.g-badge--missed')).toHaveCount(2);
 
   await page.goto('/');
-  await expect(page.locator('.tmeds .status__alert-n')).toHaveText('1');
-  await page.getByRole('button', { name: 'Today', exact: true }).click();
-  await expect(page.getByRole('dialog').getByRole('button', { name: /Wednesday, October 7:/ })).toHaveAttribute('aria-label', /1 missed/);
+  await expect(page.locator('.tmed__headline')).toHaveText('1 dose not recorded');
+  await page.getByRole('button', { name: 'Calendar', exact: true }).click();
+  await expect(page.getByRole('dialog').getByRole('button', { name: /Wednesday, October 7:/ })).toHaveAttribute('aria-label', /1 not recorded/);
   await context.close();
 });
