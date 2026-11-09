@@ -7,6 +7,7 @@ import { useDayRefresh } from '../hooks/useDayRefresh.js';
 import { useAsync } from '../hooks/useAsync.js';
 import { Card, Button, Avatar, Skeleton, SkeletonCard, Modal, Toggle } from '../components/ui.jsx';
 import { Icon } from '../components/Icon.jsx';
+import { HeroArt } from '../components/HeroArt.jsx';
 import { MedCalendar, WeekStrip } from '../components/MedCalendar.jsx';
 import { DoseRow } from '../components/DoseRow.jsx';
 import { getNotificationPrefs, todaysDoses, upcomingAppointments, pastAppointments, playedTodayCount, listGuardians, listMedications, listContacts, listDiary, saveDiary, deleteDiary } from '../lib/db.js';
@@ -28,7 +29,6 @@ export default function Home() {
   const ui = useUI();
   const { installed } = useInstallPrompt();
   const navigate = useNavigate();
-  const [fullMonth, setFullMonth] = useState(false);
   const [layout, setLayout] = useHomeLayout();
   const [editing, setEditing] = useState(false);
   const [calOpen, setCalOpen] = useState(false);
@@ -106,21 +106,17 @@ export default function Home() {
           </section>
         );
       case 'week':
-        // This week by default: seven days answer "how am I doing?" at a
-        // glance, and the full month is one tap away for anyone who wants it.
+        // "My calendar": this week of medicines; the month opens from its title.
         return (
-          <section aria-label={fullMonth ? 'Medicine calendar for this month' : 'Medicines this week'}>
-            <h3 className="subsection" style={{ margin: '0 0 8px' }}>{fullMonth ? 'Calendar' : 'This week'}</h3>
-            {fullMonth ? (
-              <>
-                <MedCalendar selected={null} windowMinutes={windowMinutes} meds={meds}
-                  onPick={(day) => navigate('/medication', { state: { view: 'calendar', day } })} />
-                <button type="button" className="cal__today-btn" onClick={() => setFullMonth(false)}>Show just this week</button>
-              </>
-            ) : (
-              <WeekStrip windowMinutes={windowMinutes} meds={meds} onMore={() => setFullMonth(true)}
-                onPick={(day) => navigate('/medication', { state: { view: 'calendar', day } })} />
-            )}
+          <section className="hcard" aria-labelledby="w-cal-t">
+            <button type="button" className="hcard__head" aria-haspopup="dialog" onClick={() => setCalOpen(true)}>
+              <span className="hcard__ic" aria-hidden="true"><Icon name="calendar" size={22} /></span>
+              <h3 className="hcard__t" id="w-cal-t">My calendar</h3>
+              <Icon name="chevron" size={22} className="hcard__chev" />
+            </button>
+            <p className="hcard__month">{new Date().toLocaleDateString([], { month: 'long', year: 'numeric' })}</p>
+            <WeekStrip windowMinutes={windowMinutes} meds={meds} onMore={() => setCalOpen(true)}
+              onPick={(day) => navigate('/medication', { state: { view: 'calendar', day } })} />
           </section>
         );
       case 'visitHistory':
@@ -142,14 +138,12 @@ export default function Home() {
   return (
     <div className="today stack">
       <section className="today-hero" aria-labelledby="hero-hi">
-        <span className="today-hero__orb" aria-hidden="true" />
+        <HeroArt />
         <div className="today-hero__text">
-          <p className="today-hero__date">{prettyDate(localDateStr())}</p>
+          <p className="today-hero__date"><Icon name="calendar" size={20} /> {prettyDate(localDateStr())}</p>
           <h2 className="today-hero__hi" id="hero-hi">{greeting}, {firstName}</h2>
+          <p className="today-hero__sub">Here’s your MyDay for today.</p>
         </div>
-        <button type="button" className="dayhero__today" aria-haspopup="dialog" onClick={() => setCalOpen(true)}>
-          <Icon name="calendar" size={20} /> <span>Calendar</span>
-        </button>
       </section>
 
       {/* Never fail silently: if this device cannot deliver reminders, Today
@@ -181,7 +175,7 @@ export default function Home() {
             </button>
           )}
           <button type="button" className="home-edit" onClick={() => setEditing(true)}>
-            <Icon name="layout" size={20} /> <span>Edit Today</span>
+            <Icon name="layout" size={20} /> <span>Edit Home</span>
           </button>
         </div>
       </div>
@@ -430,39 +424,39 @@ function FeelingWidget({ diary }) {
           </button>
         ))}
       </div>
+      <button type="button" className="chat-link" onClick={() => navigate('/updates', { state: { chat: true } })}>
+        <Icon name="chat" size={22} /> <span>Chat with MyDay</span> <Icon name="chevron" size={20} />
+      </button>
     </Card>
   );
 }
 
-// Small tile: the next appointment, or a nudge to add one.
+// The next appointment: who, when and where, or a clear way to add one.
 function NextVisit({ appt }) {
   const navigate = useNavigate();
-  if (!appt) {
-    return (
-      <button type="button" className="tile" onClick={() => navigate('/appointments', { state: { add: 'appt' } })}>
-        <span className="tile__ic tile__ic--violet" aria-hidden="true"><Icon name="calendar" size={22} /></span>
-        <span className="tile__main">
-          <span className="tile__k">Next appointment</span>
-          <span className="tile__t">Nothing booked</span>
-          <span className="tile__d">Add appointment</span>
-        </span>
-        <Icon name="chevron" size={20} className="tile__chev" />
-      </button>
-    );
-  }
-  const date = new Date(`${appt.appt_date}T00:00:00`);
-  const when = `${date.toLocaleDateString([], { month: 'short', day: 'numeric' })}${appt.appt_time ? ` · ${prettyTime(appt.appt_time)}` : ''}`;
+  const date = appt ? new Date(`${appt.appt_date}T00:00:00`) : null;
   return (
-    <button type="button" className="tile" onClick={() => navigate('/appointments')}>
-      <span className="tile__ic tile__ic--violet" aria-hidden="true"><Icon name="calendar" size={22} /></span>
-      <span className="tile__main">
-        <span className="tile__k">Next appointment<span className="sr-only">, {countdownLabel(appt.appt_date)}</span></span>
-        <span className="tile__t">{appt.doctor_name || appt.reason || 'Appointment'}</span>
-        <span className="tile__d">{when}</span>
-        {appt.location && <span className="tile__d tile__d--loc"><Icon name="pin" size={16} /> {appt.location}</span>}
-      </span>
-      <Icon name="chevron" size={20} className="tile__chev" />
-    </button>
+    <section className="hcard" aria-labelledby="w-visit-t">
+      <button type="button" className="hcard__head" onClick={() => navigate('/appointments')}>
+        <span className="hcard__ic" aria-hidden="true"><Icon name="calendar" size={22} /></span>
+        <h3 className="hcard__t" id="w-visit-t">Next appointment</h3>
+        <Icon name="chevron" size={22} className="hcard__chev" />
+      </button>
+      {appt ? (
+        <div className="hcard__body">
+          <p className="hcard__big">{appt.doctor_name || appt.reason || 'Appointment'}</p>
+          <p className="hcard__line"><Icon name="clock" size={18} /> {date.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })}{appt.appt_time ? ` · ${prettyTime(appt.appt_time)}` : ''} <span className="sr-only">, {countdownLabel(appt.appt_date)}</span></p>
+          {appt.location && <p className="hcard__line"><Icon name="pin" size={18} /> {appt.location}</p>}
+          {appt.reason && appt.doctor_name && <p className="hcard__line hcard__line--soft">{appt.reason}</p>}
+        </div>
+      ) : (
+        <div className="hcard__body hcard__body--empty">
+          <p className="hcard__big">Nothing booked</p>
+          <p className="hcard__line hcard__line--soft">Add a new appointment</p>
+          <Button variant="ghost" icon="plus" onClick={() => navigate('/appointments', { state: { add: 'appt' } })}>Add appointment</Button>
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -501,8 +495,12 @@ function QuickCalls({ contacts }) {
   const navigate = useNavigate();
   const [sos, setSos] = useState(false);
   return (
-    <section className="contacts-w" aria-labelledby="contacts-w-t">
-      <h3 className="w-title" id="contacts-w-t">Contacts</h3>
+    <section className="hcard contacts-w" aria-labelledby="contacts-w-t">
+      <button type="button" className="hcard__head" onClick={() => navigate('/contacts')}>
+        <span className="hcard__ic" aria-hidden="true"><Icon name="users" size={22} /></span>
+        <h3 className="hcard__t" id="contacts-w-t">Contacts</h3>
+        <Icon name="chevron" size={22} className="hcard__chev" />
+      </button>
       <div className="qcalls">
         {QUICK.map((q) => {
           const c = pickContact(contacts, q.types);
@@ -516,7 +514,7 @@ function QuickCalls({ contacts }) {
               </a>
             ) : (
               <button key={q.id} type="button" className="qcalls__btn qcalls__btn--empty"
-                onClick={() => navigate('/profile', { state: { add: 'contact', contactType: q.add } })}>
+                onClick={() => navigate('/contacts', { state: { add: 'contact', contactType: q.add } })}>
                 <span className="qcalls__ic qcalls__ic--add" aria-hidden="true"><Icon name="plus" size={24} stroke={2.4} /></span>
                 <span className="qcalls__l">{q.empty}</span>
               </button>
@@ -589,7 +587,7 @@ function TodayMedicines({ doses, summary: s, opts, actions }) {
 
       <div className="tmed__foot">
         <button type="button" className="tmed__all" onClick={() => navigate('/medication')}>
-          Open Medicines <Icon name="chevron" size={20} />
+          <Icon name="pill" size={22} /> Open Medicines <Icon name="chevron" size={20} />
         </button>
       </div>
     </section>
@@ -670,7 +668,7 @@ function HomeEditor({ layout, onChange, onClose }) {
     });
   }
   return (
-    <Modal title="Edit Today" onClose={onClose}
+    <Modal title="Edit Home" onClose={onClose}
       footer={(
         <div className="btn-row">
           <Button variant="ghost" onClick={() => onChange(DEFAULT_LAYOUT.map((w) => ({ ...w })))}>Reset</Button>

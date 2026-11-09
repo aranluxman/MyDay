@@ -8,8 +8,8 @@ test('nothing saved means every widget at its default', () => {
   assert.deepEqual(normalizeLayout('junk'), DEFAULT_LAYOUT);
   assert.equal(normalizeLayout(null).find((w) => w.id === 'visitHistory').on, false);
   // Today's medicines is always shown first and is not a widget; the cards
-  // beside it start with what matters next.
-  assert.deepEqual(DEFAULT_LAYOUT.filter((w) => w.on).map((w) => w.id), ['nextVisit', 'quick', 'feeling', 'diary', 'watching']);
+  // around it follow the design: mood beside it, then calendar, visit, contacts.
+  assert.deepEqual(DEFAULT_LAYOUT.filter((w) => w.on).map((w) => w.id), ['feeling', 'week', 'nextVisit', 'quick', 'watching']);
   assert.equal(DEFAULT_LAYOUT.some((w) => w.id === 'today'), false);
 });
 
@@ -18,7 +18,7 @@ test('saved order and choices are kept; unknown and repeated ids dropped; new wi
   const saved = [{ id: 'week', on: false }, { id: 'retired' }, { id: 'today', on: true }, { id: 'diary', on: true }, { id: 'week', on: true }];
   const out = normalizeLayout(saved);
   assert.equal(out.length, WIDGETS.length);
-  assert.deepEqual(out.slice(0, 2), [{ id: 'nextVisit', on: true }, { id: 'quick', on: true }]); // new, at their default spots
+  assert.deepEqual(out.slice(0, 1), [{ id: 'feeling', on: true }]); // new, at its default spot
   assert.ok(out.findIndex((w) => w.id === 'week') < out.findIndex((w) => w.id === 'diary'));
   assert.equal(out.some((w) => w.id === 'today'), false);
   assert.equal(out.find((w) => w.id === 'week').on, false);
@@ -31,8 +31,8 @@ test('moving and toggling', () => {
   assert.equal(up[0].id, l[1].id);
   assert.equal(moveWidget(l, l[0].id, -1), l); // already first
   assert.equal(moveWidget(l, 'nope', 1), l);
-  assert.equal(toggleWidget(l, 'diary', false).find((w) => w.id === 'diary').on, false);
-  assert.equal(toggleWidget(l, 'diary').find((w) => w.id === 'diary').on, false);
+  assert.equal(toggleWidget(l, 'feeling', false).find((w) => w.id === 'feeling').on, false);
+  assert.equal(toggleWidget(l, 'feeling').find((w) => w.id === 'feeling').on, false);
 });
 
 test('today’s mood comes from a diary entry written today', () => {

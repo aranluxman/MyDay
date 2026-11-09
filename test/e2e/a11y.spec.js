@@ -126,7 +126,7 @@ test('settings is one list; each row opens its own page with a back button', asy
   const { page, context } = await openApp(browser, { path: '/profile' });
   // Every row says what is inside before it is opened.
   const appearance = page.getByRole('button', { name: /^Appearance/ });
-  await expect(appearance).toContainText('Light theme');
+  await expect(appearance).toContainText('Green theme');
   await expect(page.getByRole('button', { name: 'Show all' })).toHaveCount(0);
   // A row opens its page; the back button returns to the list.
   await page.getByRole('button', { name: /^Accessibility/ }).click();
@@ -141,7 +141,7 @@ test('settings is one list; each row opens its own page with a back button', asy
   // "How to use MyDay" is the last row, and its old page sends you to Settings.
   await page.getByRole('button', { name: /^How to use MyDay/ }).click();
   await page.getByRole('button', { name: /Recording today/ }).click();
-  await expect(page.getByText(/tap the blue “Mark as taken” button/)).toBeVisible();
+  await expect(page.getByText(/tap the “Mark as taken” button/)).toBeVisible();
   await page.goto('/help');
   await expect(page).toHaveURL(/\/profile/);
   await context.close();
@@ -164,7 +164,7 @@ test('"How your medicines work together" minimizes and stays minimized', async (
 
 // axe-core across the main phone screens and every theme. Reported per rule;
 // colour contrast is the audit's open question, so it is printed in full.
-const THEMES = ['light', 'dark', 'contrast', 'warm', 'fresh', 'ocean', 'rose', 'midnight'];
+const THEMES = ['light', 'ocean', 'sky', 'sage', 'lavender', 'rose', 'peach', 'sand', 'dark', 'contrast'];
 for (const theme of THEMES) {
   test(`axe: ${theme} theme`, async ({ browser }, info) => {
     const results = [];

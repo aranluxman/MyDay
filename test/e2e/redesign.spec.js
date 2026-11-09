@@ -23,11 +23,14 @@ test('Today puts the medicine list before the secondary cards, on every width', 
     const { page, context } = await openApp(browser, { width, height, mobile: width < 1024 });
     const meds = page.getByRole('heading', { name: 'Today’s medicines' });
     await expect(meds).toBeVisible();
-    const medsBox = await meds.boundingBox();
-    const apptBox = await page.getByText('Next appointment', { exact: false }).first().boundingBox();
-    // Beside it on a laptop (same row or lower), below it on narrower screens.
-    if (width >= 1280) expect(apptBox.x).toBeGreaterThan(medsBox.x + medsBox.width);
-    else expect(apptBox.y).toBeGreaterThan(medsBox.y);
+    const medsBox = await page.locator('.today-main').boundingBox();
+    const moodBox = await page.getByRole('heading', { name: 'How are you feeling today?' }).boundingBox();
+    const apptBox = await page.getByRole('heading', { name: 'Next appointment' }).boundingBox();
+    // The appointment always comes after the medicines; on a laptop the mood
+    // check-in sits beside them, as in the design.
+    expect(apptBox.y).toBeGreaterThan(medsBox.y);
+    if (width >= 1280) expect(moodBox.x).toBeGreaterThan(medsBox.x + medsBox.width - 1);
+    else expect(moodBox.y).toBeGreaterThan(medsBox.y);
     await context.close();
   }
 });
@@ -59,21 +62,22 @@ test('a recorded dose can be corrected later without a duplicate', async ({ brow
   await context.close();
 });
 
-test('Appointments is one tap away at phone and tablet widths; Games and Settings are in More', async ({ browser }) => {
+test('Appointments is one tap away at phone and tablet widths; Contacts, Games and Settings are in More', async ({ browser }) => {
   for (const [width, height] of [[390, 844], [820, 1180], [1024, 768], [1180, 820]]) {
     const { page, context } = await openApp(browser, { width, height });
     const nav = page.getByRole('navigation', { name: 'Main navigation' });
-    for (const label of ['Today', 'Medicines', 'Appointments', 'Health diary']) {
+    for (const label of ['Home', 'Medicines', 'Appointments', width < 1024 ? 'Diary' : 'Health diary']) {
       await expect(nav.getByRole('link', { name: label, exact: true })).toBeVisible();
     }
     if (width < 1024) {
       await nav.getByRole('button', { name: 'More' }).click();
-      for (const label of ['Games', 'Settings', 'Help']) {
+      for (const label of ['Contacts', 'Games', 'Settings']) {
         await expect(page.getByRole('dialog').getByRole('button', { name: new RegExp(`^${label}`) })).toBeVisible();
       }
     } else {
-      for (const label of ['Games', 'Settings', 'Help']) await expect(nav.getByRole('link', { name: label, exact: true })).toBeVisible();
+      for (const label of ['Contacts', 'Games', 'Settings']) await expect(nav.getByRole('link', { name: label, exact: true })).toBeVisible();
     }
+    await expect(nav.getByRole('link', { name: 'Help' })).toHaveCount(0);
     await context.close();
   }
 });
@@ -86,4 +90,39 @@ test('nothing fixed covers the dose buttons, and no page scrolls sideways', asyn
     expect(await page.locator('.fab').count()).toBe(0);
     await context.close();
   }
+});
+
+test('every page wears the same colour: no page has a colour of its own', async ({ browser }) => {
+  const { page, context } = await openApp(browser, { width: 1440, height: 900, mobile: false });
+  const colours = new Set();
+  for (const path of ['/', '/medication', '/appointments', '/updates', '/games', '/contacts', '/profile']) {
+    await page.goto(path);
+    await page.waitForSelector('main .stack, main h2');
+    colours.add(await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--primary').trim()));
+    expect(await page.evaluate(() => document.documentElement.hasAttribute('data-tab'))).toBe(false);
+  }
+  expect([...colours]).toEqual(['#1e6b3c']);
+  await context.close();
+});
+
+test('Help is not its own page: old /help links open the guide inside Settings', async ({ browser }) => {
+  const { page, context } = await openApp(browser, { path: '/help' });
+  await expect(page).toHaveURL(/\/profile\?section=howto$/);
+  await expect(page.getByRole('heading', { name: 'How to use MyDay' })).toBeVisible();
+  await context.close();
+});
+
+test('Contacts has its own page in the navigation', async ({ browser }) => {
+  const { page, context } = await openApp(browser, { width: 1440, height: 900, path: '/contacts', mobile: false });
+  await expect(page.locator('#page-title')).toHaveText('Contacts');
+  await expect(page.getByRole('button', { name: 'Add a contact' }).first()).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Back to Settings' })).toHaveCount(0);
+  await expect(page.getByRole('navigation', { name: 'Main navigation' }).getByRole('link', { name: 'Contacts' })).toHaveAttribute('aria-current', 'page');
+  await context.close();
+});
+
+test('a retired theme paints as its closest current one', async ({ browser }) => {
+  const { page, context } = await openApp(browser, { theme: 'warm' });
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'peach');
+  await context.close();
 });

@@ -93,12 +93,13 @@ function Root() {
         <Route path="/medication/ask" element={<LazyScreen><MedicineAsk /></LazyScreen>} />
         <Route path="/appointments" element={<LazyScreen><Appointments /></LazyScreen>} />
         <Route path="/profile" element={<LazyScreen><Profile /></LazyScreen>} />
+        <Route path="/contacts" element={<LazyScreen><Profile only="contacts" key="contacts" /></LazyScreen>} />
         {/* Alerts are a section of Profile now, not a page of their own; old
             links (and the AI helper's navigate action) open that section. */}
         <Route path="/profile/notifications" element={<Navigate to="/profile" state={{ open: 'alerts' }} replace />} />
         <Route path="/games" element={<LazyScreen><Games /></LazyScreen>} />
         {/* The guide now lives at the bottom of Settings; old links land there. */}
-        <Route path="/help" element={<Navigate to="/profile" state={{ open: 'howto' }} replace />} />
+        <Route path="/help" element={<Navigate to="/profile?section=howto" replace />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>
