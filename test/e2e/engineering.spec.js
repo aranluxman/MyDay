@@ -1,7 +1,7 @@
 import { test, expect, devices } from '@playwright/test';
 import { openApp, NOW, BASE } from './harness.js';
 import { makeFixtures, installMock } from './mock.js';
-import { openNewMedicine, cont, openFold } from './helpers.js';
+import { openNewMedicine, openBatchMedicine, cont, openFold } from './helpers.js';
 
 const sizes = [[360, 800], [390, 844], [430, 932]];
 const reply = 'Thanks for adding that to your diary. What would you like to record next?';
@@ -64,7 +64,7 @@ for (const [width, height] of sizes) for (const scaled of [false, true]) {
 
   test(`${label}: wizard hierarchy, long names, draft preservation and reachable footer`, async ({ browser }) => {
     const { page, context } = await openApp(browser, { width, height, path: '/medication' });
-    await openNewMedicine(page);
+    await openBatchMedicine(page);
     if (scaled) await zoom200(page);
     await expect(page.getByRole('dialog')).toHaveCount(1);
     await expect(page.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '1');
@@ -237,6 +237,16 @@ test('push-service acceptance never claims receipt, and a disabled current subsc
   await expect(page.getByText(/test could not be sent to any notification service/)).toBeVisible();
   accepted = 1;
   await page.getByRole('button', { name: 'Send a test alert' }).click();
-  await expect(page.getByText('Test alert sent to the notification service for 1 device.')).toBeVisible();
+  // Sent is not seen: the person is asked, and only a yes counts as "Seen".
+  const ask = page.getByRole('alertdialog', { name: 'Did the test alert appear?' });
+  await expect(ask).toContainText('notification service for 1 device');
+  await ask.getByRole('button', { name: 'No, nothing appeared' }).click();
+  expect(await page.evaluate(() => localStorage.getItem('myday_test_alert_seen_at'))).toBeNull();
+  await page.getByRole('button', { name: 'Send a test alert' }).click();
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Yes, I saw it' }).click();
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('myday_test_alert_seen_at'))).not.toBeNull();
+  await page.goto('/medication');
+  await expect(page.locator('.remind-card')).toContainText('This device: Allowed');
+  await expect(page.locator('.remind-card')).toContainText('Test alert: Seen');
   await context.close();
 });

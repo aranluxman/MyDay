@@ -7,33 +7,35 @@ import { openNewMedicine, nameAndAmount, cont, openFold } from './helpers.js';
 const require = createRequire(import.meta.url);
 const AXE = require.resolve('axe-core/axe.min.js');
 
-test('Medicine: History and Manage medicines open from the main page and come back', async ({ browser }) => {
+test('Medicines: opens on today; History and Manage medicines open from it and come back', async ({ browser }) => {
   const { page, context } = await openApp(browser, { path: '/medication' });
-  await expect(page.getByRole('radio', { name: 'Calendar' })).toHaveAttribute('aria-checked', 'true');
-  await expect(page.getByRole('heading', { name: 'Today · Wed, Oct 7' })).toBeVisible();
-  await expect(page.locator('.cal__grid [aria-current="date"]')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('radio', { name: 'Today' })).toHaveAttribute('aria-checked', 'true');
+  await expect(page.getByRole('heading', { name: 'Today', exact: true })).toBeVisible();
+  await expect(page.locator('.daystrip')).toBeVisible();
   await page.getByRole('button', { name: 'Your history' }).click();
   await expect(page.getByRole('heading', { name: 'History' })).toBeVisible();
-  await page.getByRole('button', { name: 'Medicine', exact: true }).click();
+  await page.getByRole('button', { name: 'Medicines', exact: true }).click();
   await page.getByRole('button', { name: 'Manage medicines' }).click();
   await expect(page.getByRole('heading', { name: 'Manage medicines' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Add medicines' }).first()).toBeVisible();
-  await page.getByRole('button', { name: 'Medicine', exact: true }).click();
-  await expect(page.locator('.cal')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Add medicine', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Add several at once' })).toBeVisible();
+  await page.getByRole('button', { name: 'Medicines', exact: true }).click();
+  await expect(page.locator('.daystrip')).toBeVisible();
   await context.close();
 });
 
-test('Medicine: the calendar shows the day you tap underneath it, and remembers List', async ({ browser }) => {
+test('Medicines: Calendar shows the day you tap underneath it, and the choice is remembered', async ({ browser }) => {
   const { page, context } = await openApp(browser, { path: '/medication' });
+  await page.getByRole('radio', { name: 'Calendar' }).click();
   await page.locator('.cal__grid').getByRole('button', { name: /^Tuesday, October 6/ }).click();
   await expect(page.getByRole('heading', { name: 'Yesterday · Tue, Oct 6' })).toBeVisible();
   await expect(page.locator('.dayhead__pill')).toContainText('taken');
   await page.getByRole('button', { name: 'Back to today' }).click();
   await expect(page.getByRole('heading', { name: 'Today · Wed, Oct 7' })).toBeVisible();
-  await page.getByRole('radio', { name: 'List' }).click();
-  await expect(page.locator('.daystrip')).toBeVisible();
   await page.reload();
-  await expect(page.getByRole('radio', { name: 'List' })).toHaveAttribute('aria-checked', 'true');
+  await expect(page.getByRole('radio', { name: 'Calendar' })).toHaveAttribute('aria-checked', 'true');
+  await page.getByRole('radio', { name: 'Today' }).click();
+  await expect(page.locator('.daystrip')).toBeVisible();
   await expect(page.locator('.ring-card')).toBeVisible();
   await context.close();
 });
@@ -124,7 +126,7 @@ test('settings is one list; each row opens its own page with a back button', asy
   const { page, context } = await openApp(browser, { path: '/profile' });
   // Every row says what is inside before it is opened.
   const appearance = page.getByRole('button', { name: /^Appearance/ });
-  await expect(appearance).toContainText('Light theme');
+  await expect(appearance).toContainText('Green theme');
   await expect(page.getByRole('button', { name: 'Show all' })).toHaveCount(0);
   // A row opens its page; the back button returns to the list.
   await page.getByRole('button', { name: /^Accessibility/ }).click();
@@ -139,7 +141,7 @@ test('settings is one list; each row opens its own page with a back button', asy
   // "How to use MyDay" is the last row, and its old page sends you to Settings.
   await page.getByRole('button', { name: /^How to use MyDay/ }).click();
   await page.getByRole('button', { name: /Recording today/ }).click();
-  await expect(page.getByText(/tap the blue “Mark as taken” button/)).toBeVisible();
+  await expect(page.getByText(/tap the “Mark as taken” button/)).toBeVisible();
   await page.goto('/help');
   await expect(page).toHaveURL(/\/profile/);
   await context.close();
@@ -162,7 +164,7 @@ test('"How your medicines work together" minimizes and stays minimized', async (
 
 // axe-core across the main phone screens and every theme. Reported per rule;
 // colour contrast is the audit's open question, so it is printed in full.
-const THEMES = ['light', 'dark', 'contrast', 'warm', 'fresh', 'ocean', 'rose', 'midnight'];
+const THEMES = ['light', 'ocean', 'sky', 'sage', 'lavender', 'rose', 'peach', 'sand', 'dark', 'contrast'];
 for (const theme of THEMES) {
   test(`axe: ${theme} theme`, async ({ browser }, info) => {
     const results = [];

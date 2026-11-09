@@ -1,12 +1,12 @@
 // P0: the amount entered is the amount saved, shown and reopened — exactly.
 import { test, expect } from '@playwright/test';
 import { openApp } from './harness.js';
-import { openNewMedicine, nameAndAmount, cont, stepTitle, lastWrite } from './helpers.js';
+import { openNewMedicine, openBatchMedicine, nameAndAmount, cont, stepTitle, lastWrite } from './helpers.js';
 
 for (const [typed, unit, shown] of [['2.75', 'mg', '2.75 mg'], ['0.1', 'mL', '0.1 mL'], ['0.125', 'mg', '0.125 mg']]) {
   test(`${typed} ${unit} is preserved through review, save and reopen`, async ({ browser }) => {
     const { page, mock, context } = await openApp(browser, { path: '/medication' });
-    await openNewMedicine(page);
+    await openBatchMedicine(page);
     await nameAndAmount(page, `Exact ${typed}`, typed, unit);
     await page.getByRole('button', { name: 'Skip to the summary' }).click();
     await expect(stepTitle(page)).toHaveText('Does this look right?');
@@ -71,7 +71,7 @@ test('"Skip to the summary" cannot bypass missing weekdays or times', async ({ b
   await page.getByRole('button', { name: 'Skip to the summary' }).click();
   await expect(stepTitle(page)).toHaveText('How often?');
   await expect(page.locator('#wiz-days-err')).toBeFocused();
-  await expect(page.getByRole('button', { name: 'Add to review' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Save medicine' })).toHaveCount(0);
   // As-needed is the valid exception: no time, no day needed.
   await page.getByRole('radio', { name: /Only when needed/ }).click();
   await page.getByRole('button', { name: 'Skip to the summary' }).click();

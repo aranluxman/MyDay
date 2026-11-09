@@ -6,7 +6,7 @@ import { openApp } from './harness.js';
 
 test('the week strip stays put when the day changes', async ({ browser }) => {
   const { page, context } = await openApp(browser, { path: '/medication' });
-  await page.getByText('List', { exact: true }).click();
+  await page.getByRole('radio', { name: 'Today' }).click();
   const strip = page.locator('.daystrip').first();
   const top = () => strip.evaluate((e) => Math.round(e.getBoundingClientRect().top + window.scrollY));
   const onToday = await top();

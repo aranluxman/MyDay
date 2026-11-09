@@ -9,12 +9,14 @@ for (const [width, height] of LAPTOPS) {
   test(`every page is reachable from the side rail at ${width}x${height}`, async ({ browser }) => {
     const { page, context } = await openApp(browser, { width, height, mobile: false });
     const rail = page.getByRole('navigation', { name: 'Main navigation' });
-    for (const label of ['Today', 'Medicines', 'Appointments', 'Health diary', 'Games', 'Settings', 'Help']) {
+    for (const label of ['Home', 'Medicines', 'Appointments', 'Contacts', 'Health diary', 'Games', 'Settings']) {
       await expect(rail.getByRole('link', { name: label, exact: true })).toBeVisible();
     }
     // My cards is gone, and Alerts is a section of Settings rather than a page.
     await expect(rail.getByRole('link', { name: 'My cards' })).toHaveCount(0);
     await expect(rail.getByRole('link', { name: 'Alerts' })).toHaveCount(0);
+    // Help is not a page of its own: "How to use MyDay" lives in Settings.
+    await expect(rail.getByRole('link', { name: 'Help' })).toHaveCount(0);
     await rail.getByRole('link', { name: 'Settings', exact: true }).click();
     await expect(page).toHaveURL(/\/profile$/);
     await page.getByRole('button', { name: /^Alerts & reminders/ }).click();
@@ -39,7 +41,7 @@ test('sliding a finger along the tab bar moves the glass and opens the tab it st
   const { page, context } = await openApp(browser, { mobile: false });
   const nav = page.locator('.bottom-nav');
   const b = await nav.boundingBox();
-  const target = await page.locator('.bottom-nav__item', { hasText: 'Health diary' }).boundingBox();
+  const target = await page.locator('.bottom-nav__item', { hasText: 'Diary' }).boundingBox();
   const y = b.y + b.height / 2;
   await page.mouse.move(b.x + 40, y);
   await page.mouse.down();
@@ -103,21 +105,21 @@ test('the guide’s "Open Guardians" opens and scrolls to Guardians', async ({ b
   await context.close();
 });
 
-test('Today can be rearranged, and a mood tap is saved with Undo', async ({ browser }) => {
+test('Home can be rearranged, and a mood tap is saved with Undo', async ({ browser }) => {
   const { page, mock, context } = await openApp(browser);
-  await page.getByRole('button', { name: 'Edit Today' }).click();
+  await page.getByRole('button', { name: 'Edit Home' }).click();
   await page.getByRole('switch', { name: 'Contacts' }).click();
-  await page.getByRole('switch', { name: 'This week' }).click();
-  await page.getByRole('button', { name: 'Move Health diary up' }).click();
+  await page.getByRole('switch', { name: 'Health diary' }).click();
+  await page.getByRole('button', { name: 'Move Next appointment up' }).click();
   await page.getByRole('button', { name: 'Done' }).click();
   await expect(page.getByRole('region', { name: 'Contacts' })).toHaveCount(0);
-  await expect(page.getByRole('region', { name: 'Medicines this week' })).toBeVisible();
+  await expect(page.locator('.home-w--diary')).toBeVisible();
   await page.reload();
   await page.waitForSelector('.today-side');
   await expect(page.getByRole('region', { name: 'Contacts' })).toHaveCount(0);
-  await expect(page.getByRole('region', { name: 'Medicines this week' })).toBeVisible();
+  await expect(page.locator('.home-w--diary')).toBeVisible();
   const order = await page.locator('.home-w').evaluateAll((els) => els.map((e) => e.className.match(/home-w--(\w+)/)[1]));
-  expect(order.indexOf('diary')).toBeLessThan(order.indexOf('feeling'));
+  expect(order.indexOf('nextVisit')).toBeLessThan(order.indexOf('week'));
   // Today's medicines is never a widget that can be hidden or moved.
   await expect(page.getByRole('heading', { name: 'Today’s medicines' })).toBeVisible();
 
@@ -170,7 +172,7 @@ test('contacts dial saved numbers, say plainly when one is missing, and 911 asks
   // No family number saved: it says "Add family contact", never looks like a call button.
   await expect(quick.getByRole('link', { name: /family/i })).toHaveCount(0);
   await quick.getByRole('button', { name: 'Add family contact' }).click();
-  await expect(page).toHaveURL(/\/profile$/);
+  await expect(page).toHaveURL(/\/contacts$/);
   await expect(page.getByRole('radio', { name: 'Family or other' })).toHaveAttribute('aria-checked', 'true');
   await context.close();
 });
@@ -208,7 +210,7 @@ test('Updates: a feeling tile starts a note and the general chat saves nothing',
 test('a sheet follows a drag on its grabber: a short pull springs back, a long one closes', async ({ browser }) => {
   // Full motion here, so the springs actually run.
   const { page, context } = await openApp(browser, { mobile: false, settings: { calmMotion: false } });
-  await page.getByRole('button', { name: 'Calendar', exact: true }).click();
+  await page.getByRole('button', { name: 'My calendar' }).click();
   const sheet = page.getByRole('dialog', { name: 'Your calendar' });
   await expect(sheet).toBeVisible();
   await page.waitForTimeout(400); // let it finish arriving
@@ -259,7 +261,7 @@ test('dragging the edit wizard down still asks before discarding changes', async
 
 test('Medicine: tapping a day shows it right there, with scheduled and taken times', async ({ browser }) => {
   const { page, mock, context } = await openApp(browser, { path: '/medication' });
-  await page.getByRole('radio', { name: 'List' }).click();
+  await page.getByRole('radio', { name: 'Today' }).click();
   const strip = page.getByRole('group', { name: 'Pick a day this week' });
   await expect(strip.getByRole('button', { name: /^Today, Wednesday, October 7/ })).toHaveAttribute('aria-pressed', 'true');
 

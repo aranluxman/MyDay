@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Icon } from './Icon.jsx';
 import { Spinner } from './ui.jsx';
 import { useAsync } from '../hooks/useAsync.js';
@@ -6,6 +6,7 @@ import { dosesInRange } from '../lib/db.js';
 import { dayMarkFromCounts, countsByDay } from '../lib/doseState.js';
 import { isDueOn, normaliseTimes } from '../lib/schedule.js';
 import { localDateStr, deviceTimezone, prettyDate } from '../lib/format.js';
+import { dayForKey } from '../lib/calendarKeys.js';
 
 // Calendars are always Sunday-first; the old "Week starts on" preference was
 // one more thing to get wrong for no real benefit.
@@ -47,7 +48,7 @@ export function dayLabel(dateIso, agg, planned = 0) {
  *                countsByDay(). The guardian dashboard passes this in (it has
  *                no Supabase session), so both render the same marks.
  */
-export function MedCalendar({ selected, onPick, counts, windowMinutes = 60, meds = null, inlineKey = false }) {
+export function MedCalendar({ selected, onPick, counts, windowMinutes = 60, meds = null, inlineKey = false, compact = false }) {
   const today = localDateStr(deviceTimezone());
   const [cursor, setCursor] = useState(() => {
     // Open on the selected day's month when one is given, so a guardian
@@ -98,6 +99,27 @@ export function MedCalendar({ selected, onPick, counts, windowMinutes = 60, meds
     onPick?.(today);
   }
 
+  // Keyboard: one day in the month is in the Tab order (the selected one, else
+  // today, else the 1st) and the arrow keys move between days, across months
+  // too, the way a paper calendar is read. Enter or Space picks the day.
+  const gridRef = useRef(null);
+  const [focusDay, setFocusDay] = useState(null);
+  const inMonth = (dStr) => dStr >= fromIso && dStr <= toIso;
+  const tabDay = [focusDay, selected, today].find((dStr) => dStr && inMonth(dStr)) || fromIso;
+  useEffect(() => {
+    if (!focusDay || !inMonth(focusDay)) return;
+    gridRef.current?.querySelector(`[data-day="${focusDay}"]`)?.focus();
+  }, [focusDay, fromIso, loading]);
+  function onKey(e) {
+    const from = e.target.closest?.('[data-day]')?.dataset.day;
+    const next = from && dayForKey(e.key, from);
+    if (!next) return;
+    e.preventDefault();
+    const [ny, nm] = next.split('-').map(Number);
+    if (ny !== cursor.y || nm - 1 !== cursor.m) setCursor({ y: ny, m: nm - 1 });
+    setFocusDay(next);
+  }
+
   const cells = [];
   for (let i = 0; i < startWd; i++) cells.push(null);
   for (let day = 1; day <= daysInMonth; day++) cells.push(day);
@@ -105,7 +127,9 @@ export function MedCalendar({ selected, onPick, counts, windowMinutes = 60, meds
   const monthLabel = first.toLocaleDateString([], { month: 'long', year: 'numeric' });
 
   return (
-    <div className="cal">
+    <div className={`cal${compact ? ' cal--compact' : ''}`}>
+      {/* Says which day is picked whenever it changes, for screen readers. */}
+      {onPick && <span className="sr-only" aria-live="polite">{selected ? `Showing ${prettyDate(selected)}` : ''}</span>}
       <div className="cal__head">
         <button type="button" className="cal__nav" aria-label="Previous month" onClick={() => shift(-1)}><Icon name="back" size={24} /></button>
         <span className="cal__title" aria-live="polite">{monthLabel}</span>
@@ -113,9 +137,11 @@ export function MedCalendar({ selected, onPick, counts, windowMinutes = 60, meds
       </div>
       <div className="cal__weekdays" aria-hidden="true">{WEEKDAYS.map((w) => <span key={w}>{w}</span>)}</div>
       {loading && !external ? <Spinner label="" /> : (
-        <div className="cal__grid">
+        <div className="cal__grid" ref={gridRef} role={onPick ? 'group' : undefined}
+          aria-label={onPick ? `${monthLabel}. Use the arrow keys to move between days.` : undefined}
+          onKeyDown={onPick ? onKey : undefined}>
           {cells.map((day, i) => {
-            if (!day) return <span key={i} className="cal__cell cal__cell--empty" />;
+            if (!day) return <span key={i} className="cal__cell cal__cell--empty" aria-hidden="true" />;
             const dStr = iso(cursor.y, cursor.m, day);
             const agg = byDate?.[dStr];
             const planned = agg?.total ? 0 : plannedFor(dStr);
@@ -125,7 +151,8 @@ export function MedCalendar({ selected, onPick, counts, windowMinutes = 60, meds
             const Cell = onPick ? 'button' : 'span';
             return (
               <Cell key={i} type={onPick ? 'button' : undefined} className={cls}
-                onClick={onPick ? () => onPick(dStr) : undefined}
+                data-day={dStr} tabIndex={onPick ? (dStr === tabDay ? 0 : -1) : undefined}
+                onClick={onPick ? () => { setFocusDay(dStr); onPick(dStr); } : undefined}
                 aria-label={dayLabel(dStr, agg, planned)}
                 aria-pressed={onPick ? dStr === selected : undefined}
                 aria-current={dStr === today ? 'date' : undefined}>

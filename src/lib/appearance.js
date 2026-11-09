@@ -1,24 +1,30 @@
-// Appearance options. Each theme id maps to a [data-theme] block in index.css;
-// the swatch colors here are just for the picker preview.
+// Appearance options. Each theme id maps to a [data-theme] block in solid.css;
+// the swatch colors here are just for the picker preview. Eight light themes,
+// each checked for contrast (text at least 12:1 on its background, white at
+// least 5.5:1 on its buttons), plus Dark and High contrast. "light" is the
+// green MyDay look and stays the default id, so nobody's saved choice breaks.
 export const THEMES = [
-  { id: 'light', name: 'Light', bg: '#eff6ff', primary: '#175cd3', ink: '#142d4e' },
-  { id: 'dark', name: 'Dark', bg: '#0e1622', primary: '#4a9fe0', ink: '#e9f1f9' },
+  { id: 'light', name: 'Green', bg: '#f3f6ee', primary: '#1e6b3c', ink: '#16291d' },
+  { id: 'ocean', name: 'Ocean', bg: '#eff6ff', primary: '#175cd3', ink: '#142d4e' },
+  { id: 'sky', name: 'Sky', bg: '#eef7fb', primary: '#0a6a8f', ink: '#0f2a38' },
+  { id: 'sage', name: 'Sage', bg: '#f2f6f3', primary: '#3c6a53', ink: '#1d2b24' },
+  { id: 'lavender', name: 'Lavender', bg: '#f5f2fc', primary: '#6941c6', ink: '#2a1f45' },
+  { id: 'rose', name: 'Rose', bg: '#fcf2f5', primary: '#ad2f5c', ink: '#3a1a26' },
+  { id: 'peach', name: 'Peach', bg: '#fdf5ef', primary: '#b2461f', ink: '#3a2418' },
+  { id: 'sand', name: 'Sand', bg: '#f8f4ec', primary: '#85582a', ink: '#33281c' },
+  { id: 'dark', name: 'Dark', bg: '#0f1712', primary: '#5fc98a', ink: '#e8f2ec' },
   { id: 'contrast', name: 'High contrast', bg: '#ffffff', primary: '#0a3aa6', ink: '#000000' },
-  { id: 'warm', name: 'Warm', bg: '#fbf3e8', primary: '#a1520e', ink: '#3a2a1a' },
-  { id: 'fresh', name: 'Fresh', bg: '#eef6ef', primary: '#18774c', ink: '#16302a' },
-  { id: 'ocean', name: 'Ocean', bg: '#eaf3fb', primary: '#2060eb', ink: '#0f2747' },
-  { id: 'rose', name: 'Rose', bg: '#fbeef4', primary: '#b3376c', ink: '#3a1f2e' },
-  { id: 'midnight', name: 'Midnight', bg: '#0b1020', primary: '#8b9cff', ink: '#e8ecff' },
-  { id: 'lavender', name: 'Lavender', bg: '#f3effb', primary: '#6b46c1', ink: '#2a1f45' },
-  { id: 'mint', name: 'Mint', bg: '#ecf8f5', primary: '#0f766e', ink: '#10302b' },
-  { id: 'sunshine', name: 'Sunshine', bg: '#fff8db', primary: '#8a5a00', ink: '#33290a' },
-  { id: 'ruby', name: 'Ruby', bg: '#fdeeee', primary: '#b4232c', ink: '#3b1416' },
-  { id: 'sand', name: 'Sand', bg: '#f6f0e6', primary: '#8a5a2b', ink: '#34291c' },
-  { id: 'autumn', name: 'Autumn', bg: '#fbefe6', primary: '#b0441a', ink: '#3a2216' },
-  { id: 'forest-night', name: 'Forest night', bg: '#0c1611', primary: '#5fd39a', ink: '#e5f3ea' },
-  { id: 'plum-night', name: 'Plum night', bg: '#160d1c', primary: '#d6a2ff', ink: '#f2e8fa' },
 ];
 export const THEME_IDS = THEMES.map((t) => t.id);
+
+// Themes that were retired in November 2026, and the closest one now. A saved
+// old choice paints as its nearest match instead of falling back to default.
+export const RETIRED_THEMES = {
+  warm: 'peach', autumn: 'peach', fresh: 'sage', mint: 'light', sunshine: 'sand',
+  ruby: 'rose', midnight: 'dark', 'forest-night': 'dark', 'plum-night': 'dark',
+};
+/** A stored theme id as it is today (retired ids mapped to their match). */
+export function currentTheme(theme) { return RETIRED_THEMES[theme] || theme; }
 
 // Light or dark, separate from the colour theme. "System" follows the
 // device's own setting and is stored as the theme id 'system'; picking a
@@ -28,18 +34,19 @@ export const MODES = [
   { id: 'light', name: 'Light' },
   { id: 'dark', name: 'Dark' },
 ];
-const DARK_THEMES = new Set(['dark', 'midnight', 'forest-night', 'plum-night']);
+const DARK_THEMES = new Set(['dark']);
 
 /** The theme actually painted: 'system' becomes light or dark. */
 export function resolveTheme(theme, prefersDark = false) {
   if (theme === 'system') return prefersDark ? 'dark' : 'light';
-  return THEME_IDS.includes(theme) ? theme : 'light';
+  const t = currentTheme(theme);
+  return THEME_IDS.includes(t) ? t : 'light';
 }
 
 /** Which of System / Light / Dark a stored theme belongs to. */
 export function modeOf(theme) {
   if (theme === 'system') return 'system';
-  return DARK_THEMES.has(theme) ? 'dark' : 'light';
+  return DARK_THEMES.has(currentTheme(theme)) ? 'dark' : 'light';
 }
 
 /**
@@ -48,7 +55,7 @@ export function modeOf(theme) {
  */
 export function themeForMode(mode, current) {
   if (mode === 'system') return 'system';
-  return modeOf(current) === mode ? current : mode;
+  return modeOf(current) === mode ? currentTheme(current) : mode;
 }
 
 /** The top-bar button steps System → Light → Dark → System. */

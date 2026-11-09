@@ -5,24 +5,7 @@
    sizes all still apply.
    ===================================================================== */
 
-/* ---------- a colour per tab ----------
-   Medicine and Games are a toasted orange, Appointments purple. AppShell
-   puts data-tab on <html>, so sheets (rendered outside the shell) match the
-   page under them. The High contrast theme keeps its own colours. */
-html[data-tab='medicine']:not([data-theme='contrast']), html[data-tab='games']:not([data-theme='contrast']) {
-  --primary: #a9530f; --primary-2: #c0651a; --on-primary: #ffffff; --primary-fill: var(--primary);
-  --aura-1: #fdba74; --aura-2: #fda4af;
-}
-html[data-tab='visits']:not([data-theme='contrast']) {
-  --primary: #6d3fe0; --primary-2: #8458f0; --on-primary: #ffffff; --primary-fill: var(--primary);
-  --aura-1: #c4b5fd; --aura-2: #93c5fd;
-}
-html:is([data-tab='medicine'], [data-tab='games']):is([data-theme='dark'], [data-theme='midnight'], [data-theme='forest-night'], [data-theme='plum-night']) {
-  --primary: #f0a35a; --primary-2: #f5b678; --on-primary: #1d1006; --primary-fill: var(--primary);
-}
-html[data-tab='visits']:is([data-theme='dark'], [data-theme='midnight'], [data-theme='forest-night'], [data-theme='plum-night']) {
-  --primary: #b49cff; --primary-2: #c6b3ff; --on-primary: #160b33; --primary-fill: var(--primary);
-}
+/* Every page uses the theme's own colour: there are no per-page colours. */
 
 /* "Appointments" is a long title beside Install, Add and the theme button:
    it gets a size that fits, and on a narrow phone with Install showing,

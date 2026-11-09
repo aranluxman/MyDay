@@ -28,39 +28,124 @@
 .bottom-nav__item.is-active, .bottom-nav__item.is-active .bottom-nav__label,
 .bottom-nav__more.is-active, .bottom-nav__more.is-active .bottom-nav__label { color: var(--primary-text, var(--primary)); }
 
-/* ---------- the MyDay look (November 2026): ice blue and cobalt ----------
-   The default Light theme. Mint, Ocean and the others stay in Settings as
-   choices, and a theme someone saved is never overwritten. Medicine and
-   Games keep their orange, Appointments its purple (pages.css).
-   Measured contrast (WCAG 2): ink on bg 12.7:1, ink-soft on white 7.6:1,
-   white on primary 6.0:1 (on hover 8.2:1), primary-coloured text on white
-   7.7:1, status inks on their tints 6.4:1. --line is decorative only;
-   input borders use --line-strong (3.7:1). */
+/* ---------- the MyDay look (November 2026): green, the same on every page ----------
+   One colour per theme on every page: no page wears a colour of its own.
+   Eight light themes plus Dark and High contrast. Measured contrast (WCAG 2)
+   for every light theme: text on background 12.7-14:1, secondary text on
+   white 6.6-7.7:1, white on buttons 5.5-6.6:1, button-coloured text on its
+   pale tint 6.0-7.1:1, white on the sidebar over 10:1. --line is decorative;
+   input borders use --line-strong. */
 :root:not([data-theme]), [data-theme='light'] {
-  --bg: #eff6ff;
-  --surface: #ffffff;
-  --surface-2: #eaf2fe;
-  --ink: #142d4e;
-  --ink-soft: #475569;
-  --line: #dbe5f2;
-  --line-strong: #76879f;
-  --primary: #175cd3;
-  --primary-2: #2f6fe0;
-  --primary-hover: #124aa8;
-  --primary-fill: #175cd3;
-  --on-primary: #ffffff;
-  --primary-soft: #dbeafe;
+  --bg: #f3f6ee; --surface: #ffffff; --surface-2: #eaf3e6;
+  --ink: #16291d; --ink-soft: #4a5a50; --line: #dbe6d6; --line-strong: color-mix(in srgb, #4a5a50 80%, #ffffff);
+  --primary: #1e6b3c; --primary-2: #2a8048; --primary-hover: #175530; --primary-fill: #1e6b3c; --on-primary: #ffffff; --primary-soft: #dcefdc;
   --good: #15803d; --good-bg: #dcfce7; --good-ink: #166534; --good-fill: #15803d;
   --warn: #b45309; --warn-bg: #fef3c7; --warn-ink: #92400e;
   --bad: #b42318; --bad-bg: #fee4e2; --bad-ink: #a2190f;
-  --shadow: 0 1px 2px rgba(20, 45, 78, 0.05), 0 10px 30px rgba(23, 92, 211, 0.07);
-  --shadow-lg: 0 20px 48px rgba(23, 92, 211, 0.14);
-  --aura-1: #bfdbfe; --aura-2: #c7d2fe; --aura-3: #bae6fd;
+  --shadow: 0 1px 2px rgba(22, 60, 35, 0.05), 0 10px 30px rgba(22, 60, 35, 0.08);
+  --shadow-lg: 0 20px 48px rgba(22, 60, 35, 0.14);
+  --aura-1: #dcefdc; --aura-2: #eaf3e6; --aura-3: #dcefdc;
 }
+[data-theme='ocean'] {
+  --bg: #eff6ff; --surface: #ffffff; --surface-2: #eaf2fe;
+  --ink: #142d4e; --ink-soft: #475569; --line: #dbe5f2; --line-strong: color-mix(in srgb, #475569 80%, #ffffff);
+  --primary: #175cd3; --primary-2: #2f6fe0; --primary-hover: #124aa8; --primary-fill: #175cd3; --on-primary: #ffffff; --primary-soft: #dbeafe;
+  --good: #15803d; --good-bg: #dcfce7; --good-ink: #166534; --good-fill: #15803d;
+  --warn: #b45309; --warn-bg: #fef3c7; --warn-ink: #92400e;
+  --bad: #b42318; --bad-bg: #fee4e2; --bad-ink: #a2190f;
+  --shadow: 0 1px 2px rgba(23, 60, 120, 0.05), 0 10px 30px rgba(23, 60, 120, 0.08);
+  --shadow-lg: 0 20px 48px rgba(23, 60, 120, 0.14);
+  --aura-1: #dbeafe; --aura-2: #eaf2fe; --aura-3: #dbeafe;
+}
+[data-theme='sky'] {
+  --bg: #eef7fb; --surface: #ffffff; --surface-2: #e3f1f8;
+  --ink: #0f2a38; --ink-soft: #46606e; --line: #d4e7f0; --line-strong: color-mix(in srgb, #46606e 80%, #ffffff);
+  --primary: #0a6a8f; --primary-2: #1580a8; --primary-hover: #08546f; --primary-fill: #0a6a8f; --on-primary: #ffffff; --primary-soft: #d6eef8;
+  --good: #15803d; --good-bg: #dcfce7; --good-ink: #166534; --good-fill: #15803d;
+  --warn: #b45309; --warn-bg: #fef3c7; --warn-ink: #92400e;
+  --bad: #b42318; --bad-bg: #fee4e2; --bad-ink: #a2190f;
+  --shadow: 0 1px 2px rgba(10, 80, 110, 0.05), 0 10px 30px rgba(10, 80, 110, 0.08);
+  --shadow-lg: 0 20px 48px rgba(10, 80, 110, 0.14);
+  --aura-1: #d6eef8; --aura-2: #e3f1f8; --aura-3: #d6eef8;
+}
+[data-theme='sage'] {
+  --bg: #f2f6f3; --surface: #ffffff; --surface-2: #e6eee8;
+  --ink: #1d2b24; --ink-soft: #4d5d55; --line: #d8e3dc; --line-strong: color-mix(in srgb, #4d5d55 80%, #ffffff);
+  --primary: #3c6a53; --primary-2: #4a7d63; --primary-hover: #2f5541; --primary-fill: #3c6a53; --on-primary: #ffffff; --primary-soft: #dceae1;
+  --good: #15803d; --good-bg: #dcfce7; --good-ink: #166534; --good-fill: #15803d;
+  --warn: #b45309; --warn-bg: #fef3c7; --warn-ink: #92400e;
+  --bad: #b42318; --bad-bg: #fee4e2; --bad-ink: #a2190f;
+  --shadow: 0 1px 2px rgba(40, 70, 55, 0.05), 0 10px 30px rgba(40, 70, 55, 0.08);
+  --shadow-lg: 0 20px 48px rgba(40, 70, 55, 0.14);
+  --aura-1: #dceae1; --aura-2: #e6eee8; --aura-3: #dceae1;
+}
+[data-theme='lavender'] {
+  --bg: #f5f2fc; --surface: #ffffff; --surface-2: #eee8fa;
+  --ink: #2a1f45; --ink-soft: #5b5277; --line: #e1d9f3; --line-strong: color-mix(in srgb, #5b5277 80%, #ffffff);
+  --primary: #6941c6; --primary-2: #7a55d4; --primary-hover: #5533a3; --primary-fill: #6941c6; --on-primary: #ffffff; --primary-soft: #ebe4fb;
+  --good: #15803d; --good-bg: #dcfce7; --good-ink: #166534; --good-fill: #15803d;
+  --warn: #b45309; --warn-bg: #fef3c7; --warn-ink: #92400e;
+  --bad: #b42318; --bad-bg: #fee4e2; --bad-ink: #a2190f;
+  --shadow: 0 1px 2px rgba(80, 50, 150, 0.05), 0 10px 30px rgba(80, 50, 150, 0.08);
+  --shadow-lg: 0 20px 48px rgba(80, 50, 150, 0.14);
+  --aura-1: #ebe4fb; --aura-2: #eee8fa; --aura-3: #ebe4fb;
+}
+[data-theme='rose'] {
+  --bg: #fcf2f5; --surface: #ffffff; --surface-2: #f9e6ec;
+  --ink: #3a1a26; --ink-soft: #6b4a57; --line: #f0d9e2; --line-strong: color-mix(in srgb, #6b4a57 80%, #ffffff);
+  --primary: #ad2f5c; --primary-2: #bf4270; --primary-hover: #8c234a; --primary-fill: #ad2f5c; --on-primary: #ffffff; --primary-soft: #f9dfe8;
+  --good: #15803d; --good-bg: #dcfce7; --good-ink: #166534; --good-fill: #15803d;
+  --warn: #b45309; --warn-bg: #fef3c7; --warn-ink: #92400e;
+  --bad: #b42318; --bad-bg: #fee4e2; --bad-ink: #a2190f;
+  --shadow: 0 1px 2px rgba(140, 40, 80, 0.05), 0 10px 30px rgba(140, 40, 80, 0.08);
+  --shadow-lg: 0 20px 48px rgba(140, 40, 80, 0.14);
+  --aura-1: #f9dfe8; --aura-2: #f9e6ec; --aura-3: #f9dfe8;
+}
+[data-theme='peach'] {
+  --bg: #fdf5ef; --surface: #ffffff; --surface-2: #fbebe0;
+  --ink: #3a2418; --ink-soft: #6b5246; --line: #f2dfd2; --line-strong: color-mix(in srgb, #6b5246 80%, #ffffff);
+  --primary: #b2461f; --primary-2: #c4572e; --primary-hover: #913817; --primary-fill: #b2461f; --on-primary: #ffffff; --primary-soft: #fbe3d5;
+  --good: #15803d; --good-bg: #dcfce7; --good-ink: #166534; --good-fill: #15803d;
+  --warn: #b45309; --warn-bg: #fef3c7; --warn-ink: #92400e;
+  --bad: #b42318; --bad-bg: #fee4e2; --bad-ink: #a2190f;
+  --shadow: 0 1px 2px rgba(150, 70, 30, 0.05), 0 10px 30px rgba(150, 70, 30, 0.08);
+  --shadow-lg: 0 20px 48px rgba(150, 70, 30, 0.14);
+  --aura-1: #fbe3d5; --aura-2: #fbebe0; --aura-3: #fbe3d5;
+}
+[data-theme='sand'] {
+  --bg: #f8f4ec; --surface: #ffffff; --surface-2: #f1eadc;
+  --ink: #33281c; --ink-soft: #62574a; --line: #e7dccb; --line-strong: color-mix(in srgb, #62574a 80%, #ffffff);
+  --primary: #85582a; --primary-2: #986a37; --primary-hover: #6b4620; --primary-fill: #85582a; --on-primary: #ffffff; --primary-soft: #f1e4d1;
+  --good: #15803d; --good-bg: #dcfce7; --good-ink: #166534; --good-fill: #15803d;
+  --warn: #b45309; --warn-bg: #fef3c7; --warn-ink: #92400e;
+  --bad: #b42318; --bad-bg: #fee4e2; --bad-ink: #a2190f;
+  --shadow: 0 1px 2px rgba(110, 80, 40, 0.05), 0 10px 30px rgba(110, 80, 40, 0.08);
+  --shadow-lg: 0 20px 48px rgba(110, 80, 40, 0.14);
+  --aura-1: #f1e4d1; --aura-2: #f1eadc; --aura-3: #f1e4d1;
+}
+/* Dark: green-black surfaces, a bright green for text and marks, and a
+   deeper green behind white button text (white on it 5.6:1). */
+[data-theme='dark'] {
+  --bg: #0f1712; --surface: #17221b; --surface-2: #203027; --ink: #e8f2ec; --ink-soft: #a7b8ad;
+  --line: #2b3b31; --line-strong: #6f8577;
+  --primary: #5fc98a; --primary-2: #7dd6a0; --primary-hover: #1b6a3d; --primary-fill: #1f7445; --on-primary: #ffffff;
+  --primary-soft: color-mix(in srgb, #5fc98a 16%, #17221b);
+  --aura-1: #1f7445; --aura-2: #203027; --aura-3: #1f7445;
+}
+/* The sidebar on a laptop or tablet: a deep shade of the theme colour with
+   white words, and a pale pill for the page you are on. */
+:root, [data-theme] {
+  --rail-bg: color-mix(in srgb, var(--primary) 62%, #000000);
+  --rail-ink: #ffffff;
+  --rail-ink-soft: color-mix(in srgb, #ffffff 82%, var(--primary));
+  --rail-active-bg: color-mix(in srgb, var(--primary) 22%, #ffffff);
+  --rail-active-ink: color-mix(in srgb, var(--primary) 55%, #000000);
+}
+[data-theme='dark'] { --rail-bg: #0b120e; --rail-active-bg: #5fc98a; --rail-active-ink: #08140d; }
+[data-theme='contrast'] { --rail-bg: #ffffff; --rail-ink: #000000; --rail-ink-soft: #000000; --rail-active-bg: #0a3aa6; --rail-active-ink: #ffffff; }
 html:not([data-theme]) .input:not(:focus), [data-theme='light'] .input:not(:focus) { border-color: var(--line-strong); }
 @media (hover: hover) {
-  :root:not([data-theme]):not([data-tab]) .btn:not(.btn--ghost):not(.btn--danger):not(.btn--soft):hover,
-  html[data-theme='light']:not([data-tab]) .btn:not(.btn--ghost):not(.btn--danger):not(.btn--soft):hover { background: var(--primary-hover); }
+  html:not([data-theme='contrast']) .btn:not(.btn--ghost):not(.btn--danger):not(.btn--soft):not(.btn--danger-solid):hover { background: var(--primary-hover); }
 }
 
 /* ---------- navigation (November 2026) ----------
@@ -194,10 +279,13 @@ html[data-text='xlarge'] .today-side > *, html[data-text='huge'] .today-side > *
 /* A dose row decides by its own width where the button goes: beside the
    name when there is room, a full-width button underneath when there is not.
    "Mark as taken" never squeezes the medicine name. */
-.drow { container: drow / inline-size; }
-@container drow (max-width: 520px) {
-  .drow__row { flex-wrap: wrap; }
-  .drow__act { flex: 1 1 100%; }
+.drow { container: drow / inline-size; display: flex; flex-direction: column; }
+@container drow (max-width: 440px) {
+  /* Medicine, then its times and status, then the button: the button never
+     sits between a name and the times that belong to it. */
+  .drow__row { display: contents; }
+  .drow__act { order: 2; margin-top: 10px; }
+  .drow__more { order: 3; }
   .drow__take, .drow__done { width: 100%; }
   .drow__done { flex-direction: row; justify-content: center; }
 }
@@ -258,10 +346,245 @@ html[data-text='xlarge'] .today-side > *, html[data-text='huge'] .today-side > *
 /* A narrow phone keeps the page title whole: Add on Today and Health diary
    becomes its icon (its name, "Add" / "Add health note", stays for screen readers). */
 @container (max-width: 440px) {
-  .app-shell:is([data-page='/'], [data-page='/updates']) .topbar__add { padding: 0; width: 48px; min-height: 48px; justify-content: center; }
-  .app-shell:is([data-page='/'], [data-page='/updates']) .topbar__add span { display: none; }
+  .topbar__add { padding: 0; width: 48px; min-height: 48px; justify-content: center; }
+  .topbar__add span { display: none; }
 }
 
 /* The month calendar is a picker, not a poster: capped so day circles stay
    about 60px and the day's doses below it stay in view on a tablet. */
 .cal { max-width: 520px; margin-left: auto; margin-right: auto; width: 100%; }
+
+/* =====================================================================
+   Medicines (phase 2)
+   Wide: the chosen day's doses beside a compact month calendar. The page
+   gets more room on a laptop so the doses never squeeze.
+   ===================================================================== */
+@media (min-width: 1280px) {
+  .app-shell[data-page='/medication'] .content { max-width: 1120px; margin-left: auto; margin-right: auto; }
+  .app-shell[data-page='/medication'] .topbar { padding-left: max(28px, calc((100% - 1120px) / 2 + 24px)); padding-right: max(28px, calc((100% - 1120px) / 2 + 24px)); }
+}
+.med-split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(300px, 340px); gap: 24px; align-items: start; }
+.med-split__day { min-width: 0; display: flex; flex-direction: column; gap: 14px; }
+.med-split__cal { position: sticky; top: 84px; }
+.cal--compact { max-width: none; padding: 14px 10px 12px; }
+.cal--compact .cal__grid { gap: 4px 2px; }
+.cal--compact .cal__grid .cal__cell { min-height: 38px; }
+.cal--compact .cal__day { font-size: 15px; }
+.cal--compact .cal__title { font-size: 17px; }
+.cal--compact .cal__keyrow { gap: 6px 12px; font-size: 14px; }
+.cal--compact .cal__hint { font-size: 14px; }
+/* A visible focus ring on the day the arrow keys are on. */
+.cal__grid .cal__cell:focus-visible { outline: 3px solid var(--primary); outline-offset: 2px; }
+
+/* "Not recorded" is attention (amber), never urgent red. */
+.today__headline.is-missed, .ring-card .today__headline.is-missed { color: var(--warn-ink); }
+.drow--missed { box-shadow: inset 4px 0 0 var(--warn), var(--shadow); }
+
+/* ---- Reminders checklist (Medicines) ---- */
+.remind-card { display: flex; flex-direction: column; gap: 12px; }
+.remind-card__t { margin: 0; font-size: 20px; font-weight: 800; }
+.remind-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.remind-line {
+  display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 14px;
+  background: var(--surface-2); min-height: 56px;
+}
+.remind-line__ic { flex: none; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; }
+.remind-line--ok .remind-line__ic { background: var(--good-bg); color: var(--good-ink); }
+.remind-line--warn .remind-line__ic { background: var(--warn-bg); color: var(--warn-ink); }
+.remind-line--info .remind-line__ic { background: var(--primary-soft); color: var(--primary-text, var(--primary)); }
+.remind-line__main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.remind-line__t { font-size: 17px; font-weight: 650; }
+.remind-line__t b { font-weight: 800; }
+.remind-line--warn .remind-line__t b { color: var(--warn-ink); }
+.remind-line__d { font-size: 15px; color: var(--ink-soft); line-height: 1.4; }
+.medlist__adds { flex-wrap: wrap; justify-content: flex-end; }
+
+/* Last step of a new medicine: Back and Save side by side, "Save and add
+   another" on its own full-width row underneath, so no label is squeezed. */
+.wiz__foot { flex-wrap: wrap; }
+.wiz__foot > .wiz__another { order: 3; flex: 1 1 100%; }
+.wiz__foot > .btn { overflow-wrap: normal; word-break: normal; hyphens: none; }
+@media (max-width: 480px) {
+  html:is([data-text='xlarge'], [data-text='huge']) .wiz__foot > .btn { flex: 1 1 100%; }
+  html:is([data-text='xlarge'], [data-text='huge']) .wiz__foot > .btn--primary { order: -1; }
+  html:is([data-text='xlarge'], [data-text='huge']) .wiz__foot > .wiz__another { order: 0; }
+  html:is([data-text='xlarge'], [data-text='huge']) .wiz__foot > .btn:not(.btn--primary):not(.wiz__another) { order: 1; }
+}
+
+/* Brain Games used to wear its own orange; it now follows the theme. */
+html .games, html[data-theme] .games {
+  --g-accent: var(--primary-fill, var(--primary));
+  --g-on: var(--on-primary);
+  --g-soft: var(--primary-soft);
+  --g-soft-ink: var(--primary-text, var(--primary));
+  --g-badge: var(--primary);
+  --g-hero-a: color-mix(in srgb, var(--primary) 6%, var(--surface));
+  --g-hero-b: color-mix(in srgb, var(--primary) 16%, var(--surface));
+  --g-hero-edge: color-mix(in srgb, var(--primary) 22%, var(--surface));
+  --g-shadow: var(--shadow);
+}
+
+/* =====================================================================
+   Navigation (green design, November 2026)
+   ===================================================================== */
+/* One label per screen size: the full name in the side rail, the short one
+   ("Diary") in the phone bar. The hidden one is out of the accessibility
+   tree, so the name read out is always the one on screen. */
+.bottom-nav__short { display: none; }
+@media (max-width: 1023px) {
+  .bottom-nav__long { display: none; }
+  .bottom-nav__short { display: inline; }
+  /* The page you are on: a solid pill in the theme colour, white words. */
+  .bottom-nav .bottom-nav__ind.lg-lens { background: var(--primary-fill, var(--primary)); box-shadow: none; border: 0; border-radius: 18px; }
+  .bottom-nav__item.is-active, .bottom-nav__item.is-active .bottom-nav__label,
+  .bottom-nav__more.is-active, .bottom-nav__more.is-active .bottom-nav__label { color: var(--on-primary); }
+
+  /* A deep theme-coloured band across the top on phones and tablets. */
+  .topbar, .topbar.is-scrolled { background: var(--rail-bg); border-bottom-color: transparent; color: var(--rail-ink); }
+  .topbar__title, .topbar__accent { color: var(--rail-ink); }
+  .topbar__accent { color: var(--rail-active-bg); }
+  .topbar .install-btn, .topbar .topbar__add {
+    background: var(--surface); color: var(--rail-active-ink); box-shadow: none;
+  }
+  .topbar .topbar__btn { background: color-mix(in srgb, #ffffff 92%, transparent); color: var(--rail-active-ink); box-shadow: none; border-color: transparent; }
+  .topbar :focus-visible { outline: 3px solid var(--rail-ink); outline-offset: 2px; }
+}
+
+@media (min-width: 1024px) {
+  .bottom-nav {
+    background: var(--rail-bg); border-right: 0; color: var(--rail-ink);
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.08);
+  }
+  /* The MyDay mark: a pale leaf beside the white wordmark. */
+  .bottom-nav::before {
+    color: var(--rail-ink); font-size: 26px; padding-left: 58px; padding-bottom: 22px;
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M5 19C5 10 11 5 20 4c0 9-5 15-14 15z' fill='%23bfe8b0'/%3E%3Cpath d='M5 19c3-4 6.5-7 10.5-9' fill='none' stroke='%23ffffff' stroke-width='1.6' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat 12px 0 / 38px 38px;
+  }
+  .bottom-nav__item, .bottom-nav__item .bottom-nav__label { color: var(--rail-ink-soft); }
+  .bottom-nav__item .bottom-nav__ic { color: inherit; background: transparent; }
+  .bottom-nav__item.is-active, .bottom-nav__item.is-active .bottom-nav__label { color: var(--rail-active-ink); font-weight: 800; }
+  .bottom-nav .bottom-nav__ind.lg-lens { background: var(--rail-active-bg); box-shadow: none; border: 0; }
+  .bottom-nav__item:focus-visible { outline: 3px solid var(--rail-ink); outline-offset: 2px; }
+  /* Games and Settings sit below a thin line, as in the design. */
+  .bottom-nav__item--split { margin-top: 22px; }
+  .bottom-nav__item--split::after {
+    content: ''; position: absolute; left: 12px; right: 12px; top: -12px; height: 1px;
+    background: color-mix(in srgb, var(--rail-ink) 25%, transparent);
+  }
+}
+@media (min-width: 1024px) and (hover: hover) {
+  .bottom-nav__item:not(.is-active):hover { background: color-mix(in srgb, #ffffff 10%, transparent); color: var(--rail-ink); }
+  .bottom-nav__item:not(.is-active):hover .bottom-nav__label { color: var(--rail-ink); }
+}
+.topbar__leaf { display: inline-block; vertical-align: -3px; margin-right: 6px; color: var(--primary); }
+@media (max-width: 1023px) { .topbar__leaf { color: var(--rail-active-bg); } }
+
+/* =====================================================================
+   Home (green design, November 2026)
+   ===================================================================== */
+.today-hero {
+  display: block; position: relative; isolation: isolate; overflow: hidden; min-height: 150px;
+  padding: 24px 26px 22px;
+  background: linear-gradient(110deg, var(--surface) 35%, color-mix(in srgb, var(--primary) 9%, var(--surface)));
+}
+.today-hero__text { position: relative; z-index: 1; max-width: 62%; }
+.today-hero__date { display: flex; align-items: center; gap: 8px; margin: 0 0 6px; font-size: 18px; font-weight: 700; color: var(--ink); }
+.today-hero__date svg { color: var(--primary-text, var(--primary)); flex: none; }
+.today-hero__hi { font-size: clamp(30px, 4.4vw, 42px); }
+.today-hero__sub { margin: 6px 0 0; font-size: 18px; color: var(--ink-soft); }
+.hero-art { position: absolute; z-index: 0; right: 0; bottom: 0; width: min(46%, 380px); height: auto; pointer-events: none; }
+.hero-art__sun { fill: #f8c946; }
+.hero-art__rays line { stroke: #f2b632; stroke-width: 5; stroke-linecap: round; }
+.hero-art__far { fill: color-mix(in srgb, var(--primary) 22%, var(--surface)); }
+.hero-art__near { fill: color-mix(in srgb, var(--primary) 40%, var(--surface)); }
+.hero-art__tree { fill: color-mix(in srgb, var(--primary) 75%, var(--surface)); }
+[data-theme='dark'] .hero-art__sun { fill: #d9b443; }
+[data-theme='contrast'] .hero-art, html[data-contrast='1'] .hero-art { display: none; }
+@container today (max-width: 560px) {
+  /* Narrow: the picture sits under the words, never behind them. */
+  .today-hero__text { max-width: none; }
+  .today-hero { padding-bottom: 92px; }
+  .hero-art { width: min(58%, 220px); }
+}
+
+/* Cards around the medicines share one look: an icon tile, a title that is
+   also the way into its page, and generous room. */
+.hcard {
+  height: 100%; padding: 18px; border-radius: var(--radius);
+  background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow);
+  display: flex; flex-direction: column; gap: 10px;
+}
+.hcard__head {
+  display: flex; align-items: center; gap: 12px; width: 100%; min-height: 52px; padding: 0 0 10px;
+  border: 0; border-bottom: 1px solid var(--line); background: none; color: var(--ink);
+  font: inherit; text-align: left; cursor: pointer;
+}
+.hcard__ic { flex: none; width: 44px; height: 44px; border-radius: 13px; display: grid; place-items: center; background: var(--primary-soft); color: var(--primary-text, var(--primary)); }
+.hcard__t { margin: 0; font-size: 21px; font-weight: 800; }
+.hcard__chev { margin-left: auto; color: var(--ink-soft); flex: none; }
+.hcard__head:focus-visible { outline: 3px solid var(--primary); outline-offset: 3px; border-radius: 12px; }
+.hcard__month { margin: 0; text-align: center; font-size: 18px; font-weight: 750; }
+.hcard__body { display: flex; flex-direction: column; gap: 6px; }
+.hcard__body--empty { align-items: center; text-align: center; justify-content: center; flex: 1; }
+.hcard__big { margin: 0; font-size: 21px; font-weight: 800; overflow-wrap: anywhere; }
+.hcard__line { margin: 0; display: flex; align-items: center; gap: 6px; font-size: 17px; }
+.hcard__line svg { flex: none; color: var(--primary-text, var(--primary)); }
+.hcard__line--soft { color: var(--ink-soft); }
+.hcard .cal { box-shadow: none; border: 0; padding: 0; background: transparent; }
+.contacts-w.hcard { gap: 10px; }
+@media (hover: hover) { .hcard__head:hover .hcard__t { text-decoration: underline; text-underline-offset: 4px; } }
+
+.chat-link {
+  margin-top: 14px; width: 100%; min-height: 56px; display: flex; align-items: center; gap: 10px; padding: 0 16px;
+  border: 0; border-radius: 16px; cursor: pointer; font: inherit; font-size: 18px; font-weight: 750; text-align: left;
+  background: var(--primary-soft); color: var(--primary-text, var(--primary));
+}
+.chat-link span { flex: 1; }
+.tmed__all { background: var(--primary-fill, var(--primary)); color: var(--on-primary); min-height: 58px; font-size: 19px; gap: 10px; }
+@media (hover: hover) { .tmed__all:hover { background: var(--primary-hover); } }
+
+/* Laptop: six columns. Medicines take four with the mood check-in beside
+   them; the cards after it take two each, three to a row. */
+@container today (min-width: 960px) {
+  .today-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 20px; }
+  .today-main { grid-column: span 4; }
+  .today-side { display: contents; }
+  .today-side > * { grid-column: span 2 !important; }
+  .today-side > .gnudge, .today-side > .gnudge-line, .today-side > .setup-line, .today-side > .home-edit,
+  .today-side > .home-w--watching, .today-side > .home-w--glance, .today-side > .home-w--visitHistory { grid-column: 1 / -1 !important; }
+  .today-side > .home-edit { justify-self: center; }
+  .home-w--feeling .mood-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@container today (min-width: 960px) {
+  .today-side > .home-w--week, .today-side > .home-w--nextVisit, .today-side > .home-w--quick, .today-side > .home-w--diary { align-self: stretch; }
+}
+/* Contact icons follow the theme too: one colour, words say what each is. */
+.contacts-w .qcalls__ic { background: var(--primary-soft); color: var(--primary-text, var(--primary)); box-shadow: none; }
+/* A narrow top bar keeps the wordmark whole: the leaf steps aside first. */
+@container (max-width: 400px) { .topbar__leaf { display: none; } }
+
+/* ---- Health diary and Settings (green design) ---- */
+.hero-wrap { container: hero / inline-size; }
+@container hero (max-width: 560px) {
+  .today-hero__text { max-width: none; }
+  .today-hero { padding-bottom: 92px; }
+  .hero-art { width: min(58%, 220px); }
+}
+/* "Chat with MyDay" and the Settings tiles follow the theme colour. */
+.chatbar { background: var(--primary-soft); border-color: transparent; }
+.chatbar__ic { color: var(--primary-text, var(--primary)); background: var(--surface); }
+.chatbar__t, .chatbar > svg:last-child { color: var(--primary-text, var(--primary)); }
+.safety-tile__ic--orange, .safety-tile__ic--green { background: var(--primary-soft); color: var(--primary-text, var(--primary)); }
+.safety-tile.needs-attention { border: 2px solid var(--primary); }
+.pref-list .menu-row__ic, .pref-list .setting-row__ic { background: var(--primary-soft); color: var(--primary-text, var(--primary)); }
+/* Long page names fit the phone's top bar instead of being cut short. */
+@container (max-width: 440px) { .topbar__title { font-size: clamp(22px, 7cqi, 30px); } }
+.pref-list .menu-row { padding-left: 14px; padding-right: 14px; }
+.hcard__t { flex: 1 1 auto; min-width: 0; overflow-wrap: break-word; hyphens: auto; }
+html:is([data-text='xlarge'], [data-text='huge']) .hcard__ic { width: 36px; height: 36px; }
+/* Games: "All Games" and its category filter stack when there is no room
+   side by side (320px at the largest text sizes). */
+.games .section-head { flex-wrap: wrap; row-gap: 8px; }
+.games .gfilter { max-width: 100%; }
+html:is([data-text='xlarge'], [data-text='huge']) .stat-tiles { grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); }
+@media (max-width: 400px) { html:is([data-text='xlarge'], [data-text='huge']) .stat-tiles { grid-template-columns: minmax(0, 1fr); } }

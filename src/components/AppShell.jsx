@@ -17,6 +17,7 @@ const TITLES = {
   '/medication': 'Medicines',
   '/appointments': 'Appointments',
   '/profile': 'Settings',
+  '/contacts': 'Contacts',
   '/games': 'Games',
   '/medication/ask': 'Ask about medicines',
 };
@@ -24,18 +25,14 @@ const TITLES = {
 // Medicines and Appointments have their own "+ Add" in the top bar; these two
 // get one too (Today's opens a short menu).
 const ADD_PAGES = new Set(['/', '/updates']);
-// Each of these tabs wears its own colour (games.css): Medicine and Games a
-// toasted orange, Appointments purple. Set on <html> so sheets, which render
-// outside the shell, match the page they opened from.
-const TAB_COLOURS = [['/medication', 'medicine'], ['/games', 'games'], ['/appointments', 'visits']];
 // Pages that carry the profile photo in the top bar, as a way into Profile.
-const AVATAR_PAGES = new Set(['/', '/updates', '/games']);
+const AVATAR_PAGES = new Set(['/']);
 
 const ADD_ACTIONS = [
   { icon: 'pill', label: 'Add a medicine', desc: 'Pills, vitamins, drops', to: '/medication', add: 'med' },
   { icon: 'calendar', label: 'Add an appointment', desc: 'Doctor, clinic, dentist', to: '/appointments', add: 'appt' },
   { icon: 'notes', label: 'Add a health note', desc: 'How you feel today', to: '/updates', add: 'diary' },
-  { icon: 'phone', label: 'Add a contact', desc: 'Pharmacy, doctor, family', to: '/profile', add: 'contact' },
+  { icon: 'phone', label: 'Add a contact', desc: 'Pharmacy, doctor, family', to: '/contacts', add: 'contact' },
 ];
 
 export function AppShell() {
@@ -60,12 +57,7 @@ export function AppShell() {
   const online = useOnline();
 
   // A meaningful page title for every route (tabs, history, screen readers).
-  useEffect(() => { document.title = pathname === '/' ? 'Today · MyDay' : `${title} · MyDay`; }, [pathname, title]);
-  useEffect(() => {
-    const tab = TAB_COLOURS.find(([p]) => pathname === p || pathname.startsWith(`${p}/`))?.[1];
-    if (tab) document.documentElement.setAttribute('data-tab', tab);
-    else document.documentElement.removeAttribute('data-tab');
-  }, [pathname]);
+  useEffect(() => { document.title = pathname === '/' ? 'Home · MyDay' : `${title} · MyDay`; }, [pathname, title]);
 
   // A missed-dose push arriving while MyDay is open sets off the loud alarm,
   // once per dose — an ordinary notification sound is too easy to miss.
@@ -112,7 +104,7 @@ export function AppShell() {
         </div>
       )}
       <header className={`topbar${scrolled ? ' is-scrolled' : ''}`}>
-        <h1 className="topbar__title" id="page-title">{isHome ? <>My<span className="topbar__accent">Day</span></> : title}</h1>
+        <h1 className="topbar__title" id="page-title">{isHome ? <><Icon name="leaf" size={26} className="topbar__leaf" />My<span className="topbar__accent">Day</span></> : title}</h1>
         <div className="topbar__tools">
           <InstallButton />
           {showAdd && (

@@ -26,13 +26,24 @@ test('all extras but a missing name stays under 100 and lists the name', () => {
   assert.ok(r.missing.includes('full_name'));
 });
 
-import { resolveTheme, modeOf, themeForMode, nextMode, MODES } from '../src/lib/appearance.js';
+import { resolveTheme, modeOf, themeForMode, nextMode, MODES, THEMES } from '../src/lib/appearance.js';
 
 test('System follows the device; other themes paint as themselves', () => {
   assert.equal(resolveTheme('system', true), 'dark');
   assert.equal(resolveTheme('system', false), 'light');
   assert.equal(resolveTheme('ocean', true), 'ocean');
   assert.equal(resolveTheme('bogus', false), 'light');
+});
+
+test('retired themes paint as their closest current theme', () => {
+  assert.equal(resolveTheme('warm'), 'peach');
+  assert.equal(resolveTheme('mint'), 'light');
+  assert.equal(resolveTheme('midnight'), 'dark');
+  assert.equal(resolveTheme('forest-night'), 'dark');
+  assert.equal(resolveTheme('sunshine'), 'sand');
+  assert.equal(THEMES.filter((t) => t.id !== 'dark' && t.id !== 'contrast').length, 8);
+  assert.equal(THEMES[0].id, 'light');
+  assert.equal(THEMES[0].name, 'Green');
 });
 
 test('mode of a theme, and picking a mode keeps a colour that fits', () => {
@@ -42,7 +53,7 @@ test('mode of a theme, and picking a mode keeps a colour that fits', () => {
   assert.equal(modeOf('system'), 'system');
   assert.equal(themeForMode('light', 'ocean'), 'ocean');
   assert.equal(themeForMode('dark', 'ocean'), 'dark');
-  assert.equal(themeForMode('dark', 'midnight'), 'midnight');
+  assert.equal(themeForMode('dark', 'midnight'), 'dark'); // retired, saved as its match
   assert.equal(themeForMode('system', 'warm'), 'system');
   assert.equal(nextMode('system'), 'light');
   assert.equal(nextMode('warm'), 'dark');

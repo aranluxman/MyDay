@@ -10,7 +10,7 @@ import { listContacts, saveContact, deleteContact, uploadAvatar,
   createGuardianInvite, listGuardians, deleteGuardian, formatGuardianCode, issueGuardianCode, revokeGuardianDevice, setGuardianShareDiary } from '../lib/db.js';
 import { LANGUAGES, MORE_LANGUAGES, currentLanguage, setLanguage } from '../lib/translate.js';
 import { ageFromBirthday, prettyClock, shortDate } from '../lib/format.js';
-import { THEMES, TEXT_SIZES, MODES, modeOf, themeForMode, profileCompleteness } from '../lib/appearance.js';
+import { THEMES, TEXT_SIZES, MODES, modeOf, themeForMode, profileCompleteness, currentTheme } from '../lib/appearance.js';
 import { CONTACT_TYPES, validPhone, telHref } from '../lib/contacts.js';
 import { HowToGuide } from './HowTo.jsx';
 import { AlertsSettings } from '../components/AlertsSettings.jsx';
@@ -51,7 +51,9 @@ const FIELD_LABELS = {
   goal: 'Add a health goal',
 };
 
-export default function Profile() {
+// `only` shows one section as a page of its own (Contacts has its own place
+// in the navigation), with no way "back to Settings" because it isn't in it.
+export default function Profile({ only = null }) {
   const { user, profile, theme, resolvedTheme, setTheme, textSize, setTextSize, signOut, updateProfile, reloadProfile } = useApp();
   const { settings, set: setSetting } = useSettings();
   const ui = useUI();
@@ -87,8 +89,7 @@ export default function Profile() {
   // The open page lives in the address (?section=access), so the phone's back
   // button and a reload both behave.
   const section = new URLSearchParams(location.search).get('section');
-  const page = PAGE_IDS[section] ? section : null;
-  const [showAllThemes, setShowAllThemes] = useState(false);
+  const page = only || (PAGE_IDS[section] ? section : null);
   function openPage(id, replace = false) {
     navigate(id ? `/profile?section=${id}` : '/profile', { replace });
     window.scrollTo(0, 0);
@@ -185,7 +186,7 @@ export default function Profile() {
   const mode = modeOf(theme);
   const themeName = theme === 'system'
     ? `System (${resolvedTheme === 'dark' ? 'Dark' : 'Light'})`
-    : THEMES.find((t) => t.id === theme)?.name || 'Light';
+    : THEMES.find((t) => t.id === currentTheme(theme))?.name || 'Green';
   const sizeName = TEXT_SIZES.find((t) => t.id === textSize)?.name || 'Normal';
   const access = [settings.highContrast && 'More contrast', settings.bold && 'Bold', settings.bigButtons && 'Bigger buttons', settings.calmMotion && 'Calm'].filter(Boolean);
   const connected = (guardians.data || []).filter((g) => g.deviceCount > 0).length;
@@ -210,11 +211,14 @@ export default function Profile() {
     return (
       <div className="stack settings-page">
         <div className="settings-page__head">
-          <button type="button" className="settings-back" aria-label="Back to Settings" onClick={() => openPage(null)}>
-            <Icon name="back" size={24} />
-          </button>
+          {!only && (
+            <button type="button" className="settings-back" aria-label="Back to Settings" onClick={() => openPage(null)}>
+              <Icon name="back" size={24} />
+            </button>
+          )}
           <div>
-            <h2 className="settings-page__t">{current.title}</h2>
+            {/* On its own page (Contacts) the top bar already names it. */}
+            {!only && <h2 className="settings-page__t">{current.title}</h2>}
             <p className="settings-page__d">{current.desc}</p>
           </div>
         </div>
@@ -256,10 +260,7 @@ export default function Profile() {
             <Card className="pref-card">
               <div className="pref-card__head"><span className="pref-card__ic pref-card__ic--orange"><Icon name="sun" size={22} /></span>
                 <div><div className="pref-card__t">Theme</div><div className="pref-card__d">Choose a look you like.</div></div></div>
-              {showAllThemes ? <ThemeGrid themes={THEMES} theme={theme} setTheme={setTheme} /> : <ThemePictures theme={theme} setTheme={setTheme} />}
-              <Button variant="ghost" size="sm" onClick={() => setShowAllThemes((v) => !v)}>
-                {showAllThemes ? 'Show fewer themes' : `More themes (${THEMES.length})`}
-              </Button>
+              <ThemeGrid themes={THEMES} theme={theme} setTheme={setTheme} />
             </Card>
 
             <Card className="pref-card pref-list">
@@ -384,11 +385,10 @@ export default function Profile() {
 
         {page === 'appearance' && (
           <>
-            <ThemePictures theme={theme} setTheme={setTheme} />
-            <Card className="pref-list">
-              <MenuRow icon="star" title={`More themes (${THEMES.length})`} desc="Lavender, Mint, Sunshine, Forest night and more"
-                onClick={() => setShowAllThemes((v) => !v)} />
-              {showAllThemes && <div style={{ padding: '4px 14px 14px' }}><ThemeGrid themes={THEMES} theme={theme} setTheme={setTheme} /></div>}
+            <Card className="pref-card">
+              <div className="pref-card__head"><span className="pref-card__ic"><Icon name="sun" size={22} /></span>
+                <div><h3 className="pref-card__t">Colour theme</h3><div className="pref-card__d">Every page uses the colour you pick.</div></div></div>
+              <ThemeGrid themes={THEMES} theme={theme} setTheme={setTheme} />
             </Card>
             <Card className="pref-list">
               <MenuRow icon="bell" title="Sound & vibration" desc="Control alert sounds and vibration" onClick={() => openPage('alerts')} />
@@ -475,7 +475,7 @@ export default function Profile() {
           <span className="safety-tile__t">Guardians</span>
           <span className="safety-tile__d">{!guardians.data ? '' : !connected ? 'Add a family guardian to enable safety alerts' : `${connected} connected`}</span>
         </button>
-        <button type="button" className="safety-tile" onClick={() => openPage('contacts')}>
+        <button type="button" className="safety-tile" onClick={() => navigate('/contacts')}>
           <span className="safety-tile__ic safety-tile__ic--green"><Icon name="phone" size={26} /></span>
           <span className="safety-tile__t">My contacts</span>
           <span className="safety-tile__d">{contacts.data?.length ? `${contacts.data.length} saved` : 'Family, doctor and pharmacy'}</span>
@@ -592,38 +592,19 @@ const PAGE_IDS = { access: 1, alerts: 1, guardians: 1, contacts: 1, language: 1,
 
 // The three everyday themes as big pictures: a sunny sky, a night sky, a
 // warm sunset. Easier to choose between than small colour swatches.
-const PICTURES = [
-  { id: 'light', name: 'Light', icon: 'sun' },
-  { id: 'dark', name: 'Dark', icon: 'moon' },
-  { id: 'warm', name: 'Warm', icon: 'sun' },
-];
-function ThemePictures({ theme, setTheme }) {
-  return (
-    <div className="theme-pics" role="radiogroup" aria-label="Theme">
-      {PICTURES.map((t) => (
-        <button key={t.id} type="button" role="radio" aria-checked={theme === t.id}
-          className={`theme-pic theme-pic--${t.id}${theme === t.id ? ' is-active' : ''}`} onClick={() => setTheme(t.id)}>
-          <span className="theme-pic__art" aria-hidden="true"><Icon name={t.icon} size={40} /></span>
-          <span className="theme-pic__name">{t.name}</span>
-        </button>
-      ))}
-    </div>
-  );
-}
-
 // The colour theme picker: a preview swatch per theme.
 function ThemeGrid({ themes, theme, setTheme }) {
   return (
     <div className="theme-grid" role="radiogroup" aria-label="Colour theme">
       {themes.map((t) => (
-        <button key={t.id} type="button" role="radio" aria-checked={theme === t.id}
-          className={`theme-swatch${theme === t.id ? ' is-active' : ''}`} onClick={() => setTheme(t.id)}>
+        <button key={t.id} type="button" role="radio" aria-checked={currentTheme(theme) === t.id}
+          className={`theme-swatch${currentTheme(theme) === t.id ? ' is-active' : ''}`} onClick={() => setTheme(t.id)}>
           <span className="theme-swatch__preview" style={{ background: t.bg, color: t.ink }} aria-hidden="true">
             <span className="theme-swatch__bar" style={{ background: t.ink, opacity: 0.18 }} />
             <span className="theme-swatch__bar theme-swatch__bar--short" style={{ background: t.ink, opacity: 0.12 }} />
             <span className="theme-swatch__btn" style={{ background: t.primary }} />
           </span>
-          <span className="theme-swatch__name">{t.name}{theme === t.id ? ' ✓' : ''}</span>
+          <span className="theme-swatch__name">{t.name}{currentTheme(theme) === t.id ? ' ✓' : ''}</span>
         </button>
       ))}
     </div>

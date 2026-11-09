@@ -2,17 +2,17 @@
 // rules (new widgets appear, unknown ones are dropped) are tested.
 
 // Today's medicines is not in this list: it is always shown, first, as the
-// main task. These are the cards beside or below it, in the person's order.
-// Default order follows what matters next: the next appointment, contacts,
-// then the optional wellbeing check-in and diary.
+// main task. These are the cards around it, in the person's order. The
+// default follows the November 2026 design: the mood check-in beside the
+// medicines, then My calendar, Next appointment and Contacts in a row.
 export const WIDGETS = [
+  { id: 'feeling', name: 'How are you feeling?', desc: 'A one-tap check-in, saved to your health diary', icon: 'smile', on: true },
+  { id: 'week', name: 'My calendar', desc: 'This week of medicines at a glance', icon: 'calendar', on: true },
   { id: 'nextVisit', name: 'Next appointment', desc: 'Your next appointment, when and where', icon: 'calendar', on: true },
   { id: 'quick', name: 'Contacts', desc: 'Call family, your doctor or your pharmacy; emergency asks first', icon: 'phone', on: true },
-  { id: 'feeling', name: 'How are you feeling?', desc: 'A one-tap check-in, saved to your health diary', icon: 'smile', on: true },
-  { id: 'diary', name: 'Health diary', desc: 'Your latest health diary note', icon: 'notes', on: true },
+  { id: 'diary', name: 'Health diary', desc: 'Your latest health diary note', icon: 'notes', on: false },
   { id: 'watching', name: 'People I watch', desc: 'Check on someone you help', icon: 'user', on: true },
   { id: 'glance', name: 'Today at a glance', desc: 'Medicines, appointments and games in numbers', icon: 'layout', on: false },
-  { id: 'week', name: 'This week', desc: 'Seven days of medicines at a glance', icon: 'calendar', on: false },
   { id: 'visitHistory', name: 'Past appointments', desc: 'Your last few appointments', icon: 'clock', on: false },
   { id: 'games', name: 'Brain game reminder', desc: "A nudge when you haven't played today", icon: 'brain', on: false },
 ];

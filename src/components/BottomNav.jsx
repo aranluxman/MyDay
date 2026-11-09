@@ -4,24 +4,25 @@ import { Icon } from './Icon.jsx';
 import { Modal } from './ui.jsx';
 import { useLiquidSlider } from '../hooks/useLiquidDrag.js';
 
-// Destinations, named the same everywhere: Today, Medicines, Appointments,
-// Health diary, Games, Settings and Help. The URLs are unchanged.
-// Phones and tablets show the four daily tasks plus a labelled "More", so
-// Appointments is never hidden behind entertainment; the side rail on a large
-// screen shows everything. The visible label is the accessible name.
+// Destinations, as in the November 2026 design. The side rail (laptop and
+// tablet) lists Home, Medicines, Appointments, Contacts and Health diary, then
+// Games and Settings. Phones show Home, Medicines, Appointments and Diary plus
+// a labelled "More" (Contacts, Games, Settings), so Appointments is always one
+// tap away. Help is not a destination: "How to use MyDay" lives in Settings.
+// The visible label is the accessible name; `short` is the phone's label.
 const ITEMS = [
-  { to: '/', icon: 'home', label: 'Today', end: true, phone: true },
+  { to: '/', icon: 'home', label: 'Home', end: true, phone: true },
   { to: '/medication', icon: 'pill', label: 'Medicines', phone: true },
   { to: '/appointments', icon: 'calendar', label: 'Appointments', phone: true },
-  { to: '/updates', icon: 'notes', label: 'Health diary', phone: true },
-  { to: '/games', icon: 'brain', label: 'Games' },
+  { to: '/contacts', icon: 'users', label: 'Contacts' },
+  { to: '/updates', icon: 'heartPulse', label: 'Health diary', short: 'Diary', phone: true },
+  { to: '/games', icon: 'brain', label: 'Games', group: 'end' },
   { to: '/profile', icon: 'gear', label: 'Settings', end: true },
-  { to: '/help', icon: 'help', label: 'Help', end: true },
 ];
 const MORE = [
+  { to: '/contacts', icon: 'users', label: 'Contacts', desc: 'Family, doctor and pharmacy, one tap away' },
   { to: '/games', icon: 'brain', label: 'Games', desc: 'Brain games and your progress' },
-  { to: '/profile', icon: 'gear', label: 'Settings', desc: 'About me, contacts, reminders, text size' },
-  { to: '/help', icon: 'help', label: 'Help', desc: 'How to use MyDay, step by step' },
+  { to: '/profile', icon: 'gear', label: 'Settings', desc: 'About me, reminders, text size, How to use MyDay' },
 ];
 
 export function BottomNav() {
@@ -55,9 +56,11 @@ export function BottomNav() {
         <span className="bottom-nav__ind lg-lens" ref={lensRef} aria-hidden="true" />
         {ITEMS.map((it) => (
           <NavLink key={it.to} to={it.to} end={it.end}
-            className={({ isActive }) => `bottom-nav__item${it.phone ? '' : ' bottom-nav__item--wide'}${isActive ? ' is-active' : ''}`}>
+            className={({ isActive }) => `bottom-nav__item${it.phone ? '' : ' bottom-nav__item--wide'}${it.group === 'end' ? ' bottom-nav__item--split' : ''}${isActive ? ' is-active' : ''}`}>
             <span className="bottom-nav__ic" aria-hidden="true"><Icon name={it.icon} size={25} /></span>
-            <span className="bottom-nav__label">{it.label}</span>
+            {it.short
+              ? <span className="bottom-nav__label"><span className="bottom-nav__long">{it.label}</span><span className="bottom-nav__short">{it.short}</span></span>
+              : <span className="bottom-nav__label">{it.label}</span>}
           </NavLink>
         ))}
         <button type="button" className={`bottom-nav__item bottom-nav__more${inMore ? ' is-active' : ''}`}

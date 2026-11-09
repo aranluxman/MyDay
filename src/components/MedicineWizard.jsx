@@ -64,7 +64,7 @@ const errId = (field) => `wiz-${field}-err`;
 // `prefill` comes from reading a photo of the label (see MedicinePhotoScan) or
 // from "Copy": the fields are filled in and the sheet opens on the review step,
 // so the person checks every line before anything is saved.
-export function MedicineWizard({ med, prefill, stageDraft, onDraftChange, onStage, onClose, onSaved, onRemove }) {
+export function MedicineWizard({ med, prefill, stageDraft, onDraftChange, onStage, onClose, onSaved, onRemove, returnFocus }) {
   const ui = useUI();
   const editing = !!med?.id;
   const staging = !!onStage;
@@ -142,7 +142,8 @@ export function MedicineWizard({ med, prefill, stageDraft, onDraftChange, onStag
     goTo(STEPS.length - 1);
   }
 
-  async function save() {
+  // `another`: "Save and add another" — saved, then a fresh blank form.
+  async function save(another = false) {
     if (saving.current) return; // a second tap while saving does nothing
     if (problems.length) { stopAt(problems); return; }
     let payload;
@@ -153,8 +154,8 @@ export function MedicineWizard({ med, prefill, stageDraft, onDraftChange, onStag
     try {
       await saveMedication({ id: med?.id, ...payload }, editing ? med : null);
       try { localStorage.removeItem(DRAFT_KEY); } catch {}
-      ui.toast(editing ? `${payload.name} updated: ${payload.dose}.` : `${payload.name} added: ${payload.dose}.`);
-      onSaved();
+      ui.toast(editing ? `${payload.name} updated: ${payload.dose}.` : `${payload.name} added: ${payload.dose}.${another ? ' Now the next one.' : ''}`);
+      onSaved(another);
     } catch (e) {
       // Never a dead end, and never lose what they typed.
       ui.toast(e.message || 'Could not save. Your details are still here — please try again.', 'bad');
@@ -189,6 +190,15 @@ export function MedicineWizard({ med, prefill, stageDraft, onDraftChange, onStag
   }
 
   useDialog(dialogRef, { onEscape: requestClose });
+  // The sheet moves focus to its first heading as it opens, before the dialog
+  // hook can note what opened it, so the screen that opened it passes that in
+  // and focus goes back there on close (unless another dialog is on top).
+  useEffect(() => () => {
+    const el = returnFocus;
+    requestAnimationFrame(() => {
+      if (el?.isConnected && !el.closest('[inert]') && !document.querySelector('[role="dialog"], [role="alertdialog"]')) el.focus({ preventScroll: true });
+    });
+  }, []);
   // Dragging it down asks the same way the X does, so a draft is never lost to a swipe.
   useSheetDrag(dialogRef, { onDismiss: requestClose, keepOpen: true });
   const pct = Math.round(((step + 1) / STEPS.length) * 100);
@@ -251,9 +261,15 @@ export function MedicineWizard({ med, prefill, stageDraft, onDraftChange, onStag
         <div className="wiz__foot">
           {step > 0 && <Button variant="ghost" full={false} onClick={() => goTo(step - 1)}>Back</Button>}
           {stepId === 'review' ? (
-            <Button size="lg" icon={busy ? 'clock' : 'check'} disabled={busy} aria-disabled={busy || undefined} onClick={save}>
-              {busy ? 'Saving…' : editing ? 'Save changes' : staging ? 'Add to review' : 'Add this medicine'}
-            </Button>
+            <>
+              {/* A new medicine on its own can go straight into another. */}
+              {!editing && !staging && !prefill && (
+                <Button variant="ghost" full={false} className="wiz__another" disabled={busy} onClick={() => save(true)}>Save and add another</Button>
+              )}
+              <Button size="lg" icon={busy ? 'clock' : 'check'} disabled={busy} aria-disabled={busy || undefined} onClick={() => save()}>
+                {busy ? 'Saving…' : editing ? 'Save changes' : staging ? 'Add to review' : 'Save medicine'}
+              </Button>
+            </>
           ) : (
             <Button size="lg" onClick={next}>Continue</Button>
           )}

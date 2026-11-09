@@ -14,23 +14,13 @@ Built with **React + Vite (JSX)**, **Supabase** (Auth + Postgres + Edge Function
 - **Accounts** — email + password sign up / sign in / sign out. Each person's data
   is private (per-user Row Level Security). Sign-up is instant (no email-confirmation
   step), which is friendlier for older users.
-- **Navigation** — the same words everywhere: Today, Medicines, Appointments, Health diary, Games, Settings and Help (URLs unchanged: `/`, `/medication`, `/appointments`, `/updates`, `/games`, `/profile`, `/help`). Phones and tablets show Today, Medicines, Appointments and Health diary plus a labelled **More** (Games, Settings, Help); from 1024px a labelled side rail shows everything. Alerts & reminders are a section of Settings (`/profile/notifications` opens it there). Adding things lives in the top bar on every page — nothing floats over the content.
+- **Navigation** — a deep green side bar on laptops and tablets (Home, Medicines, Appointments, Contacts, Health diary, then Games and Settings) and a bottom bar on phones (Home, Medicines, Appointments, Diary, More → Contacts, Games, Settings). URLs: `/`, `/medication`, `/appointments`, `/contacts`, `/updates`, `/games`, `/profile`. Help is not a page of its own: "How to use MyDay" is in Settings, and old `/help` links open it there. Adding things lives in the top bar on every page.
+- **One colour everywhere** — every page uses the theme's colour (no page has its own). Themes: Green (default), Ocean, Sky, Sage, Lavender, Rose, Peach, Sand, Dark and High contrast, each checked for contrast. Older saved themes (Warm, Mint, Midnight…) paint as their closest match.
 - **Liquid Glass controls** — the tab bar / side rail, segmented controls and switches use a Liquid Glass lens (`src/liquid.css`, `src/hooks/useLiquidDrag.js`, physics in `src/lib/liquid.js`): press and slide a finger along the bar and the glass follows it, magnifying the tab under it, then springs to the nearest tab on release (Apple's momentum projection + critically damped springs). Switches turn to glass while held and can be slid. Real refraction in Chromium; frosted elsewhere; solid with Reduce Transparency / High contrast; no springs with Reduce Motion or Calm screen.
 - **Forgot password** — a plain-language email recovery flow (`/forgot` →
   `/reset-password`), linked from the sign-in screen.
-- **Today** (`/`) — a compact greeting, then **Today's medicines**: every dose of the day grouped into Morning / Afternoon / Evening / When needed, with a one-line summary ("1 dose not recorded", "2 of 4 recorded"). Each dose says **Mark as taken** in its window; a dose whose window has passed says **Dose not recorded** with **Review dose**, which records the real time it was taken or "Not today" — MyDay never tells anyone to take a late dose. A recorded dose can be corrected later ("Remove this record"). On a laptop the medicines are the wide column of a 2:1 grid with the next appointment, contacts, mood check-in and diary beside them; on a tablet those cards sit two by two below the medicines; on a phone it is one column. The side cards are arranged with **Edit Today**; contacts with no number say "Add family contact" / "Add doctor contact" / "Add pharmacy", and the emergency call is set apart and always asks first. Family guardian setup is a quiet card at the bottom.
-- **Medicine** — opens on **Calendar**: the month with every day marked taken,
-  missed or partly taken (always-visible key), and the day you tap shown underneath
-  as "Today · Wed, Oct 7" with "1 of 3 taken" and one row per dose with a **Take**
-  button (tap the medicine for "I took it earlier", "Not today" and instructions).
-  **List** is the week-strip view with a "1 of 3 doses taken" ring; the choice is
-  remembered on the device. Every dose shows *Scheduled* and *Taken* times with an
-  **On time** / **Late by …** tag. Another day shows in place (the plan for later
-  days; yesterday's missed doses can still be marked with the real time; older days
-  are read-only). Below: **Your history** (last 7 / 30 days, then a list with date
-  range, Taken / Missed / Not today and medicine filters, or a month calendar),
-  **Manage medicines** (add / edit / copy / refill / remove), and a **Reminders**
-  switch for dose reminders. "+ Add" sits in the top bar.
+- **Home** (`/`) — a greeting with a sun-and-hills picture, then **Today's medicines**: every dose of the day grouped into Morning / Afternoon / Evening / When needed, with a one-line summary ("1 dose not recorded", "2 of 4 recorded"). Each dose says **Mark as taken** in its window; a dose whose window has passed says **Dose not recorded** with **Review dose**, which records the real time it was taken or "Not today" — MyDay never tells anyone to take a late dose. A recorded dose can be corrected later ("Remove this record"). On a laptop the medicines sit beside the mood check-in (with **Chat with MyDay**), then **My calendar**, **Next appointment** and **Contacts** in a row; on a tablet those cards sit two by two below the medicines; on a phone it is one column. The cards are arranged with **Edit Home**; contacts with no number say "Add family contact" / "Add doctor contact" / "Add pharmacy", and the emergency call is set apart and always asks first. Family guardian setup is a quiet card at the bottom.
+- **Medicines** (`/medication`) — opens on **today's doses**. Where the page is wide enough (a laptop, an iPad on its side) the chosen day sits beside a compact month calendar; narrower screens show today with a week strip, and **Calendar** shows the month (that choice is remembered on the device). The calendar works with the keyboard: arrow keys move a day or a week, Home / End go to the week's ends, Page Up / Page Down change month, and the chosen day is announced. Every dose shows *Scheduled* and *Taken* times with an **On time** / **Late by …** tag and records with **Mark as taken** (or **Review dose** once its window has passed). Another day shows in place (the plan for later days; yesterday can still be corrected with the real time; older days are read-only). Below: **Your history** (last 7 / 30 days, then a list with date range, Taken / Not recorded / Not today and medicine filters, or a month calendar), **Manage medicines** (add / add several / edit / copy / refill / remove) and a **Reminders** checklist that says separately whether MyDay reminders are on, whether this device allows alerts, and whether a test alert has been seen. "+ Add" sits in the top bar.
 - **Appointments** — **Upcoming** / **Past** tabs, **Quick add** tiles (Doctor visit,
   Lab test, Pharmacy pickup, Dentist, Eye exam, Other) that open the form with the
   reason filled in, and compact rows with the date, a picture of the kind of visit,
@@ -53,9 +43,6 @@ Built with **React + Vite (JSX)**, **Supabase** (Auth + Postgres + Edge Function
   are saved with a progress view, and a result that fails to upload is kept on
   the device and replayed on reconnect rather than lost.
 - **AI helpers** (OpenAI, via the `ai-assist` Edge Function — the key never reaches the browser):
-  - **Add from a photo** — take up to 3 photos of a pill bottle or box (front, back,
-    pharmacy label); the AI reads them together for the name, dose, times and directions and opens the Add Medicine wizard on its review step so the
-    person checks it before saving. Warnings (anything it couldn't read) are shown.
   - **How your medicines work together** — on the Medicines tab: what each medicine is
     for, its benefits, how they group around shared goals, and calm "worth asking your
     pharmacist" notes. Cached on the device until the medicine list changes.
@@ -70,10 +57,7 @@ Built with **React + Vite (JSX)**, **Supabase** (Auth + Postgres + Edge Function
     asks one gentle question at a time (sleep? water? a missed pill?). Never diagnoses;
     red-flag symptoms get a "Call 911" button. Nothing is stored unless they tap
     "Save this to my note".
-- **Add a medicine** (Home or the + menu) first asks "Take photos of the box" or
-  "Type it in myself".
-- **Add button (FAB)** — a floating + drops out a menu to add a medication,
-  appointment, health note, or contact from anywhere.
+- **Add a medicine** — "Add" on Medicines (or Today's Add menu) opens the step-by-step form straight away; the last step has **Save medicine** and **Save and add another**. **Add several at once** (in Manage medicines) keeps the review-before-saving list for entering many together. Reading medicines from photos was switched off on Oct 12 (the component is still in `src/components/MedicinePhotoScan.jsx`).
 - **How to use MyDay** — a step-by-step guide for first-time users, as the last section of Settings (Profile). The old `/help` link opens Settings.
 - **Languages** — Profile → Language shows the whole app in French, Chinese, Tamil,
   Punjabi, Hindi, Urdu, Spanish, Portuguese, Italian and more (Google page translation,
@@ -265,7 +249,7 @@ supabase functions deploy ai-assist
 
 Only signed-in users can call it (it checks the session token). Set a monthly
 spending limit in the OpenAI dashboard, since every scan/explain/helper turn is a
-paid call. Photos and medicine names are sent to OpenAI, and a diary note is sent only when
+paid call. Medicine names are sent to OpenAI (photo reading is switched off in the app), and a diary note is sent only when
 the person opens "Chat with MyDay" on it; the person's name is never sent.
 
 ### iPhone / iPad note
