@@ -14,19 +14,11 @@ Built with **React + Vite (JSX)**, **Supabase** (Auth + Postgres + Edge Function
 - **Accounts** — email + password sign up / sign in / sign out. Each person's data
   is private (per-user Row Level Security). Sign-up is instant (no email-confirmation
   step), which is friendlier for older users.
-- **Bottom navigation** — on phones: Home, Medicine, Updates, Games and More (Visits, Profile); the desktop side rail shows all six. Alerts & reminders are a section of Profile (`/profile/notifications` opens it there).
+- **Navigation** — the same words everywhere: Today, Medicines, Appointments, Health diary, Games, Settings and Help (URLs unchanged: `/`, `/medication`, `/appointments`, `/updates`, `/games`, `/profile`, `/help`). Phones and tablets show Today, Medicines, Appointments and Health diary plus a labelled **More** (Games, Settings, Help); from 1024px a labelled side rail shows everything. Alerts & reminders are a section of Settings (`/profile/notifications` opens it there). Adding things lives in the top bar on every page — nothing floats over the content.
 - **Liquid Glass controls** — the tab bar / side rail, segmented controls and switches use a Liquid Glass lens (`src/liquid.css`, `src/hooks/useLiquidDrag.js`, physics in `src/lib/liquid.js`): press and slide a finger along the bar and the glass follows it, magnifying the tab under it, then springs to the nearest tab on release (Apple's momentum projection + critically damped springs). Switches turn to glass while held and can be slid. Real refraction in Chromium; frosted elsewhere; solid with Reduce Transparency / High contrast; no springs with Reduce Motion or Calm screen.
 - **Forgot password** — a plain-language email recovery flow (`/forgot` →
   `/reset-password`), linked from the sign-in screen.
-- **Home** — a warm dashboard: greeting over a calm landscape with a *Today*
-  calendar button, then widgets the person arranges with **Edit Home** (show/hide +
-  reorder, saved on the device). By default: **Quick calls** (Call Family, Call
-  Doctor, Pharmacy from saved contacts — or add one — and 911, which always asks
-  first), *How are you feeling today?* (one tap saves a mood note to Updates, with
-  Undo), **Today's Medicines** (progress, missed-dose alert, the dose that matters
-  now with its Take button), and the **Next appointment** and **Health diary** tiles.
-  Today at a glance, This week, Visit history and the brain-game nudge can be
-  switched on.
+- **Today** (`/`) — a compact greeting, then **Today's medicines**: every dose of the day grouped into Morning / Afternoon / Evening / When needed, with a one-line summary ("1 dose not recorded", "2 of 4 recorded"). Each dose says **Mark as taken** in its window; a dose whose window has passed says **Dose not recorded** with **Review dose**, which records the real time it was taken or "Not today" — MyDay never tells anyone to take a late dose. A recorded dose can be corrected later ("Remove this record"). On a laptop the medicines are the wide column of a 2:1 grid with the next appointment, contacts, mood check-in and diary beside them; on a tablet those cards sit two by two below the medicines; on a phone it is one column. The side cards are arranged with **Edit Today**; contacts with no number say "Add family contact" / "Add doctor contact" / "Add pharmacy", and the emergency call is set apart and always asks first. Family guardian setup is a quiet card at the bottom.
 - **Medicine** — opens on **Calendar**: the month with every day marked taken,
   missed or partly taken (always-visible key), and the day you tap shown underneath
   as "Today · Wed, Oct 7" with "1 of 3 taken" and one row per dose with a **Take**
@@ -47,7 +39,7 @@ Built with **React + Vite (JSX)**, **Supabase** (Auth + Postgres + Edge Function
 - **Tab colours** — Medicine and Games are toasted orange, Appointments purple
   (light and dark); other screens keep the colour theme the person picked, and the
   High contrast theme is never recoloured.
-- **Updates (health diary)** — *How are you feeling now?* tiles that start a note,
+- **Health diary** (`/updates`) — *How are you feeling now?* tiles that start a note,
   a general **Chat with MyDay**, and a day-by-day timeline of notes (Edit / Delete
   behind "…").
 - **Profile** — "about me" intake (name, birthday, age, *what I'm on*, *what I'm

@@ -7,7 +7,7 @@ const rpcCalls = (mock, fn) => mock.calls.filter((c) => c.path === `/rest/v1/rpc
 
 test('a double tap records one dose and the confirmation says exactly what', async ({ browser }) => {
   const { page, mock, context } = await openApp(browser, { path: '/medication' });
-  const btn = page.getByRole('button', { name: 'Take Synthetic Vitamin D, 9:00 AM dose' });
+  const btn = page.getByRole('button', { name: 'Mark as taken: Synthetic Vitamin D, 9:00 AM dose' });
   await btn.dblclick();
   const toast = page.locator('.toast').first();
   await expect(toast).toContainText('Recorded: Synthetic Vitamin D 1000 IU — 9:00 AM dose, taken at 9:30');
@@ -25,11 +25,16 @@ test('a double tap records one dose and the confirmation says exactly what', asy
 test('stock goes down once on taken and comes back on undo', async ({ browser }) => {
   const { page, mock, context } = await openApp(browser, { path: '/medication' });
   const met = mock.db.myday_medications.find((m) => m.id === 'm-met');
-  await page.getByRole('button', { name: 'Take Synthetic Metformin, 8:00 AM dose' }).click();
+  // The 8:00 AM dose is past its window: it is reviewed and recorded with the real time.
+  const review = page.getByRole('button', { name: /^Review dose: Synthetic Metformin, 8:00 AM/ });
+  await review.click();
+  await page.getByRole('button', { name: 'I took it — record the time' }).click();
+  await page.getByLabel('Type a time').fill('08:05');
+  await page.getByRole('button', { name: 'Use 8:05 AM' }).click();
   await expect(page.locator('.toast').first()).toContainText('Recorded: Synthetic Metformin');
   expect(met.stock_quantity).toBe(29);
   await page.locator('.toast').first().getByRole('button', { name: 'Undo' }).click();
-  await expect(page.getByRole('button', { name: 'Take Synthetic Metformin, 8:00 AM dose' })).toBeVisible();
+  await expect(review).toBeVisible();
   expect(met.stock_quantity).toBe(30);
   await context.close();
 });
@@ -37,8 +42,8 @@ test('stock goes down once on taken and comes back on undo', async ({ browser })
 test('"I took it earlier" records the actual time, separate from the scheduled time', async ({ browser }) => {
   const { page, mock, context } = await openApp(browser, { path: '/medication' });
   const row = page.locator('.drow', { hasText: 'Synthetic Metformin' }).filter({ hasText: '8:00 AM' });
-  await row.getByRole('button', { name: /more options/ }).click();
-  await row.getByRole('button', { name: 'I took it earlier' }).click();
+  await row.getByRole('button', { name: /^Review dose/ }).click();
+  await row.getByRole('button', { name: 'I took it — record the time' }).click();
   await page.getByLabel('Type a time').fill('08:12');
   await page.getByRole('button', { name: 'Use 8:12 AM' }).click();
   await expect(page.locator('.toast').first()).toContainText('8:00 AM dose, taken at 8:12');
@@ -54,7 +59,7 @@ test('offline: nothing is reported as saved', async ({ browser }) => {
   await context.setOffline(true);
   await page.evaluate(() => window.dispatchEvent(new Event('offline')));
   await expect(page.locator('.offline-bar')).toContainText('Nothing you tap is saved');
-  await page.getByRole('button', { name: 'Take Synthetic Vitamin D, 9:00 AM dose' }).click();
+  await page.getByRole('button', { name: 'Mark as taken: Synthetic Vitamin D, 9:00 AM dose' }).click();
   await expect(page.locator('.toast--bad')).toContainText(/offline.*NOT saved|Nothing was recorded/);
   await expect(page.locator('.toast--good')).toHaveCount(0);
   const dose = mock.db.myday_doses.find((d) => d.id.startsWith('d-m-vitd') && d.dose_date === '2026-10-07');
@@ -70,7 +75,7 @@ test('as-needed medicines can be logged once per tap, with Undo', async ({ brows
   expect(rpcCalls(mock, 'myday_log_prn_dose')).toHaveLength(1);
   await expect(card).toContainText('Taken today at 9:30');
   // Never counted in the scheduled summary.
-  await expect(page.locator('.today__headline')).toHaveText('1 dose missed today');
+  await expect(page.locator('.today__headline')).toHaveText('1 dose not recorded');
   await context.close();
 });
 

@@ -54,28 +54,7 @@
 /* =====================================================================
    HOME
    ===================================================================== */
-.dayhero { position: relative; isolation: isolate; padding: 4px 0 2px; min-height: 150px; }
-.dayhero__scene {
-  position: absolute; z-index: -1; right: -16px; top: -18px; width: min(78%, 360px); height: calc(100% + 18px);
-  pointer-events: none; opacity: 0.9;
-}
-.hs-sky1 { stop-color: color-mix(in srgb, var(--primary) 14%, transparent); }
-.hs-sky2 { stop-color: color-mix(in srgb, #ffb36b 16%, transparent); }
-.hs-sun { fill: color-mix(in srgb, #ffcf7a 60%, transparent); }
-.hs-far { fill: color-mix(in srgb, var(--violet) 22%, var(--surface)); opacity: 0.8; }
-.hs-mid { fill: color-mix(in srgb, var(--primary) 26%, var(--surface)); opacity: 0.85; }
-.hs-lake { fill: color-mix(in srgb, var(--primary) 18%, var(--surface)); opacity: 0.8; }
-.hs-ripple { stroke: color-mix(in srgb, #ffffff 70%, transparent); stroke-width: 2; stroke-linecap: round; fill: none; }
-.hs-pine path { fill: color-mix(in srgb, #1f7a55 55%, var(--surface)); }
-[data-theme='dark'] .dayhero__scene, [data-theme='midnight'] .dayhero__scene, [data-theme='forest-night'] .dayhero__scene, [data-theme='plum-night'] .dayhero__scene { opacity: 0.55; }
-html[data-contrast='1'] .dayhero__scene { display: none; }
-
-.dayhero__hi { margin: 0; display: flex; flex-direction: column; line-height: 1.1; letter-spacing: -0.01em; }
-.dayhero__greet { font-size: 26px; font-weight: 700; }
-.dayhero__name { font-size: 40px; font-weight: 850; margin-top: 4px; overflow-wrap: anywhere; }
-.dayhero__name .hello__wave { margin-left: 8px; font-size: 0.85em; }
-.dayhero__row { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
-.dayhero__date { margin: 0; color: var(--ink-soft); font-size: 18px; font-weight: 500; }
+/* Today's greeting lives in solid.css (.today-hero). */
 .dayhero__today {
   display: inline-flex; align-items: center; gap: 8px; min-height: 48px; padding: 0 16px;
   border-radius: 999px; border: 1px solid var(--glass-edge, var(--line)); cursor: pointer;
@@ -132,30 +111,6 @@ html[data-text='xlarge'] .qcalls, html[data-text='huge'] .qcalls { grid-template
 .mood-done .mood__ic svg { width: 32px; height: 32px; }
 [data-theme='dark'] .mood__ic, [data-theme='midnight'] .mood__ic, [data-theme='forest-night'] .mood__ic, [data-theme='plum-night'] .mood__ic { filter: none; }
 
-/* Today's Medicines */
-.tmeds__head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
-.tmeds__t { margin: 0; font-size: 22px; }
-.tmeds__n { color: var(--ink-soft); font-size: 16px; font-weight: 600; }
-.tmeds__bar { margin: 12px 0 14px; }
-.tmeds .status__alert { margin: 0 0 12px; }
-.tmeds__list { margin-bottom: 12px; }
-.tmeds__all {
-  width: 100%; min-height: 52px; display: flex; align-items: center; justify-content: center; gap: 6px;
-  border: 0; border-radius: 16px; cursor: pointer; font: inherit; font-size: 17px; font-weight: 750;
-  color: var(--primary); background: var(--tint-blue);
-}
-.tmeds__all:active { transform: scale(0.98); }
-
-/* Two small tiles side by side: Next appointment and Health diary. */
-.home-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.home-w { grid-column: 1 / -1; }
-.home-w--tile { grid-column: auto; }
-@media (min-width: 768px) {
-  .home-w { grid-column: auto; }
-  .home-w--full { grid-column: 1 / -1; }
-}
-html[data-text='xlarge'] .home-w--tile, html[data-text='huge'] .home-w--tile { grid-column: 1 / -1; }
-@media (max-width: 339px) { .home-w--tile { grid-column: 1 / -1; } }
 .tile {
   width: 100%; height: 100%; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: start; gap: 10px;
   padding: 14px; border-radius: var(--radius); cursor: pointer; text-align: left; font: inherit; color: var(--ink);

@@ -142,14 +142,14 @@ export function summarise(doses, opts = {}) {
  */
 export function headlineFor({ total, taken, missed, overdue, due, skipped = 0 }) {
   if (!total) return 'No medicines scheduled today';
-  if (taken + skipped === total && taken > 0) return 'All doses taken today';
-  if (skipped === total) return 'No doses to take today';
-  if (missed) return `${missed} dose${missed === 1 ? '' : 's'} missed today`;
-  if (overdue) return `${overdue} dose${overdue === 1 ? '' : 's'} overdue`;
+  if (taken + skipped === total && taken > 0) return 'All doses recorded today';
+  if (skipped === total) return 'No doses scheduled today';
+  if (missed) return `${missed} dose${missed === 1 ? '' : 's'} not recorded`;
+  if (overdue) return `${overdue} dose${overdue === 1 ? '' : 's'} not recorded yet`;
   if (due) return `${due} dose${due === 1 ? '' : 's'} due now`;
   const left = total - taken - skipped;
-  if (taken) return `${left} dose${left === 1 ? '' : 's'} still to take`;
-  return `${left} dose${left === 1 ? '' : 's'} to take today`;
+  if (taken) return `${left} more dose${left === 1 ? '' : 's'} scheduled today`;
+  return `${left} dose${left === 1 ? '' : 's'} scheduled today`;
 }
 
 /**
@@ -215,10 +215,13 @@ export function dayMarkFromCounts({ taken = 0, missed = 0, pending = 0, skipped 
 export const STATE_UI = {
   taken:    { label: 'Taken',    icon: 'check',  tone: 'taken',   kind: 'taken' },
   skipped:  { label: 'Not today', icon: 'minus',  tone: 'skipped', kind: 'pending' },
-  missed:   { label: 'Missed',   icon: 'close',  tone: 'missed',  kind: 'missed' },
-  overdue:  { label: 'Overdue',  icon: 'clock',  tone: 'overdue', kind: 'missed' },
+  // Labels describe the RECORD, not the person: MyDay only knows that no dose
+  // was recorded, not that it was not taken, and never tells anyone to take
+  // a late dose. The internal ids (missed, overdue) are unchanged.
+  missed:   { label: 'Dose not recorded', icon: 'alert', tone: 'missed',  kind: 'missed' },
+  overdue:  { label: 'Not recorded yet',  icon: 'clock', tone: 'overdue', kind: 'missed' },
   due:      { label: 'Due now',  icon: 'clock',  tone: 'due',     kind: 'pending' },
-  upcoming: { label: 'To take',  icon: 'clock',  tone: 'upcoming', kind: 'pending' },
+  upcoming: { label: 'Upcoming', icon: 'clock',  tone: 'upcoming', kind: 'pending' },
   // Not a dose state: an as-needed medicine, which is never due or missed.
   prn:      { label: 'When needed', icon: 'info', tone: 'prn',    kind: 'pending' },
 };

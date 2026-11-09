@@ -205,7 +205,7 @@ export function Dashboard({ onUnlinked, accountLinkId = null, accountToken = nul
 
       <SegmentedControl value={view} onChange={setView} options={[
         { value: 'today', label: 'Today' },
-        { value: 'visits', label: 'Visits' },
+        { value: 'visits', label: 'Appointments' },
         { value: 'history', label: 'History' },
       ]} />
 

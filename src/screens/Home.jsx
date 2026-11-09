@@ -10,12 +10,12 @@ import { Icon } from '../components/Icon.jsx';
 import { MedCalendar, WeekStrip } from '../components/MedCalendar.jsx';
 import { DoseRow } from '../components/DoseRow.jsx';
 import { getNotificationPrefs, todaysDoses, upcomingAppointments, pastAppointments, playedTodayCount, listGuardians, listMedications, listContacts, listDiary, saveDiary, deleteDiary } from '../lib/db.js';
-import { prettyTime, prettyDate, localDateStr } from '../lib/format.js';
+import { prettyTime, prettyDate, localDateStr, present } from '../lib/format.js';
 import { telHref } from '../lib/contacts.js';
 import { countdownLabel } from '../lib/appointments.js';
-import { MOODS, normalizeLayout, moveWidget, toggleWidget, todaysMood, widgetInfo, DEFAULT_LAYOUT } from '../lib/homeWidgets.js';
+import { MOODS, normalizeLayout, moveWidget, toggleWidget, todaysMood, widgetInfo, DEFAULT_LAYOUT, groupDoses } from '../lib/homeWidgets.js';
 import { profileCompleteness } from '../lib/appearance.js';
-import { summarise, sortForDisplay, doseState, STATE_UI } from '../lib/doseState.js';
+import { summarise, doseState } from '../lib/doseState.js';
 import { deliveryStatus } from '../lib/notifications.js';
 import { pushSupported } from '../lib/push.js';
 import { platformTag } from '../lib/guardian.js';
@@ -64,9 +64,7 @@ export default function Home() {
   const windowMinutes = profile?.alert_window_minutes ?? 60;
   const opts = { windowMinutes };
   const s = summarise(doses, opts);
-  const { total, taken, missed, toTake, pct } = s;
-  // The most urgent thing that can still be acted on, if there is one.
-  const dueNow = sortForDisplay(s.actionable, opts)[0];
+  const { total, taken } = s;
   const firstName = (profile?.full_name || 'there').split(' ')[0];
   const greeting = greetingFor();
   const completeness = profileCompleteness(profile);
@@ -78,8 +76,6 @@ export default function Home() {
         return <QuickCalls contacts={contacts} />;
       case 'feeling':
         return <FeelingWidget diary={diary} />;
-      case 'today':
-        return <TodayMeds doses={doses} summary={s} dueNow={dueNow} opts={opts} actions={actions} />;
       case 'diary':
         return <DiaryTile diary={diary} />;
       case 'nextVisit':
@@ -143,73 +139,53 @@ export default function Home() {
   }
 
 
-  // Any medicine that is due, late or missed goes above everything else on
-  // Home, so it is the first thing seen on opening the app.
-  const needsTaking = (data?.doses || []).filter((d) => !d.as_needed
-    && ['due', 'overdue', 'missed'].includes(doseState(d, { windowMinutes })));
-
   return (
-    <div className="stack">
-      {needsTaking.length > 0 && (
-        <Card accent="missed" className="needs-taking" role="region" aria-labelledby="needs-taking-t">
-          <h2 className="needs-taking__t" id="needs-taking-t">
-            <Icon name="bell" size={24} /> {needsTaking.length === 1 ? 'Take this medicine now' : `Take these ${needsTaking.length} medicines now`}
-          </h2>
-          <ul className="stack needs-taking__list">
-            {needsTaking.map((d) => <DoseRow key={d.id} dose={d} actions={actions} windowMinutes={windowMinutes} simple />)}
-          </ul>
-        </Card>
-      )}
-
-      <section className="dayhero" aria-labelledby="hero-hi">
-        <HeroScene />
-        <h2 className="dayhero__hi" id="hero-hi">
-          <span className="dayhero__greet">{greeting},</span>
-          <span className="dayhero__name">{firstName}!<span className="hello__wave" aria-hidden="true">👋</span></span>
-        </h2>
-        <div className="dayhero__row">
-          <p className="dayhero__date">{prettyDate(localDateStr())}</p>
-          <button type="button" className="dayhero__today" aria-haspopup="dialog" onClick={() => setCalOpen(true)}>
-            <Icon name="calendar" size={20} /> <span>Today</span> <Icon name="chevron" size={18} className="dayhero__chev" />
-          </button>
+    <div className="today stack">
+      <section className="today-hero" aria-labelledby="hero-hi">
+        <span className="today-hero__orb" aria-hidden="true" />
+        <div className="today-hero__text">
+          <p className="today-hero__date">{prettyDate(localDateStr())}</p>
+          <h2 className="today-hero__hi" id="hero-hi">{greeting}, {firstName}</h2>
         </div>
+        <button type="button" className="dayhero__today" aria-haspopup="dialog" onClick={() => setCalOpen(true)}>
+          <Icon name="calendar" size={20} /> <span>Calendar</span>
+        </button>
       </section>
 
-      {/* Never fail silently: if this device cannot deliver reminders, the Home
-          screen says so rather than letting someone believe they are covered. */}
+      {/* Never fail silently: if this device cannot deliver reminders, Today
+          says so rather than letting someone believe they are covered. */}
       <ReminderWarning problem={reminderProblem} />
 
-      {/* One urgent banner at a time: while reminders are broken, the guardian
-          nudge shrinks to a single quiet line instead of stacking a second
-          full card of things to do on arrival. */}
-      <GuardianNudge guardians={guardians} quiet={!!reminderProblem.status} />
-
-      {completeness.pct < 100 && (
-        <Card onClick={() => navigate('/profile')} role="button" tabIndex={0} aria-label={`Profile progress ${completeness.pct} percent — open profile`}
-          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate('/profile'); } }}>
-          <div className="progress-card">
-            <div className="progress-card__ring" style={{ '--p': completeness.pct }}><b>{completeness.pct}%</b></div>
-            <div className="progress-card__main">
-              <div className="progress-card__t">Profile progress</div>
-              <div className="progress-card__d">Keep going! Complete your profile to get the most from MyDay.</div>
-            </div>
-            <Icon name="chevron" size={24} />
-          </div>
-        </Card>
-      )}
-
-      {/* Everything below is the person's own Home: widgets they can hide,
-          show and reorder from "Edit Home". The urgent cards above stay. */}
-      <div className="home-grid">
-        {placed.map(({ id, span, tile }) => {
-          const el = renderWidget(id);
-          return el ? <div key={id} className={`home-w home-w--${id}${span ? ' home-w--full' : ''}${tile ? ' home-w--tile' : ''}`}>{el}</div> : null;
-        })}
+      {/* Medicines are the main task and always come first: the dominant
+          column on a laptop, full width above everything else on a tablet or
+          phone. Everything else is the person's own, arranged with Edit. */}
+      <div className="today-grid">
+        <div className="today-main">
+          <TodayMedicines doses={doses} summary={s} opts={opts} actions={actions} />
+        </div>
+        <div className="today-side">
+          {placed.map(({ id }) => {
+            const el = renderWidget(id);
+            return el ? <div key={id} className={`home-w home-w--${id}`}>{el}</div> : null;
+          })}
+          {/* Optional setup sits below the daily tasks, never above them. */}
+          <GuardianNudge guardians={guardians} quiet={!!reminderProblem.status} />
+          {completeness.pct < 100 && (
+            <button type="button" className="setup-line" onClick={() => navigate('/profile')}>
+              <span className="setup-line__ring" style={{ '--p': completeness.pct }} aria-hidden="true"><b>{completeness.pct}%</b></span>
+              <span className="setup-line__main">
+                <span className="setup-line__t">Finish your About me</span>
+                <span className="setup-line__d">{completeness.pct}% complete</span>
+              </span>
+              <Icon name="chevron" size={20} />
+            </button>
+          )}
+          <button type="button" className="home-edit" onClick={() => setEditing(true)}>
+            <Icon name="layout" size={20} /> <span>Edit Today</span>
+          </button>
+        </div>
       </div>
 
-      <button type="button" className="home-edit" onClick={() => setEditing(true)}>
-        <Icon name="layout" size={20} /> <span>Edit Home</span>
-      </button>
       {editing && <HomeEditor layout={layout} onChange={setLayout} onClose={() => setEditing(false)} />}
       {calOpen && (
         <Modal title="Your calendar" onClose={() => setCalOpen(false)}>
@@ -345,16 +321,17 @@ function GuardianNudge({ guardians, quiet }) {
 // Skeleton that mirrors the Home layout (greeting, cards, glance chips).
 function HomeSkeleton() {
   return (
-    <div className="stack" role="status" aria-label="Loading your day">
-      <div className="dayhero">
-        <Skeleton h={28} w="45%" />
-        <Skeleton h={34} w="35%" style={{ marginTop: 8 }} />
-        <Skeleton h={14} w="45%" style={{ marginTop: 12 }} />
+    <div className="today stack" role="status" aria-label="Loading your day">
+      <div className="today-hero">
+        <div className="today-hero__text">
+          <Skeleton h={16} w="40%" />
+          <Skeleton h={34} w="60%" style={{ marginTop: 10 }} />
+        </div>
       </div>
-      <div className="qcalls">
-        {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} h={104} r={18} />)}
+      <div className="today-grid">
+        <div className="today-main"><SkeletonCard lines={5} /></div>
+        <div className="today-side"><SkeletonCard lines={2} /><SkeletonCard lines={2} /></div>
       </div>
-      <SkeletonCard lines={3} />
       <span className="sr-only">Loading…</span>
     </div>
   );
@@ -379,28 +356,11 @@ function useHomeLayout() {
   return [layout, set];
 }
 
-// On a wide screen, small widgets pair up side by side; one left without a
-// partner takes the full row rather than leaving a hole beside it. The two
-// small tiles (Next visit, Health diary) sit side by side even on a phone.
-const HALF = new Set(['feeling', 'nextVisit', 'watching', 'glance', 'week', 'visitHistory', 'diary']);
-const TILES = new Set(['nextVisit', 'diary']);
+// The cards beside (laptop) or below (tablet, phone) Today's medicines. The
+// grid around them decides the columns; the brain-game nudge only shows on a
+// day without a game.
 function placeWidgets(ids, { games }) {
-  const shown = ids.filter((id) => id !== 'games' || games === 0);
-  const out = [];
-  for (let i = 0; i < shown.length; i++) {
-    const id = shown[i];
-    const next = shown[i + 1];
-    if (TILES.has(id) && TILES.has(next)) {
-      out.push({ id, span: false, tile: true }, { id: next, span: false, tile: true });
-      i++;
-    } else if (HALF.has(id) && HALF.has(next)) {
-      out.push({ id, span: false }, { id: next, span: false });
-      i++;
-    } else {
-      out.push({ id, span: true });
-    }
-  }
-  return out;
+  return ids.filter((id) => id !== 'games' || games === 0).map((id) => ({ id }));
 }
 
 // "How are you feeling today?" — one tap saves it to the health diary, with
@@ -420,7 +380,7 @@ function FeelingWidget({ diary }) {
       const row = await saveDiary({ id: prev?.id, category: m.category, title: m.title, body: prev?.body, entry_at: prev?.entry_at });
       setAnswer({ mood: m, entry: row });
       setChanging(false);
-      ui.toast(`Saved to Updates: ${m.title.toLowerCase()}.`, 'good', prev ? null : {
+      ui.toast(`Saved to your health diary: ${m.title.toLowerCase()}.`, 'good', prev ? null : {
         label: 'Undo',
         onAction: async () => {
           try { await deleteDiary(row.id); setAnswer(null); } catch { ui.toast('Could not undo.', 'bad'); }
@@ -440,7 +400,7 @@ function FeelingWidget({ diary }) {
           <span className={`mood__ic mood--${answer.mood.id}`}><Icon name={answer.mood.icon} size={26} /></span>
           <div className="mood-done__main">
             <div className="mood-done__t">Today you felt: {answer.mood.label} <Icon name="check" size={18} stroke={2.6} /></div>
-            <div className="mood-done__d">Saved to your health diary in Updates.</div>
+            <div className="mood-done__d">Saved to your health diary.</div>
           </div>
         </div>
         <div className="btn-row">
@@ -460,7 +420,7 @@ function FeelingWidget({ diary }) {
           <Icon name="info" size={24} />
         </button>
       </div>
-      {tip && <p className="muted mood-card__d" id="mood-tip">One tap saves it to your health diary in Updates. You can add details there.</p>}
+      {tip && <p className="muted mood-card__d" id="mood-tip">One tap saves it to your health diary. You can add details there.</p>}
       <div className="mood-grid" role="group" aria-labelledby="mood-q">
         {MOODS.map((m) => (
           <button key={m.id} type="button" className={`mood mood--${m.id}${answer?.mood.id === m.id ? ' is-on' : ''}`}
@@ -484,7 +444,7 @@ function NextVisit({ appt }) {
         <span className="tile__main">
           <span className="tile__k">Next appointment</span>
           <span className="tile__t">Nothing booked</span>
-          <span className="tile__d">Tap to add a visit</span>
+          <span className="tile__d">Add appointment</span>
         </span>
         <Icon name="chevron" size={20} className="tile__chev" />
       </button>
@@ -499,13 +459,14 @@ function NextVisit({ appt }) {
         <span className="tile__k">Next appointment<span className="sr-only">, {countdownLabel(appt.appt_date)}</span></span>
         <span className="tile__t">{appt.doctor_name || appt.reason || 'Appointment'}</span>
         <span className="tile__d">{when}</span>
+        {appt.location && <span className="tile__d tile__d--loc"><Icon name="pin" size={16} /> {appt.location}</span>}
       </span>
       <Icon name="chevron" size={20} className="tile__chev" />
     </button>
   );
 }
 
-// Small tile: the newest health-diary note, which opens Updates.
+// Small tile: the newest health-diary note, which opens Health diary.
 function DiaryTile({ diary }) {
   const navigate = useNavigate();
   const last = diary?.[0];
@@ -514,8 +475,8 @@ function DiaryTile({ diary }) {
       <span className="tile__ic tile__ic--blue" aria-hidden="true"><Icon name="notes" size={22} /></span>
       <span className="tile__main">
         <span className="tile__k">Health diary</span>
-        <span className="tile__t">{last ? (last.title || 'Latest note') : 'No notes yet'}</span>
-        <span className="tile__d">{last ? 'View your updates' : 'Write how you feel'}</span>
+        <span className="tile__t">{last ? (present(last.title) || 'Latest note') : 'No notes yet'}</span>
+        <span className="tile__d">{last ? 'Open your health diary' : 'Add health note'}</span>
       </span>
       <Icon name="chevron" size={20} className="tile__chev" />
     </button>
@@ -527,9 +488,9 @@ function DiaryTile({ diary }) {
 // kind already picked. 911 always asks first, so a pocket or a stray finger
 // cannot ring it.
 const QUICK = [
-  { id: 'family', label: 'Call Family', icon: 'phone', tone: 'green', types: ['other'], add: 'other' },
-  { id: 'doctor', label: 'Call Doctor', icon: 'plus', tone: 'blue', types: ['provider', 'clinic'], add: 'provider' },
-  { id: 'pharmacy', label: 'Pharmacy', icon: 'pill', tone: 'violet', types: ['pharmacy'], add: 'pharmacy' },
+  { id: 'family', label: 'Call family', empty: 'Add family contact', icon: 'phone', tone: 'green', types: ['other'], add: 'other' },
+  { id: 'doctor', label: 'Call doctor', empty: 'Add doctor contact', icon: 'stethoscope', tone: 'blue', types: ['provider', 'clinic'], add: 'provider' },
+  { id: 'pharmacy', label: 'Call pharmacy', empty: 'Add pharmacy', icon: 'pill', tone: 'violet', types: ['pharmacy'], add: 'pharmacy' },
 ];
 function pickContact(contacts, types) {
   const callable = (contacts || []).filter((c) => types.includes(c.type) && telHref(c.phone));
@@ -540,25 +501,33 @@ function QuickCalls({ contacts }) {
   const navigate = useNavigate();
   const [sos, setSos] = useState(false);
   return (
-    <section className="qcalls" aria-label="Quick calls">
-      {QUICK.map((q) => {
-        const c = pickContact(contacts, q.types);
-        const inner = (
-          <>
-            <span className={`qcalls__ic qcalls__ic--${q.tone}`} aria-hidden="true"><Icon name={q.icon} size={28} stroke={2.6} /></span>
-            <span className="qcalls__l">{q.label}</span>
-          </>
-        );
-        return c
-          ? <a key={q.id} className="qcalls__btn" href={telHref(c.phone)} aria-label={`${q.label}: ${c.name}, ${c.phone}`}>{inner}</a>
-          : (
-            <button key={q.id} type="button" className="qcalls__btn" aria-label={`${q.label}: no number saved yet — add one`}
-              onClick={() => navigate('/profile', { state: { add: 'contact', contactType: q.add } })}>{inner}</button>
-          );
-      })}
-      <button type="button" className="qcalls__btn" aria-haspopup="dialog" onClick={() => setSos(true)}>
-        <span className="qcalls__ic qcalls__ic--red qcalls__ic--911" aria-hidden="true">911</span>
-        <span className="qcalls__l">Emergency</span>
+    <section className="contacts-w" aria-labelledby="contacts-w-t">
+      <h3 className="w-title" id="contacts-w-t">Contacts</h3>
+      <div className="qcalls">
+        {QUICK.map((q) => {
+          const c = pickContact(contacts, q.types);
+          // No number saved: say so plainly, so it never looks like a ready call button.
+          return c
+            ? (
+              <a key={q.id} className="qcalls__btn" href={telHref(c.phone)}>
+                <span className={`qcalls__ic qcalls__ic--${q.tone}`} aria-hidden="true"><Icon name={q.icon} size={26} stroke={2.4} /></span>
+                <span className="qcalls__l">{q.label}<span className="sr-only">:</span></span>
+                <span className="qcalls__who" translate="no"> {c.name}<span className="sr-only">, {c.phone}</span></span>
+              </a>
+            ) : (
+              <button key={q.id} type="button" className="qcalls__btn qcalls__btn--empty"
+                onClick={() => navigate('/profile', { state: { add: 'contact', contactType: q.add } })}>
+                <span className="qcalls__ic qcalls__ic--add" aria-hidden="true"><Icon name="plus" size={24} stroke={2.4} /></span>
+                <span className="qcalls__l">{q.empty}</span>
+              </button>
+            );
+        })}
+      </div>
+      {/* Emergency is set apart from routine contacts and always asks first. */}
+      <button type="button" className="sos-btn" aria-haspopup="dialog" onClick={() => setSos(true)}>
+        <span className="sos-btn__ic" aria-hidden="true">911</span>
+        <span className="sos-btn__l">Emergency call</span>
+        <Icon name="chevron" size={20} />
       </button>
       {sos && (
         <Modal title="Call 911?" onClose={() => setSos(false)}>
@@ -574,89 +543,56 @@ function QuickCalls({ contacts }) {
   );
 }
 
-// "Today's Medicines": how the day is going, the one dose that matters most
-// right now, and a way into the full list. A missed dose gets its own big,
-// coloured, tappable line, because it is the number that needs acting on.
-function TodayMeds({ doses, summary: s, dueNow, opts, actions }) {
+// Today's medicines: every dose of the day, grouped by time of day with quiet
+// labels, so the whole day reads at a glance and each dose can be recorded
+// (or a mistake corrected) right here. The summary is compact and secondary:
+// a line of words and a thin bar, never a score to feel bad about.
+function TodayMedicines({ doses, summary: s, opts, actions }) {
   const navigate = useNavigate();
-  const scheduled = doses.filter((d) => !d.as_needed);
-  if (!s.total) {
-    return (
-      <Card className="tmeds">
-        <div className="tmeds__head"><h3 className="tmeds__t">Today's Medicines</h3></div>
-        <p className="muted" style={{ margin: '0 0 12px' }}>No medicines scheduled today.</p>
-        <Button variant="ghost" icon="plus" onClick={() => navigate('/medication', { state: { add: 'med' } })}>Add a medicine</Button>
-      </Card>
-    );
-  }
-  // What needs doing now; otherwise the next dose later today; otherwise the
-  // last one taken, so the card always shows something real.
-  const later = scheduled.filter((d) => doseState(d, opts) === 'upcoming')
-    .sort((a, b) => String(a.scheduled_time).localeCompare(String(b.scheduled_time)));
-  const done = scheduled.filter((d) => doseState(d, opts) === 'taken')
-    .sort((a, b) => String(b.scheduled_time).localeCompare(String(a.scheduled_time)));
-  const show = dueNow || later[0] || done[0];
+  const recorded = s.taken + s.skipped;
+  const attention = s.missed + s.overdue;
   return (
-    <Card className="tmeds">
-      <div className="tmeds__head">
-        <h3 className="tmeds__t">Today's Medicines</h3>
-        <span className="tmeds__n">{s.taken} of {s.total} taken</span>
-      </div>
-      <div className="bar tmeds__bar" role="img" aria-label={`${s.taken} of ${s.total} doses taken`}>
-        <div className="bar__fill" style={{ width: `${s.pct}%` }} />
-      </div>
-      {s.missed > 0 && (
-        <button type="button" className="status__alert" onClick={() => navigate('/medication')}>
-          <span className="status__alert-n" aria-hidden="true">{s.missed}</span>
-          <span className="status__alert-t">
-            <b>{s.missed === 1 ? '1 dose missed today' : `${s.missed} doses missed today`}</b>
-            <small>Tap to review — you can still mark it if you took it late</small>
-          </span>
-          <Icon name="chevron" size={22} />
-        </button>
-      )}
-      {show && (
-        <ul className="drows tmeds__list">
-          <DoseRow dose={show} actions={actions} windowMinutes={opts.windowMinutes} simple />
-        </ul>
-      )}
-      <button type="button" className="tmeds__all" onClick={() => navigate('/medication')}>
-        View All Medicines <Icon name="chevron" size={20} />
-      </button>
-    </Card>
-  );
-}
+    <section className="tmed" aria-labelledby="tmed-t">
+      <header className="tmed__head">
+        <span className="tmed__ic" aria-hidden="true"><Icon name="pill" size={24} /></span>
+        <div className="tmed__titles">
+          <h2 className="tmed__t" id="tmed-t">Today’s medicines</h2>
+          <p className={`tmed__headline${attention ? ' tmed__headline--attn' : ''}`}>
+            {attention > 0 && <Icon name="alert" size={18} />} {s.headline}
+          </p>
+        </div>
+        {s.total > 0 && (
+          <div className="tmed__progress">
+            <span className="tmed__count">{recorded} of {s.total} recorded</span>
+            <span className="bar tmed__bar" role="img" aria-label={`${recorded} of ${s.total} doses recorded today`}>
+              <span className="bar__fill" style={{ width: `${Math.round((recorded / s.total) * 100)}%` }} />
+            </span>
+          </div>
+        )}
+      </header>
 
-// The calm landscape behind the greeting: hills, a lake and a few pines.
-// Decorative only, drawn in the theme's own colours so it works light or dark.
-function HeroScene() {
-  return (
-    <svg className="dayhero__scene" viewBox="0 0 400 220" preserveAspectRatio="xMaxYMax slice" aria-hidden="true">
-      <defs>
-        <linearGradient id="hs-sky" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" className="hs-sky1" />
-          <stop offset="1" className="hs-sky2" />
-        </linearGradient>
-        <linearGradient id="hs-fade" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0.05" stopColor="#fff" stopOpacity="0" />
-          <stop offset="0.35" stopColor="#fff" stopOpacity="0.75" />
-          <stop offset="0.6" stopColor="#fff" stopOpacity="1" />
-        </linearGradient>
-        <mask id="hs-mask"><rect width="400" height="220" fill="url(#hs-fade)" /></mask>
-      </defs>
-      <g mask="url(#hs-mask)">
-        <rect width="400" height="220" fill="url(#hs-sky)" />
-        <circle cx="300" cy="62" r="26" className="hs-sun" />
-        <path d="M120 150l70-62 40 30 55-58 60 52 55-34v72z" className="hs-far" />
-        <path d="M150 160l60-40 45 26 50-40 45 30 50-22v46z" className="hs-mid" />
-        <rect x="120" y="158" width="280" height="62" className="hs-lake" />
-        <path d="M190 172h70M280 182h60M220 194h90" className="hs-ripple" />
-        <g className="hs-pine">
-          <path d="M352 160l14-44 14 44z" /><path d="M370 162l12-36 12 36z" /><path d="M336 162l10-30 10 30z" />
-          <path d="M386 160l8-26 8 26z" />
-        </g>
-      </g>
-    </svg>
+      {!s.total ? (
+        <div className="tmed__empty">
+          <p>No medicines are scheduled today.</p>
+          <Button variant="ghost" icon="plus" onClick={() => navigate('/medication', { state: { add: 'med' } })}>Add medicine</Button>
+        </div>
+      ) : (
+        groupDoses(doses).map((g) => (
+          <div className="tmed__group" key={g.id} role="group" aria-labelledby={`tmed-g-${g.id}`}>
+            <h3 className="tmed__gt" id={`tmed-g-${g.id}`}>{g.label}</h3>
+            <ul className="drows">
+              {g.doses.map((d) => <DoseRow key={d.id} dose={d} actions={actions} windowMinutes={opts.windowMinutes} />)}
+            </ul>
+          </div>
+        ))
+      )}
+
+      <div className="tmed__foot">
+        <button type="button" className="tmed__all" onClick={() => navigate('/medication')}>
+          Open Medicines <Icon name="chevron" size={20} />
+        </button>
+      </div>
+    </section>
   );
 }
 
@@ -665,7 +601,7 @@ function VisitHistory({ past }) {
   return (
     <Card>
       <div className="w-head">
-        <h3 className="subsection">Visit history</h3>
+        <h3 className="subsection">Past appointments</h3>
         <button type="button" className="w-link" onClick={() => navigate('/appointments')}>See all</button>
       </div>
       {past.length ? (
@@ -734,7 +670,7 @@ function HomeEditor({ layout, onChange, onClose }) {
     });
   }
   return (
-    <Modal title="Edit Home" onClose={onClose}
+    <Modal title="Edit Today" onClose={onClose}
       footer={(
         <div className="btn-row">
           <Button variant="ghost" onClick={() => onChange(DEFAULT_LAYOUT.map((w) => ({ ...w })))}>Reset</Button>

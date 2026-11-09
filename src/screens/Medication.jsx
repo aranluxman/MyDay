@@ -189,7 +189,7 @@ function TodayView({ state, meds, actions, onAdd, onHistory, onManage, windowMin
 
   return (
     <div className="stack">
-      <p className="page-intro">Take your medicines on time for a healthier you.</p>
+      <p className="page-intro">Record each dose and see your history at a glance.</p>
       <SegmentedControl className="segmented--accent" label="Show your medicines as" value={mode} onChange={setMode} options={[
         { value: 'calendar', label: 'Calendar', icon: 'calendar' },
         { value: 'list', label: 'List', icon: 'list' },

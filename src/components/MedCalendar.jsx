@@ -16,7 +16,7 @@ const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 // as wholly missed, which is what made the calendar contradict Home's counters.
 // 'planned' is a future day: what is scheduled, never a record of anything.
 const MARK = { taken: '✓', partial: '◐', pending: '•', missed: '!', planned: '○' };
-const MARK_WORD = { taken: 'all taken', partial: 'partly taken', pending: 'to take', missed: 'missed', none: 'nothing recorded' };
+const MARK_WORD = { taken: 'all taken', partial: 'partly taken', pending: 'to take', missed: 'doses not recorded', none: 'nothing recorded' };
 
 const pad = (n) => String(n).padStart(2, '0');
 const iso = (y, m, d) => `${y}-${pad(m + 1)}-${pad(d)}`;
@@ -27,7 +27,7 @@ export function dayLabel(dateIso, agg, planned = 0) {
   if (planned) return `${date}: planned — ${planned} dose${planned === 1 ? '' : 's'} scheduled, not yet recorded`;
   if (!agg || !agg.total) return `${date}: no doses recorded`;
   const status = dayMarkFromCounts(agg);
-  const parts = [`${agg.taken || 0} taken`, `${agg.toTake ?? agg.pending ?? 0} to take`, `${agg.missed || 0} missed`];
+  const parts = [`${agg.taken || 0} taken`, `${agg.toTake ?? agg.pending ?? 0} to take`, `${agg.missed || 0} not recorded`];
   if (agg.skipped) parts.push(`${agg.skipped} not today`);
   return `${date}: ${MARK_WORD[status]} — ${parts.join(', ')}`;
 }
@@ -149,7 +149,7 @@ function CalKeyRow({ planned, hint }) {
     <>
       <ul className="cal__keyrow" aria-label="What the days show">
         <li><span className="cal__dot cal__dot--taken" aria-hidden="true">✓</span> Taken</li>
-        <li><span className="cal__dot cal__dot--missed" aria-hidden="true">!</span> Missed</li>
+        <li><span className="cal__dot cal__dot--missed" aria-hidden="true">!</span> Not recorded</li>
         <li><span className="cal__dot cal__dot--partial" aria-hidden="true" /> Partial</li>
         {planned && <li><span className="cal__dot cal__dot--planned" aria-hidden="true" /> Upcoming</li>}
       </ul>
@@ -169,7 +169,7 @@ function CalLegend({ planned }) {
         <span className="lg--taken">✓ All taken</span>
         <span className="lg--partial"><i className="cal__ring" aria-hidden="true" /> Some taken</span>
         <span className="lg--pending">• To take</span>
-        <span className="lg--missed">! Missed</span>
+        <span className="lg--missed">! Not recorded</span>
         {planned && <span className="lg--planned">○ Planned</span>}
       </div>
     </details>

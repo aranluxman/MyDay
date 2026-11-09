@@ -4,22 +4,24 @@ import { Icon } from './Icon.jsx';
 import { Modal } from './ui.jsx';
 import { useLiquidSlider } from '../hooks/useLiquidDrag.js';
 
-// Destinations. On a phone, six tabs only fit by shrinking their labels to
-// about 9px — unreadable — and at the largest text size they overlapped. So a
-// phone shows four tabs plus a clearly labelled "More", and the side rail on a
-// large screen shows everything. Alerts live inside Profile now, not on a page
-// of their own. The visible label is the accessible name.
+// Destinations, named the same everywhere: Today, Medicines, Appointments,
+// Health diary, Games, Settings and Help. The URLs are unchanged.
+// Phones and tablets show the four daily tasks plus a labelled "More", so
+// Appointments is never hidden behind entertainment; the side rail on a large
+// screen shows everything. The visible label is the accessible name.
 const ITEMS = [
-  { to: '/', icon: 'home', label: 'Home', end: true, phone: true },
-  { to: '/medication', icon: 'pill', label: 'Medicine', phone: true },
-  { to: '/updates', icon: 'pulse', label: 'Updates', phone: true },
-  { to: '/appointments', icon: 'calendar', label: 'Visits' },
-  { to: '/games', icon: 'brain', label: 'Games', phone: true },
-  { to: '/profile', icon: 'user', label: 'Profile', end: true },
+  { to: '/', icon: 'home', label: 'Today', end: true, phone: true },
+  { to: '/medication', icon: 'pill', label: 'Medicines', phone: true },
+  { to: '/appointments', icon: 'calendar', label: 'Appointments', phone: true },
+  { to: '/updates', icon: 'notes', label: 'Health diary', phone: true },
+  { to: '/games', icon: 'brain', label: 'Games' },
+  { to: '/profile', icon: 'gear', label: 'Settings', end: true },
+  { to: '/help', icon: 'help', label: 'Help', end: true },
 ];
 const MORE = [
-  { to: '/appointments', icon: 'calendar', label: 'Visits', desc: 'Doctor and clinic appointments' },
-  { to: '/profile', icon: 'user', label: 'Profile', desc: 'Your details, alerts and preferences' },
+  { to: '/games', icon: 'brain', label: 'Games', desc: 'Brain games and your progress' },
+  { to: '/profile', icon: 'gear', label: 'Settings', desc: 'About me, contacts, reminders, text size' },
+  { to: '/help', icon: 'help', label: 'Help', desc: 'How to use MyDay, step by step' },
 ];
 
 export function BottomNav() {
@@ -28,7 +30,7 @@ export function BottomNav() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const [moreOpen, setMoreOpen] = useState(false);
-  const inMore = MORE.some((m) => pathname === m.to);
+  const inMore = MORE.some((m) => pathname === m.to || pathname.startsWith(`${m.to}/`));
 
   // One glass lens that glides to the active tab — and that you can grab and
   // slide along the bar (or down the side rail) to pick a tab. Letting go

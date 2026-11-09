@@ -106,16 +106,16 @@ test('colour swatches have names and selected state; contact type is a radio gro
 
 test('skip link and meaningful route titles', async ({ browser }) => {
   const { page, context } = await openApp(browser, { path: '/medication' });
-  await expect(page).toHaveTitle('Medicine · MyDay');
+  await expect(page).toHaveTitle('Medicines · MyDay');
   await page.keyboard.press('Tab');
   const skip = page.getByRole('link', { name: 'Skip to main content' });
   await expect(skip).toBeFocused();
   await page.keyboard.press('Enter');
   await expect(page.locator('main#main')).toBeFocused();
-  // Alerts are a section of Profile now; the old address opens it there.
+  // Alerts are a section of Settings now; the old address opens it there.
   await page.goto('/profile/notifications');
   await expect(page).toHaveURL(/\/profile\?section=alerts$/);
-  await expect(page).toHaveTitle('Profile · MyDay');
+  await expect(page).toHaveTitle('Settings · MyDay');
   await expect(page.getByRole('switch', { name: 'All notifications' })).toBeInViewport();
   await context.close();
 });
@@ -138,8 +138,8 @@ test('settings is one list; each row opens its own page with a back button', asy
   await expect(page).toHaveURL(/\/profile$/);
   // "How to use MyDay" is the last row, and its old page sends you to Settings.
   await page.getByRole('button', { name: /^How to use MyDay/ }).click();
-  await page.getByRole('button', { name: /Taking today/ }).click();
-  await expect(page.getByText('Tap the blue “Take” button')).toBeVisible();
+  await page.getByRole('button', { name: /Recording today/ }).click();
+  await expect(page.getByText(/tap the blue “Mark as taken” button/)).toBeVisible();
   await page.goto('/help');
   await expect(page).toHaveURL(/\/profile/);
   await context.close();
