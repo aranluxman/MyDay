@@ -9,7 +9,9 @@ import { Icon } from '../components/Icon.jsx';
 import { listContacts, saveContact, deleteContact, uploadAvatar,
   createGuardianInvite, listGuardians, deleteGuardian, formatGuardianCode, issueGuardianCode, revokeGuardianDevice, setGuardianShareDiary } from '../lib/db.js';
 import { LANGUAGES, MORE_LANGUAGES, currentLanguage, setLanguage } from '../lib/translate.js';
-import { ageFromBirthday, prettyClock, shortDate } from '../lib/format.js';
+import { ageFromBirthday, prettyClock, prettyDate, shortDate } from '../lib/format.js';
+import { GENDERS, genderLabel, heightWords, weightWords, allergyState, validateBody, cmToFtIn, kgToLb } from '../lib/healthLogs.js';
+import { listMedications } from '../lib/db.js';
 import { THEMES, TEXT_SIZES, MODES, modeOf, themeForMode, profileCompleteness, currentTheme } from '../lib/appearance.js';
 import { CONTACT_TYPES, validPhone, telHref } from '../lib/contacts.js';
 import { HowToGuide } from './HowTo.jsx';
@@ -219,6 +221,7 @@ export default function Profile({ only = null }) {
     language: { title: 'Language', desc: 'Show MyDay in your language.' },
     appearance: { title: 'Appearance', desc: 'Light or dark, and your colour theme.' },
     info: { title: 'My information', desc: 'Your details, health and goals.' },
+    health: { title: 'Health profile', desc: 'Your details, as you entered them. Every field is optional.' },
     howto: { title: 'How to use MyDay', desc: 'A step-by-step guide.' },
   };
   const current = page && pages[page];
@@ -429,15 +432,16 @@ export default function Profile({ only = null }) {
           </>
         )}
 
+        {page === 'health' && <HealthProfile profile={profile} age={age} onEdit={() => setEditProfile(true)} />}
+
         {page === 'info' && (
           <>
-      {completeness.pct < 100 && (
+      {completeness.missing.length > 0 && (
         <Card>
           <div className="progress-card">
-            <div className="progress-card__ring" style={{ '--p': completeness.pct }} aria-hidden="true"><b>{completeness.pct}%</b></div>
             <div className="progress-card__main">
-              <div className="progress-card__t">Profile progress: {completeness.pct}%</div>
-              <div className="progress-card__d">Complete your profile to personalise your experience.</div>
+              <div className="progress-card__t">{completeness.done} of {completeness.total} details entered</div>
+              <div className="progress-card__d">These are optional. Add what you want MyDay to know.</div>
             </div>
           </div>
           <ul className="checklist">
@@ -483,15 +487,15 @@ export default function Profile({ only = null }) {
         <div className="me-card__main">
           <div className="me-card__name">{profile?.full_name || 'Your profile'}</div>
           {age != null && <div className="me-card__sub">{age} years old</div>}
-          <button type="button" className="me-card__edit" onClick={() => setEditProfile(true)}>
-            <Icon name="user" size={18} /> Edit profile
+          <button type="button" className="me-card__edit" onClick={() => openPage('health')}>
+            <Icon name="heart" size={18} /> View health profile
           </button>
         </div>
       </Card>
 
       <h2 className="rd-group">Personal</h2>
       <ul className="rd-list">
-        <SettingsLink icon="heart" title="Health profile" desc={completeness.pct < 100 ? 'Some details are not entered yet' : 'Name, birthday, health and goals'} onClick={() => setEditProfile(true)} />
+        <SettingsLink icon="heart" title="Health profile" desc="Name, birth date, height, weight, allergies" onClick={() => openPage('health')} />
         <SettingsLink icon="users" title="Dependants & caregivers"
           desc={!guardians.data ? 'Guardians and people you support' : !connected ? 'No guardian connected yet' : `${connected} guardian${connected === 1 ? '' : 's'} connected`}
           warn={!!guardians.data && !connected} onClick={() => openPage('guardians')} />
@@ -557,7 +561,7 @@ export default function Profile({ only = null }) {
       )}
 
       {editProfile && <ProfileForm profile={profile} onClose={() => setEditProfile(false)}
-        onSaved={async (patch) => { await updateProfile(patch); await reloadProfile(); setEditProfile(false); ui.toast('Saved.'); }} />}
+        onSaved={async (patch) => { await updateProfile(patch); await reloadProfile(); setEditProfile(false); ui.toast('Saved. Your health profile is up to date.'); }} />}
       {editContact && <ContactForm contact={editContact.id ? editContact : null} initialType={editContact.type} initialEmergency={editContact.emergency} onClose={() => setEditContact(null)}
         onSaved={() => { setEditContact(null); contacts.reload(); }} />}
       </>
@@ -608,6 +612,56 @@ const CONTACT_KINDS = [
   { id: 'clinic', group: 'medical', title: 'Medical facilities', desc: 'Add a clinic or hospital', icon: 'building', tone: 'blue', type: 'clinic' },
 ];
 
+// Health profile: what the person has entered, read back plainly. A blank is
+// shown as "Not entered" (never guessed), and there is no percentage score:
+// the count says how many of the listed details have an answer.
+function HealthProfile({ profile, age, onEdit }) {
+  const navigate = useNavigate();
+  const meds = useAsync(() => listMedications(), []);
+  const active = (meds.data || []).filter((m) => m.active !== false);
+  const allergy = allergyState(profile);
+  const rows = [
+    { label: 'Name', value: profile?.full_name || null, keep: true },
+    { label: 'Birth date', value: profile?.birthday ? `${prettyDate(profile.birthday)}${age != null ? ` (${age} years)` : ''}` : (age != null ? `Age ${age} (no birth date)` : null), answered: !!profile?.birthday },
+    { label: 'Gender', value: genderLabel(profile?.gender) },
+    { label: 'Height', value: heightWords(profile?.height_cm, profile?.height_unit) },
+    { label: 'Weight', value: weightWords(profile?.weight_kg, profile?.weight_unit) },
+    { label: 'Conditions', value: profile?.conditions || null },
+    { label: 'Allergies', value: allergy.state === 'missing' ? null : allergy.text },
+  ];
+  const entered = rows.filter((r) => (r.answered ?? r.value != null)).length;
+  return (
+    <>
+      <div className="hp-top">
+        <p className="hp-count" role="status">{entered} of {rows.length} details entered</p>
+        <Button variant="ghost" icon="edit" full={false} onClick={onEdit}>Edit</Button>
+      </div>
+      <dl className="rd-list hp-list">
+        {rows.map((r) => (
+          <div key={r.label} className="hp-row">
+            <dt>{r.label}</dt>
+            <dd className={r.value == null ? 'hp-row__none' : undefined} translate={r.keep ? 'no' : undefined}>{r.value ?? 'Not entered'}</dd>
+          </div>
+        ))}
+      </dl>
+      <ul className="rd-list">
+        <SettingsLink icon="pill" title="Medicines"
+          desc={meds.loading ? 'Loading…' : meds.error ? 'Could not load' : `${active.length} with a schedule in MyDay`}
+          onClick={() => navigate('/medication')} />
+        <SettingsLink icon="heartPulse" title="Health tracker" desc="Water, sleep and measurements" onClick={() => navigate('/health')} />
+      </ul>
+      {profile?.goal && (
+        <Card><h3 className="hp-h">What I’m working toward</h3><p className="hp-p">{profile.goal}</p></Card>
+      )}
+      {profile?.on_treatment && (
+        <Card><h3 className="hp-h">Other medicines &amp; supplements</h3><p className="hp-p">{profile.on_treatment}</p></Card>
+      )}
+      <p className="health-note"><Icon name="lock" size={20} />
+        <span>Only you can see and change this. Guardians cannot see your health profile.</span></p>
+    </>
+  );
+}
+
 // One row of the Settings list: icon, title, a line of detail, and (where it
 // helps) the current choice on the right.
 function SettingsLink({ icon, title, desc, value, warn, onClick }) {
@@ -626,7 +680,7 @@ function SettingsLink({ icon, title, desc, value, warn, onClick }) {
   );
 }
 
-const PAGE_IDS = { access: 1, alerts: 1, guardians: 1, contacts: 1, language: 1, appearance: 1, info: 1, howto: 1 };
+const PAGE_IDS = { health: 1, access: 1, alerts: 1, guardians: 1, contacts: 1, language: 1, appearance: 1, info: 1, howto: 1 };
 
 // The three everyday themes as big pictures: a sunny sky, a night sky, a
 // warm sunset. Easier to choose between than small colour swatches.
@@ -779,20 +833,54 @@ function ProfileForm({ profile, onClose, onSaved }) {
   const [for_whom, setForWhom] = useState(profile?.for_whom || '');
   const [on_treatment, setOn] = useState(profile?.on_treatment || '');
   const [goal, setGoal] = useState(profile?.goal || '');
+  const [gender, setGender] = useState(profile?.gender || '');
+  const [heightUnit, setHeightUnit] = useState(profile?.height_unit === 'ft_in' ? 'ft_in' : 'cm');
+  const [weightUnit, setWeightUnit] = useState(profile?.weight_unit === 'lb' ? 'lb' : 'kg');
+  const startFt = profile?.height_cm != null ? cmToFtIn(Number(profile.height_cm)) : null;
+  const [heightCm, setHeightCm] = useState(profile?.height_cm != null ? String(Number(profile.height_cm)) : '');
+  const [heightFt, setHeightFt] = useState(startFt ? String(startFt.ft) : '');
+  const [heightIn, setHeightIn] = useState(startFt ? String(startFt.inches) : '');
+  const [weight, setWeight] = useState(profile?.weight_kg != null
+    ? String(profile?.weight_unit === 'lb' ? kgToLb(Number(profile.weight_kg)) : Number(profile.weight_kg)) : '');
+  const [conditions, setConditions] = useState(profile?.conditions || '');
+  const [allergies, setAllergies] = useState(profile?.allergies || '');
+  const [allergiesNone, setAllergiesNone] = useState(!!profile?.allergies_none);
+  const [errors, setErrors] = useState({});
   const [busy, setBusy] = useState(false);
+  const today = new Date().toISOString().slice(0, 10);
 
   async function save() {
+    const next = {};
+    if (birthday && (birthday > today || birthday < '1900-01-01')) next.birthday = 'Please check the birth date. It cannot be in the future.';
+    const body = validateBody({ heightUnit, heightCm, heightFt, heightIn, weightUnit, weight });
+    Object.assign(next, body.errors);
+    setErrors(next);
+    if (Object.keys(next).length) {
+      document.getElementById(next.birthday ? 'hp-birthday' : next.height ? 'hp-height' : 'hp-weight')?.focus();
+      return;
+    }
     setBusy(true);
+    // Age comes from the birth date whenever there is one.
+    const derived = ageFromBirthday(birthday);
     const patch = {
       full_name: full_name.trim() || null,
       birthday: birthday || null,
-      age: age ? Math.max(0, Math.min(130, parseInt(age, 10) || 0)) : null,
+      age: derived != null ? derived : age ? Math.max(0, Math.min(130, parseInt(age, 10) || 0)) : null,
       for_whom: for_whom || null,
       on_treatment: on_treatment.trim() || null,
       goal: goal.trim() || null,
+      gender: gender || null,
+      height_cm: body.values.height_cm,
+      weight_kg: body.values.weight_kg,
+      height_unit: heightUnit,
+      weight_unit: weightUnit,
+      conditions: conditions.trim() || null,
+      // "No known allergies" is an answer; a list replaces it.
+      allergies: allergiesNone ? null : allergies.trim() || null,
+      allergies_none: allergiesNone,
     };
     try { await onSaved(patch); }
-    catch (e) { ui.toast(e?.message || 'Could not save.', 'bad'); setBusy(false); }
+    catch (e) { ui.toast(e?.message || 'Could not save. Your changes were not saved.', 'bad'); setBusy(false); }
   }
 
   // Medicines are kept as one comma-separated line, shown as chips.
@@ -811,22 +899,77 @@ function ProfileForm({ profile, onClose, onSaved }) {
   }
 
   return (
-    <Modal title="About me" onClose={onClose}
+    <Modal title="Edit health profile" onClose={onClose}
       footer={(
         <div className="btn-row">
           <Button variant="ghost" onClick={onClose}>Cancel</Button>
           <Button disabled={busy} icon={busy ? 'clock' : undefined} onClick={save}>{busy ? 'Saving…' : 'Save'}</Button>
         </div>
       )}>
-      <p className="muted" style={{ margin: '0 0 14px' }}>Tell us a bit about yourself.</p>
+      <p className="muted" style={{ margin: '0 0 14px' }}>Every field is optional. Leave anything blank that you would rather not enter.</p>
       <div className="about-rows">
         <label className="about-row"><span className="about-row__l"><Icon name="user" size={22} /> Name</span>
           <Input value={full_name} onChange={(e) => setName(e.target.value)} maxLength={60} autoComplete="name" /></label>
-        <label className="about-row"><span className="about-row__l"><Icon name="calendar" size={22} /> Birthday</span>
-          <Input type="date" value={birthday} onChange={(e) => onBirthday(e.target.value)} /></label>
-        <label className="about-row"><span className="about-row__l"><Icon name="clock" size={22} /> Age</span>
-          <span className="about-row__age"><Input type="number" min="0" max="130" value={age} onChange={(e) => setAge(e.target.value)} />
-            <small className="muted">Filled automatically from your birthday.</small></span></label>
+        <label className="about-row"><span className="about-row__l"><Icon name="calendar" size={22} /> Birth date</span>
+          <span className="about-row__age"><Input id="hp-birthday" type="date" value={birthday} max={today} onChange={(e) => onBirthday(e.target.value)}
+            aria-invalid={errors.birthday ? 'true' : undefined} aria-describedby={errors.birthday ? 'hp-birthday-err' : undefined} />
+            {errors.birthday && <span className="field__err" id="hp-birthday-err" role="alert">{errors.birthday}</span>}</span></label>
+        {birthday ? (
+          <p className="about-row about-row--static"><span className="about-row__l"><Icon name="clock" size={22} /> Age</span>
+            <span>{ageFromBirthday(birthday) != null ? `${ageFromBirthday(birthday)} years, from your birth date` : 'Check the birth date'}</span></p>
+        ) : (
+          <label className="about-row"><span className="about-row__l"><Icon name="clock" size={22} /> Age</span>
+            <span className="about-row__age"><Input type="number" min="0" max="130" value={age} onChange={(e) => setAge(e.target.value)} />
+              <small className="muted">Add a birth date and MyDay works this out for you.</small></span></label>
+        )}
+      </div>
+
+      <div className="field">
+        <label className="field__label" htmlFor="hp-gender">Gender</label>
+        <select id="hp-gender" className="input input--select" value={gender} onChange={(e) => setGender(e.target.value)}>
+          <option value="">Not entered</option>
+          {GENDERS.map((g) => <option key={g.value} value={g.value}>{g.label}</option>)}
+        </select>
+      </div>
+
+      <div className="field">
+        <span className="field__label" id="hp-height-l">Height</span>
+        <SegmentedControl label="Height unit" value={heightUnit} onChange={setHeightUnit} options={[{ value: 'cm', label: 'cm' }, { value: 'ft_in', label: 'ft and in' }]} />
+        {heightUnit === 'cm' ? (
+          <Input id="hp-height" inputMode="decimal" aria-label="Height in centimetres" value={heightCm} onChange={(e) => setHeightCm(e.target.value)}
+            aria-invalid={errors.height ? 'true' : undefined} aria-describedby={errors.height ? 'hp-height-err' : undefined} placeholder="for example 165" />
+        ) : (
+          <div className="hl-pair">
+            <Input id="hp-height" inputMode="numeric" aria-label="Height, feet" value={heightFt} onChange={(e) => setHeightFt(e.target.value)}
+              aria-invalid={errors.height ? 'true' : undefined} aria-describedby={errors.height ? 'hp-height-err' : undefined} placeholder="feet" />
+            <Input inputMode="numeric" aria-label="Height, inches" value={heightIn} onChange={(e) => setHeightIn(e.target.value)} placeholder="inches" />
+          </div>
+        )}
+        {errors.height && <span className="field__err" id="hp-height-err" role="alert">{errors.height}</span>}
+      </div>
+
+      <div className="field">
+        <span className="field__label" id="hp-weight-l">Weight</span>
+        <SegmentedControl label="Weight unit" value={weightUnit} onChange={setWeightUnit} options={[{ value: 'kg', label: 'kg' }, { value: 'lb', label: 'lb' }]} />
+        <Input id="hp-weight" inputMode="decimal" aria-label={`Weight in ${weightUnit === 'lb' ? 'pounds' : 'kilograms'}`} value={weight} onChange={(e) => setWeight(e.target.value)}
+          aria-invalid={errors.weight ? 'true' : undefined} aria-describedby={errors.weight ? 'hp-weight-err' : undefined} placeholder={weightUnit === 'lb' ? 'for example 150' : 'for example 68'} />
+        {errors.weight && <span className="field__err" id="hp-weight-err" role="alert">{errors.weight}</span>}
+      </div>
+
+      <Field label="Health conditions" hint="For example: high blood pressure, diabetes. Leave blank if you prefer.">
+        <Textarea rows={2} value={conditions} onChange={(e) => setConditions(e.target.value)} maxLength={500} /></Field>
+
+      <div className="field">
+        <label className="field__label" htmlFor="hp-allergies">Allergies</label>
+        <label className="rep-check">
+          <input type="checkbox" checked={allergiesNone} onChange={(e) => setAllergiesNone(e.target.checked)} />
+          <span>No known allergies</span>
+        </label>
+        {!allergiesNone && (
+          <Textarea id="hp-allergies" rows={2} value={allergies} onChange={(e) => setAllergies(e.target.value)} maxLength={500}
+            placeholder="For example: penicillin, peanuts" />
+        )}
+        <span className="field__hint">Blank means “Not entered”, which is different from “No known allergies”.</span>
       </div>
       <p className="about-h" id="about-whom">Who is MyDay for?</p>
       <div className="about-whom" role="radiogroup" aria-labelledby="about-whom">
@@ -835,7 +978,8 @@ function ProfileForm({ profile, onClose, onSaved }) {
             className={`about-whom__b${for_whom === o.value ? ' is-on' : ''}`} onClick={() => setForWhom(o.value)}>{o.label}</button>
         ))}
       </div>
-      <p className="about-h" id="about-meds">Medicines &amp; supplements</p>
+      <p className="about-h" id="about-meds">Other medicines &amp; supplements</p>
+      <p className="muted" style={{ margin: '-4px 0 8px', fontSize: 16 }}>A plain list for your own reference. Medicines with reminders are on the Medicines page.</p>
       <div className="about-chips" aria-labelledby="about-meds">
         {meds.map((m, i) => (
           <span key={`${m}-${i}`} className="about-chip">{m}

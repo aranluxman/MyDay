@@ -4,6 +4,8 @@ import { Icon } from '../components/Icon.jsx';
 // Everything that is not one of the four everyday tabs, as one plain list.
 // Only pages that exist are listed: nothing here leads to a dead end.
 const LINKS = [
+  { to: '/health', icon: 'heartPulse', title: 'Health tracker', desc: 'Water, sleep and measurements' },
+  { to: '/reports', icon: 'chart', title: 'Reports', desc: 'Review, then save or print' },
   { to: '/contacts', icon: 'users', title: 'Contacts', desc: 'Family and medical team' },
   { to: '/games', icon: 'brain', title: 'Games', desc: 'A little time for you' },
   { to: '/profile?section=guardians', icon: 'shield', title: 'Care team', desc: 'Guardians and people you support' },

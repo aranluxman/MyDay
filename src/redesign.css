@@ -337,3 +337,126 @@ html[data-text='xlarge'] .qs__size-now, html[data-text='huge'] .qs__size-now { g
 .reminder-warn { border-radius: var(--r-card); }
 
 .today-main { display: flex; flex-direction: column; gap: 14px; }
+
+/* =====================================================================
+   Phase 2 — Health tracker, Health profile, Reports
+   ===================================================================== */
+.setup-line { border-radius: var(--r-card); border: 1px solid var(--line); background: var(--surface); min-height: 64px; }
+.setup-line__ic { flex: none; width: 44px; height: 44px; display: grid; place-items: center; border-radius: 14px; background: var(--primary-soft); color: var(--primary-text, var(--primary)); }
+.rd-row--card { border: 1px solid var(--line); border-radius: var(--r-card); background: var(--surface); }
+
+.hgrid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.hcard2 {
+  display: flex; flex-direction: column; gap: 8px; padding: 14px; min-width: 0;
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-card);
+}
+.hcard2__ic { width: 46px; height: 46px; display: grid; place-items: center; border-radius: 14px; background: var(--primary-soft); color: var(--primary-text, var(--primary)); }
+.hcard2__main { flex: 1; min-width: 0; }
+.hcard2__t { margin: 0; font-size: 19px; font-weight: 750; overflow-wrap: anywhere; }
+.hcard2__v { margin: 2px 0 0; font-size: 20px; font-weight: 650; color: var(--ink); overflow-wrap: anywhere; }
+.hcard2__none { font-weight: 500; color: var(--ink-soft); }
+.hcard2__when { margin: 2px 0 0; font-size: 15px; color: var(--ink-soft); }
+.hcard2__log {
+  align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; min-height: var(--tap); padding: 0 16px 0 12px;
+  border: 0; border-radius: 14px; background: var(--primary-fill); color: var(--on-primary); font: inherit; font-size: 17px; font-weight: 700; cursor: pointer;
+}
+.hcard2__log:focus-visible { outline: 3px solid var(--primary-fill); outline-offset: 2px; }
+@media (hover: hover) { .hcard2__log:hover { background: var(--primary-hover); } }
+@media (max-width: 339px) { .hgrid { grid-template-columns: 1fr; } }
+html[data-text='xlarge'] .hgrid, html[data-text='huge'] .hgrid { grid-template-columns: 1fr; }
+@media (min-width: 768px) { .hgrid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+
+.health-note { margin: 0; display: flex; gap: 10px; align-items: flex-start; font-size: 16px; line-height: 1.45; color: var(--ink-soft); }
+.health-note svg { flex: none; margin-top: 2px; }
+.hl-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: start; }
+html[data-text='xlarge'] .hl-pair, html[data-text='huge'] .hl-pair { grid-template-columns: 1fr; }
+.hl-unit { margin: -4px 0 12px; font-size: 16px; }
+.field__err { display: block; margin-top: 6px; color: var(--bad-ink); font-size: 16px; font-weight: 650; }
+.input[aria-invalid='true'] { border-color: var(--bad); box-shadow: 0 0 0 2px color-mix(in srgb, var(--bad) 25%, transparent); }
+
+.htrend { padding: 16px; }
+.htrend__t { margin: 0; font-size: 22px; font-weight: 800; }
+.htrend__sub { margin: 4px 0 12px; font-size: 16px; color: var(--ink-soft); }
+.htrend__key, .htrend__avg { margin: 10px 0 0; font-size: 16px; color: var(--ink-soft); }
+.htrend__avg b { color: var(--ink); }
+.htrend__empty p { margin: 0 0 12px; font-size: 18px; color: var(--ink-soft); }
+.bars { list-style: none; margin: 0; padding: 0; display: flex; align-items: flex-end; gap: 6px; height: 190px; }
+.bars__col { flex: 1 1 0; min-width: 0; height: 100%; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.bars__v { font-size: 13px; font-weight: 700; color: var(--ink); white-space: nowrap; }
+.bars__track { flex: 1; width: 100%; max-width: 44px; display: flex; align-items: flex-end; border-radius: 10px; background: color-mix(in srgb, var(--ink-soft) 9%, var(--surface)); }
+.bars__fill { width: 100%; border-radius: 10px; background: var(--primary-fill); }
+/* No entry: a dashed, empty slot, so it never looks like a bar of zero. */
+.bars__col.is-empty .bars__track { background: none; border: 1.5px dashed var(--line-strong); }
+.bars__col.is-empty .bars__v { color: var(--ink-soft); font-weight: 500; }
+.bars__d { font-size: 14px; color: var(--ink-soft); }
+.bars--30 { gap: 2px; }
+.bars--30 .bars__v { display: none; }
+.bars--30 .bars__d { font-size: 10px; }
+.bars--30 .bars__col:nth-child(odd) .bars__d { visibility: hidden; }
+
+.hist__row { display: flex; align-items: center; gap: 6px; padding: 12px 10px 12px 16px; }
+.hist__main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.hist__v { font-size: 19px; font-weight: 750; }
+.hist__when, .hist__note { font-size: 16px; color: var(--ink-soft); overflow-wrap: anywhere; }
+
+.hp-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.hp-count { margin: 0; padding: 8px 14px; border-radius: 999px; background: var(--primary-soft); font-size: 17px; font-weight: 700; }
+.hp-list { margin: 0; }
+.hp-row { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; padding: 14px 16px; }
+.hp-row + .hp-row { border-top: 1px solid var(--line); }
+.hp-row dt { font-size: 18px; color: var(--ink); }
+.hp-row dd { margin: 0; font-size: 18px; font-weight: 700; text-align: right; overflow-wrap: anywhere; max-width: 100%; }
+.hp-row__none { font-weight: 500 !important; color: var(--ink-soft); }
+.hp-h { margin: 0 0 6px; font-size: 19px; font-weight: 750; }
+.hp-p { margin: 0; font-size: 18px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.about-row--static { margin: 0; }
+
+.rep-include { margin: 0; padding: 14px 16px; border: 1px solid var(--line); border-radius: var(--r-card); background: var(--surface); }
+.rep-include legend { padding: 0 6px; font-size: 19px; font-weight: 750; }
+.rep-include__hint { margin: 6px 0 0; font-size: 15px; color: var(--ink-soft); }
+.rep-check { display: flex; align-items: center; gap: 12px; min-height: var(--tap); font-size: 18px; cursor: pointer; }
+.rep-check input { width: 26px; height: 26px; flex: none; accent-color: var(--primary-fill); }
+.report { padding: 18px 16px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-card); }
+.report__title { margin: 0 0 10px; font-size: 24px; font-weight: 800; }
+.report__meta { margin: 0; display: grid; gap: 4px; }
+.report__meta div { display: flex; gap: 8px; flex-wrap: wrap; font-size: 17px; }
+.report__meta dt { color: var(--ink-soft); min-width: 70px; }
+.report__meta dd { margin: 0; font-weight: 700; }
+.report__disclaimer { margin: 10px 0 0; font-size: 16px; color: var(--ink-soft); }
+.report__sec { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line); }
+.report__sec h3 { margin: 0 0 8px; font-size: 21px; font-weight: 800; }
+.report__big { margin: 0 0 8px; font-size: 20px; font-weight: 750; }
+.report__counts { margin: 0 0 8px; padding: 0; list-style: none; display: flex; gap: 8px 18px; flex-wrap: wrap; font-size: 17px; }
+.report__fine { margin: 8px 0; font-size: 15px; line-height: 1.45; color: var(--ink-soft); }
+.report__scroll { overflow-x: auto; margin-top: 10px; }
+.report__table { width: 100%; border-collapse: collapse; font-size: 16px; }
+.report__table caption { text-align: left; font-weight: 750; padding-bottom: 4px; }
+.report__table th, .report__table td { padding: 8px 8px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+.report__table thead th { font-size: 14px; color: var(--ink-soft); font-weight: 700; }
+.report__table tbody th { font-weight: 650; }
+.report__none, .report__gap { color: var(--ink-soft); font-style: normal; }
+.report__notes { margin: 0; padding: 0; list-style: none; display: grid; gap: 12px; font-size: 17px; }
+.report__notes p { margin: 4px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.vdetail__line--notes span { white-space: pre-wrap; overflow-wrap: anywhere; }
+
+/* Printing a report: only the report, black on white, no app chrome. */
+@media print {
+  .app-shell[data-page='/reports'] .topbar, .app-shell[data-page='/reports'] .subbar,
+  .app-shell[data-page='/reports'] .bottom-nav, .app-shell[data-page='/reports'] .report-controls,
+  .app-shell[data-page='/reports'] .offline-bar, .toast-stack, .skip-link { display: none !important; }
+  .app-shell[data-page='/reports'] { padding: 0 !important; }
+  .app-shell[data-page='/reports'] .content { max-width: none; padding: 0 !important; margin: 0; }
+  html, body { background: #fff !important; zoom: 1 !important; }
+  .report { border: 0; padding: 0; color: #000; }
+  .report * { color: #000 !important; }
+  .report__scroll { overflow: visible; }
+  .report__sec, .report__table tr { break-inside: avoid; }
+  .report__table th, .report__table td { border-bottom: 1px solid #999; }
+}
+/* On the side rail Diary and Health tracker are separate items, so Diary is
+   not lit while Health tracker is open (on a phone it is: one tab for both). */
+@media (min-width: 1024px) {
+  .bottom-nav__item.is-active--phone, .bottom-nav__item.is-active--phone .bottom-nav__label { background: transparent; color: var(--rail-ink-soft); font-weight: 600; }
+}
+.health .field, .reports .field { display: block; }
+.health .input--select, .reports .input--select { width: 100%; }

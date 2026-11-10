@@ -9,12 +9,14 @@ const ITEMS = [
   { to: '/medication', icon: 'pill', label: 'Medicines', phone: true },
   { to: '/appointments', icon: 'calendar', label: 'Appointments', phone: true },
   { to: '/contacts', icon: 'users', label: 'Contacts' },
-  { to: '/updates', icon: 'notes', label: 'Health diary', short: 'Diary', phone: true },
+  { to: '/updates', icon: 'notes', label: 'Health diary', short: 'Diary', phone: true, also: '/health' },
+  { to: '/health', icon: 'heartPulse', label: 'Health tracker' },
+  { to: '/reports', icon: 'chart', label: 'Reports' },
   { to: '/games', icon: 'brain', label: 'Games', group: 'end' },
   { to: '/profile', icon: 'gear', label: 'Settings', end: true },
 ];
 // Pages that live under More on a phone: More stays lit while you are in one.
-export const MORE_PAGES = ['/more', '/contacts', '/games', '/profile'];
+export const MORE_PAGES = ['/more', '/contacts', '/games', '/profile', '/reports'];
 
 export function BottomNav() {
   const { pathname } = useLocation();
@@ -24,7 +26,7 @@ export function BottomNav() {
     <nav className="bottom-nav" aria-label="Main navigation">
       {ITEMS.map((it) => (
         <NavLink key={it.to} to={it.to} end={it.end}
-          className={({ isActive }) => `bottom-nav__item${it.phone ? '' : ' bottom-nav__item--wide'}${it.group === 'end' ? ' bottom-nav__item--split' : ''}${isActive ? ' is-active' : ''}`}>
+          className={({ isActive }) => `bottom-nav__item${it.phone ? '' : ' bottom-nav__item--wide'}${it.group === 'end' ? ' bottom-nav__item--split' : ''}${isActive ? ' is-active' : it.also === pathname ? ' is-active is-active--phone' : ''}`}>
           <span className="bottom-nav__ic" aria-hidden="true"><Icon name={it.icon} size={25} /></span>
           {it.short
             ? <span className="bottom-nav__label"><span className="bottom-nav__long">{it.label}</span><span className="bottom-nav__short">{it.short}</span></span>

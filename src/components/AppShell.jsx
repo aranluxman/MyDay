@@ -16,6 +16,8 @@ const TITLES = {
   '/contacts': 'Contacts',
   '/games': 'Games',
   '/more': 'More',
+  '/health': 'Health tracker',
+  '/reports': 'Reports',
   '/medication/ask': 'Ask about medicines',
 };
 
@@ -24,6 +26,8 @@ const BACK = {
   '/contacts': { to: '/more', label: 'More' },
   '/games': { to: '/more', label: 'More' },
   '/profile': { to: '/more', label: 'More' },
+  '/reports': { to: '/more', label: 'More' },
+  '/health': { to: '/updates', label: 'Diary' },
   '/medication/ask': { to: '/medication', label: 'Medicines' },
 };
 
@@ -35,7 +39,7 @@ const ADD_FOR = {
   '/updates': { label: 'Add note', aria: 'Add health note', to: '/updates', add: 'diary' },
 };
 // The profile chip sits under the title on the everyday pages.
-const CHIP_PAGES = new Set(['/', '/medication', '/appointments', '/updates', '/more', '/contacts', '/games']);
+const CHIP_PAGES = new Set(['/', '/medication', '/appointments', '/updates', '/more', '/contacts', '/games', '/health', '/reports']);
 
 const ADD_ACTIONS = [
   { icon: 'pill', label: 'Add a medicine', desc: 'Pills, vitamins, drops', to: '/medication', add: 'med' },

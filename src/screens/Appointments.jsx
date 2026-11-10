@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useUI } from '../context/UIContext.jsx';
 import { useAsync } from '../hooks/useAsync.js';
-import { Card, Button, Modal, Field, Input, SkeletonCard, SegmentedControl } from '../components/ui.jsx';
+import { Card, Button, Modal, Field, Input, Textarea, SkeletonCard, SegmentedControl } from '../components/ui.jsx';
 import { Icon } from '../components/Icon.jsx';
 import { upcomingAppointments, pastAppointments, saveAppointment, deleteAppointment, listContacts } from '../lib/db.js';
 import { prettyDate, prettyTime, localDateStr } from '../lib/format.js';
@@ -191,6 +191,7 @@ function ApptDetail({ appt: a, contacts, onClose, onEdit, onRemove }) {
         </span>
         {a.location && <p className="vdetail__line"><Icon name="pin" size={20} /> <span>{a.location}</span></p>}
         {a.reason && a.doctor_name && <p className="vdetail__line"><Icon name="notes" size={20} /> <span>{a.reason}</span></p>}
+        {a.notes && <p className="vdetail__line vdetail__line--notes"><Icon name="edit" size={20} /> <span><b>Notes:</b> {a.notes}</span></p>}
       </div>
       {!past && (
         <div className="appt__actions">
@@ -225,13 +226,14 @@ function ApptForm({ appt, draft, onClose, onSaved }) {
   const [doctor, setDoctor] = useState(appt?.doctor_name || '');
   const [loc, setLoc] = useState(appt?.location || '');
   const [reason, setReason] = useState(appt?.reason || draft?.reason || '');
+  const [notes, setNotes] = useState(appt?.notes || '');
   const [busy, setBusy] = useState(false);
 
   async function save() {
     if (!date) { ui.toast('Please choose a date.', 'bad'); return; }
     setBusy(true);
     try {
-      await saveAppointment({ id: appt?.id, appt_date: date, appt_time: time, doctor_name: doctor.trim(), location: loc.trim(), reason: reason.trim() });
+      await saveAppointment({ id: appt?.id, appt_date: date, appt_time: time, doctor_name: doctor.trim(), location: loc.trim(), reason: reason.trim(), notes: notes.trim() });
       ui.toast(editing ? 'Appointment updated.' : 'Appointment added.');
       onSaved();
     } catch { ui.toast('Could not save.', 'bad'); setBusy(false); }
@@ -244,6 +246,7 @@ function ApptForm({ appt, draft, onClose, onSaved }) {
       <Field label="Doctor"><Input value={doctor} onChange={(e) => setDoctor(e.target.value)} placeholder="e.g. Dr. Patel" maxLength={60} /></Field>
       <Field label="Location"><Input value={loc} onChange={(e) => setLoc(e.target.value)} placeholder="e.g. Riverside Clinic" maxLength={80} /></Field>
       <Field label="Reason"><Input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="e.g. Check-up" maxLength={80} /></Field>
+      <Field label="Notes (optional)" hint="Questions to ask, what to bring."><Textarea rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} maxLength={500} /></Field>
       <div className="btn-row" style={{ marginTop: 8 }}>
         <Button variant="ghost" onClick={onClose}>Cancel</Button>
         <Button disabled={busy} icon={busy ? 'clock' : undefined} onClick={save}>{busy ? 'Saving…' : editing ? 'Save changes' : 'Add appointment'}</Button>

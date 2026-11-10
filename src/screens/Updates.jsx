@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useUI } from '../context/UIContext.jsx';
 import { useAsync } from '../hooks/useAsync.js';
 import { Card, Button, Modal, Field, Input, Textarea, SegmentedControl, SkeletonCard } from '../components/ui.jsx';
@@ -86,12 +86,13 @@ function groupByDay(rows) {
 export default function Updates() {
   const ui = useUI();
   const location = useLocation();
+  const navigate = useNavigate();
   const [editing, setEditing] = useState(null);
   const [chatting, setChatting] = useState(null);
   const { data, loading, error, reload } = useAsync(() => listDiary(80), []);
 
   useEffect(() => {
-    if (location.state?.add === 'diary') { setEditing({}); window.history.replaceState({}, ''); }
+    if (location.state?.add === 'diary') { setEditing(location.state.draft || {}); window.history.replaceState({}, ''); }
     // Home's mood card offers "Chat with MyDay": open the general chat.
     else if (location.state?.chat) { setChatting(CHECK_IN); window.history.replaceState({}, ''); }
   }, [location.key]);
@@ -117,6 +118,10 @@ export default function Updates() {
 
   return (
     <div className="stack">
+      <SegmentedControl label="Diary section" value="notes" onChange={(v) => { if (v === 'health') navigate('/health'); }} options={[
+        { value: 'notes', label: 'Notes' },
+        { value: 'health', label: 'Health tracker' },
+      ]} />
       <p className="page-intro">Track how you feel each day. Tap a feeling to add a note.</p>
 
       <FeelingTiles onPick={(draft) => setEditing(draft)} />
