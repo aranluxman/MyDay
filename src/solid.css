@@ -278,7 +278,7 @@ html[data-text='xlarge'] .today-side > *, html[data-text='huge'] .today-side > *
 
 /* A dose row decides by its own width where the button goes: beside the
    name when there is room, a full-width button underneath when there is not.
-   "Mark as taken" never squeezes the medicine name. */
+   "Record as taken" never squeezes the medicine name. */
 .drow { container: drow / inline-size; display: flex; flex-direction: column; }
 @container drow (max-width: 440px) {
   /* Medicine, then its times and status, then the button: the button never

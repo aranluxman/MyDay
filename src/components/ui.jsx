@@ -2,7 +2,6 @@ import { useState, useCallback, useEffect, useLayoutEffect, useRef, useId } from
 import { createPortal } from 'react-dom';
 import { Icon } from './Icon.jsx';
 import { useDialog } from '../hooks/useDialog.js';
-import { useLiquidSlider, useLiquidSwitch } from '../hooks/useLiquidDrag.js';
 import { useSheetDrag } from '../hooks/useSheetDrag.js';
 
 export function Button({ children, onClick, variant = 'primary', size = 'md', icon, disabled, type = 'button', full = true, className = '', ...rest }) {
@@ -121,7 +120,6 @@ export function Avatar({ name, color = '#2563a8', size = 44, src }) {
 // be slid. A tap or Space/Enter flips it exactly as before.
 export function Toggle({ checked, onChange, label, labelledBy, describedBy, disabled }) {
   const ref = useRef(null);
-  useLiquidSwitch({ ref, checked: !!checked, onChange, disabled });
   return (
     <button ref={ref} type="button" role="switch" aria-checked={!!checked}
       aria-label={labelledBy ? undefined : label} aria-labelledby={labelledBy} aria-describedby={describedBy}
@@ -150,7 +148,6 @@ export function SegmentedControl({ options, value, onChange, kind = 'radio', lab
   const tabs = kind === 'tabs';
   const refs = useRef([]);
   const wrapRef = useRef(null);
-  const lensRef = useRef(null);
   const [wrapped, setWrapped] = useState(false);
   useLayoutEffect(() => {
     const el = wrapRef.current;
@@ -164,11 +161,6 @@ export function SegmentedControl({ options, value, onChange, kind = 'radio', lab
     ro?.observe(el);
     return () => ro?.disconnect();
   }, [options.length]);
-  useLiquidSlider({
-    containerRef: wrapRef, lensRef, itemSelector: '.segmented__item', activeKey: value, disabled: wrapped,
-    onCommit: (i) => { onChange(options[i].value); refs.current[i]?.focus({ preventScroll: true }); },
-  });
-
   function onKeyDown(e) {
     const n = options.length;
     let next = null;
@@ -183,9 +175,8 @@ export function SegmentedControl({ options, value, onChange, kind = 'radio', lab
   }
 
   return (
-    <div ref={wrapRef} className={`segmented${wrapped ? ' is-wrapped' : ' has-lens'}${className ? ` ${className}` : ''}`} role={tabs ? 'tablist' : 'radiogroup'} aria-label={label}
+    <div ref={wrapRef} className={`segmented is-wrapped${wrapped ? ' is-stacked' : ''}${className ? ` ${className}` : ''}`} role={tabs ? 'tablist' : 'radiogroup'} aria-label={label}
       onKeyDown={onKeyDown}>
-      <span className="segmented__thumb lg-lens" ref={lensRef} aria-hidden="true" />
       {options.map((o, i) => {
         const on = value === o.value;
         return (

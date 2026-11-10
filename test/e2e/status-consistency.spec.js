@@ -27,7 +27,7 @@ test('calendar, history list, Today and Home agree on missed doses', async ({ br
   await expect(oct3.locator('.g-badge--missed')).toHaveCount(2);
 
   await page.goto('/');
-  await expect(page.locator('.tmed__headline')).toHaveText('1 dose not recorded');
+  await expect(page.locator('.daycount__flag')).toHaveText('1 dose not recorded');
   await page.getByRole('button', { name: 'My calendar' }).click();
   await expect(page.getByRole('dialog').getByRole('button', { name: /Wednesday, October 7:/ })).toHaveAttribute('aria-label', /1 not recorded/);
   await context.close();

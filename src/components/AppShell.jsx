@@ -1,15 +1,11 @@
 import { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { BottomNav } from './BottomNav.jsx';
-import { Avatar } from './ui.jsx';
 import { Icon } from './Icon.jsx';
-import { InstallButton } from './InstallButton.jsx';
+import { QuickSettings } from './QuickSettings.jsx';
 import { DueAlarm } from './DueAlarm.jsx';
 import { useApp } from '../context/AppContext.jsx';
 import { playAlarmOnce } from '../lib/alarm.js';
-import { modeOf, nextMode, themeForMode } from '../lib/appearance.js';
-
-const MODE_WORDS = { system: 'match my device', light: 'light mode', dark: 'dark mode' };
 
 const TITLES = {
   '/': 'MyDay',
@@ -19,14 +15,27 @@ const TITLES = {
   '/profile': 'Settings',
   '/contacts': 'Contacts',
   '/games': 'Games',
+  '/more': 'More',
   '/medication/ask': 'Ask about medicines',
 };
 
-// Medicines and Appointments have their own "+ Add" in the top bar; these two
-// get one too (Today's opens a short menu).
-const ADD_PAGES = new Set(['/', '/updates']);
-// Pages that carry the profile photo in the top bar, as a way into Profile.
-const AVATAR_PAGES = new Set(['/']);
+// Pages reached from another page say where "back" goes, above their title.
+const BACK = {
+  '/contacts': { to: '/more', label: 'More' },
+  '/games': { to: '/more', label: 'More' },
+  '/profile': { to: '/more', label: 'More' },
+  '/medication/ask': { to: '/medication', label: 'Medicines' },
+};
+
+// Each main page has one "Add" beside the profile chip, never floating over
+// the content. Home's opens a short menu of everything that can be added.
+const ADD_FOR = {
+  '/medication': { label: 'Add', aria: 'Add a medicine', to: '/medication', add: 'med' },
+  '/appointments': { label: 'Add', aria: 'Add an appointment', to: '/appointments', add: 'appt' },
+  '/updates': { label: 'Add note', aria: 'Add health note', to: '/updates', add: 'diary' },
+};
+// The profile chip sits under the title on the everyday pages.
+const CHIP_PAGES = new Set(['/', '/medication', '/appointments', '/updates', '/more', '/contacts', '/games']);
 
 const ADD_ACTIONS = [
   { icon: 'pill', label: 'Add a medicine', desc: 'Pills, vitamins, drops', to: '/medication', add: 'med' },
@@ -36,25 +45,21 @@ const ADD_ACTIONS = [
 ];
 
 export function AppShell() {
-  const { theme, resolvedTheme, setTheme, profile } = useApp();
+  const { profile } = useApp();
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const [addOpen, setAddOpen] = useState(false);
-  const [scrolled, setScrolled] = useState(false);
+  const [quickOpen, setQuickOpen] = useState(false);
   const title = TITLES[pathname] || 'MyDay';
-  const mode = modeOf(theme);
-  const next = nextMode(theme);
-  const modeIcon = mode === 'system' ? 'monitor' : mode === 'dark' ? 'moon' : 'sun';
   const isHome = pathname === '/';
-  // Adding lives in the top bar on every page, never floating over the
-  // content or beside the tab bar. Health diary's button does that page's one
-  // job directly; only Today keeps the short menu of everything addable.
-  const showAdd = ADD_PAGES.has(pathname);
-  const addDirect = pathname === '/updates' ? ADD_ACTIONS.find((a) => a.add === 'diary') : null;
+  const back = BACK[pathname];
+  const addDirect = ADD_FOR[pathname];
+  const showChip = CHIP_PAGES.has(pathname);
   const addRef = useRef(null);
   const mainRef = useRef(null);
   const firstRoute = useRef(true);
   const online = useOnline();
+  const firstName = (profile?.full_name || '').trim().split(/\s+/)[0];
 
   // A meaningful page title for every route (tabs, history, screen readers).
   useEffect(() => { document.title = pathname === '/' ? 'Home · MyDay' : `${title} · MyDay`; }, [pathname, title]);
@@ -69,17 +74,10 @@ export function AppShell() {
     return () => sw.removeEventListener('message', onMsg);
   }, []);
 
-  // The large title shrinks into a compact bar once the page moves, the way
-  // iOS navigation bars do.
-  useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 12);
-    onScroll();
-    window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
-  }, []);
   useEffect(() => {
     window.scrollTo(0, 0);
     setAddOpen(false);
+    setQuickOpen(false);
     // After navigating, start a keyboard / screen reader user at the new
     // page's content rather than leaving focus on the tab they pressed.
     if (firstRoute.current) { firstRoute.current = false; return; }
@@ -103,46 +101,56 @@ export function AppShell() {
           <Icon name="alert" size={20} /> You are offline. Nothing you tap is saved until you reconnect.
         </div>
       )}
-      <header className={`topbar${scrolled ? ' is-scrolled' : ''}`}>
-        <h1 className="topbar__title" id="page-title">{isHome ? <><Icon name="leaf" size={26} className="topbar__leaf" />My<span className="topbar__accent">Day</span></> : title}</h1>
-        <div className="topbar__tools">
-          <InstallButton />
-          {showAdd && (
-            <button type="button" ref={addRef} className={`topbar__add${addOpen ? ' is-open' : ''}`}
-              aria-haspopup={addDirect ? undefined : 'menu'} aria-expanded={addDirect ? undefined : addOpen}
-              aria-label={addDirect ? 'Add health note' : 'Add'}
-              onClick={() => (addDirect ? doAdd(addDirect) : setAddOpen((v) => !v))}>
-              <Icon name="plus" size={22} stroke={2.6} /> <span>{addDirect ? 'Add note' : 'Add'}</span>
-            </button>
-          )}
-          {pathname === '/medication' && (
-            <button type="button" className="topbar__add" aria-label="Add a medicine" onClick={() => navigate('/medication', { state: { add: 'med' } })}>
-              <Icon name="plus" size={22} stroke={2.6} /> <span>Add</span>
-            </button>
-          )}
-          {pathname === '/appointments' && (
-            <button type="button" className="topbar__add" aria-label="Add an appointment" onClick={() => navigate('/appointments', { state: { add: 'appt' } })}>
-              <Icon name="plus" size={22} stroke={2.6} /> <span>Add</span>
-            </button>
-          )}
-          <button className={`topbar__btn${pathname === '/updates' ? ' topbar__btn--label' : ''}`} data-mode={mode}
-            aria-label={`Theme: switch to ${MODE_WORDS[next]} (now ${MODE_WORDS[mode]}${mode === 'system' ? `, ${resolvedTheme === 'dark' ? 'dark' : 'light'}` : ''})`}
-            title={`Now ${MODE_WORDS[mode]} — tap for ${MODE_WORDS[next]}`} onClick={() => setTheme(themeForMode(next, theme))}>
-            <Icon name={modeIcon} size={24} />
-            {pathname === '/updates' && <span className="topbar__btn-l">Theme</span>}
+      <header className="topbar">
+        {back && (
+          <button type="button" className="topbar__back" onClick={() => navigate(back.to)}>
+            <Icon name="back" size={20} stroke={2.4} /> <span>{back.label}</span>
           </button>
-          {AVATAR_PAGES.has(pathname) && (
-            <button type="button" className="topbar__avatar" aria-label="Settings and about me" onClick={() => navigate('/profile')}>
-              <Avatar name={profile?.full_name} color={profile?.avatar_color} size={48} src={profile?.avatar_url} />
+        )}
+        <div className="topbar__main">
+          <h1 className={`topbar__title${isHome ? ' topbar__title--brand' : ''}`} id="page-title">
+            {isHome ? <span aria-label="MyDay" translate="no">MYDAY</span> : title}
+          </h1>
+          {/* Settings is one labelled button at the top of every page. The
+              Settings page itself does not need a way to itself. */}
+          {pathname !== '/profile' && (
+            <button type="button" className="topbar__settings" aria-haspopup="dialog" aria-expanded={quickOpen}
+              onClick={() => setQuickOpen(true)}>
+              <Icon name="gear" size={22} /> <span>Settings</span>
             </button>
           )}
         </div>
       </header>
 
-      {/* Keyed on the route so each screen plays its entrance. */}
-      <main className="content" id="main" ref={mainRef} tabIndex={-1} aria-labelledby="page-title"><div className="page" key={pathname}><Outlet /></div></main>
+      <main className="content" id="main" ref={mainRef} tabIndex={-1} aria-labelledby="page-title">
+        {showChip && (
+          <div className="subbar">
+            <button type="button" className="who-chip" aria-haspopup="dialog"
+              aria-label={`${firstName || 'My profile'}${firstName ? ', my profile' : ''}: open quick settings`}
+              onClick={() => setQuickOpen(true)}>
+              <Icon name="user" size={22} />
+              <span className="who-chip__t">{firstName ? <><span translate="no">{firstName}</span> · My profile</> : 'My profile'}</span>
+              <Icon name="chevron" size={18} className="who-chip__chev" />
+            </button>
+            {isHome && (
+              <button type="button" ref={addRef} className={`subbar__add${addOpen ? ' is-open' : ''}`}
+                aria-haspopup="menu" aria-expanded={addOpen} onClick={() => setAddOpen((v) => !v)}>
+                <Icon name="plus" size={22} stroke={2.6} /> <span>Add</span>
+              </button>
+            )}
+            {addDirect && (
+              <button type="button" className="subbar__add" aria-label={addDirect.aria} onClick={() => doAdd(addDirect)}>
+                <Icon name="plus" size={22} stroke={2.6} /> <span>{addDirect.label}</span>
+              </button>
+            )}
+          </div>
+        )}
+        {/* Keyed on the route so each screen plays its entrance. */}
+        <div className="page" key={pathname}><Outlet /></div>
+      </main>
 
-      {showAdd && addOpen && <AddMenu anchor={addRef} onPick={doAdd} onClose={() => { setAddOpen(false); addRef.current?.focus(); }} />}
+      {isHome && addOpen && <AddMenu anchor={addRef} onPick={doAdd} onClose={() => { setAddOpen(false); addRef.current?.focus(); }} />}
+      {quickOpen && <QuickSettings onClose={() => setQuickOpen(false)} />}
 
       <BottomNav />
     </div>

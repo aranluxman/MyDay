@@ -4,7 +4,7 @@
 // least 5.5:1 on its buttons), plus Dark and High contrast. "light" is the
 // green MyDay look and stays the default id, so nobody's saved choice breaks.
 export const THEMES = [
-  { id: 'light', name: 'Green', bg: '#f3f6ee', primary: '#1e6b3c', ink: '#16291d' },
+  { id: 'light', name: 'Green', bg: '#f6f9f7', primary: '#175c43', ink: '#172c23' },
   { id: 'ocean', name: 'Ocean', bg: '#eff6ff', primary: '#175cd3', ink: '#142d4e' },
   { id: 'sky', name: 'Sky', bg: '#eef7fb', primary: '#0a6a8f', ink: '#0f2a38' },
   { id: 'sage', name: 'Sage', bg: '#f2f6f3', primary: '#3c6a53', ink: '#1d2b24' },

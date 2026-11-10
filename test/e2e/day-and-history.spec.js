@@ -14,7 +14,7 @@ test('a morning completion survives reopening and evening has its own dose', asy
   await page.clock.fastForward(10 * 3600_000);
   await page.evaluate(() => window.dispatchEvent(new Event('focus')));
   await expect(morning).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Mark as taken: Synthetic Metformin, 8:00 PM dose' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Record as taken: Synthetic Metformin, 8:00 PM dose' })).toBeVisible();
   await page.reload();
   await expect(morning).toHaveCount(0);
   expect(recorded.status).toBe('taken');
@@ -45,8 +45,10 @@ test('phone navigation keeps Appointments direct and opens Games and Settings fr
   await expect(nav.getByRole('link', { name: 'Appointments', exact: true })).toBeVisible();
   await expect(nav.getByRole('link', { name: 'Games', exact: true })).toBeHidden();
   await expect(nav.getByRole('link', { name: 'Settings', exact: true })).toBeHidden();
-  await nav.getByRole('button', { name: 'More', exact: true }).click();
-  await page.getByRole('dialog').getByRole('button', { name: /^Settings/ }).click();
+  // More is a page of its own now, not a pop-up.
+  await nav.getByRole('link', { name: 'More', exact: true }).click();
+  await expect(page).toHaveURL(/\/more$/);
+  await page.getByRole('main').getByRole('button', { name: /^Settings/ }).click();
   await expect(page).toHaveURL(/\/profile$/);
   await context.close();
 });

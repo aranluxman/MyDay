@@ -37,26 +37,15 @@ for (const [width, height] of LAPTOPS) {
   });
 }
 
-test('sliding a finger along the tab bar moves the glass and opens the tab it stops on', async ({ browser }) => {
-  const { page, context } = await openApp(browser, { mobile: false });
-  const nav = page.locator('.bottom-nav');
-  const b = await nav.boundingBox();
-  const target = await page.locator('.bottom-nav__item', { hasText: 'Diary' }).boundingBox();
-  const y = b.y + b.height / 2;
-  await page.mouse.move(b.x + 40, y);
-  await page.mouse.down();
-  const steps = 12;
-  for (let i = 1; i <= steps; i++) await page.mouse.move(b.x + 40 + ((target.x + target.width / 2 - b.x - 40) * i) / steps, y);
-  await expect(nav).toHaveClass(/is-dragging/);
-  await page.waitForTimeout(150); // a still finger: no momentum
-  await page.mouse.up();
+// The glass lens that slid along the tab bar was removed in the November 2026
+// redesign: the bar is flat, and the page you are on is a pale pill.
+test('the tab bar is flat: a tap opens a tab and marks it as the current page', async ({ browser }) => {
+  const { page, context } = await openApp(browser);
+  const nav = page.getByRole('navigation', { name: 'Main navigation' });
+  await expect(page.locator('.bottom-nav__ind')).toHaveCount(0);
+  await nav.getByRole('link', { name: 'Diary', exact: true }).click();
   await expect(page).toHaveURL(/\/updates$/);
-  const lens = await page.locator('.bottom-nav__ind').boundingBox();
-  const active = await page.locator('.bottom-nav__item.is-active').boundingBox();
-  expect(Math.abs(lens.x - active.x)).toBeLessThan(2);
-  // A plain tap still works.
-  await page.locator('.bottom-nav__item', { hasText: 'Appointments' }).click();
-  await expect(page).toHaveURL(/\/appointments$/);
+  await expect(nav.getByRole('link', { name: 'Diary', exact: true })).toHaveAttribute('aria-current', 'page');
   await context.close();
 });
 
@@ -121,7 +110,7 @@ test('Home can be rearranged, and a mood tap is saved with Undo', async ({ brows
   const order = await page.locator('.home-w').evaluateAll((els) => els.map((e) => e.className.match(/home-w--(\w+)/)[1]));
   expect(order.indexOf('nextVisit')).toBeLessThan(order.indexOf('week'));
   // Today's medicines is never a widget that can be hidden or moved.
-  await expect(page.getByRole('heading', { name: 'Today’s medicines' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Next medicine' })).toBeVisible();
 
   await page.getByRole('button', { name: 'Okay' }).click();
   await expect(page.getByText('Today you felt: Okay')).toBeVisible();
@@ -177,9 +166,9 @@ test('contacts dial saved numbers, say plainly when one is missing, and 911 asks
   await context.close();
 });
 
-test('the Medicines page records a dose with Mark as taken, and the reminders switch saves', async ({ browser }) => {
+test('the Medicines page records a dose with Record as taken, and the reminders switch saves', async ({ browser }) => {
   const { page, mock, context } = await openApp(browser, { path: '/medication' });
-  await page.getByRole('button', { name: 'Mark as taken: Synthetic Vitamin D, 9:00 AM dose' }).click();
+  await page.getByRole('button', { name: 'Record as taken: Synthetic Vitamin D, 9:00 AM dose' }).click();
   const row = page.locator('.drow', { hasText: 'Synthetic Vitamin D' });
   await expect(row.locator('.drow__done')).toHaveText('Taken');
   // A later dose cannot be marked yet; its outline button says when it can.
@@ -277,7 +266,7 @@ test('Medicine: tapping a day shows it right there, with scheduled and taken tim
 
   // Forgot to tap yesterday: mark it with the real time, and it reads as late.
   const missed = page.locator('.drow', { hasText: 'Synthetic Metformin' }).filter({ hasText: '8:00 PM' });
-  await missed.getByRole('button', { name: 'Mark as taken: Synthetic Metformin, 8:00 PM dose' }).click();
+  await missed.getByRole('button', { name: 'Record as taken: Synthetic Metformin, 8:00 PM dose' }).click();
   await page.getByLabel('Type a time').fill('23:30');
   await page.getByRole('button', { name: 'Use 11:30 PM' }).click();
   await expect(page.locator('.toast').first()).toContainText('taken at 11:30');
@@ -288,7 +277,7 @@ test('Medicine: tapping a day shows it right there, with scheduled and taken tim
   // Older days are a read-only record.
   await strip.getByRole('button', { name: 'Monday, October 5' }).click();
   await expect(page.getByRole('heading', { name: 'Monday' })).toBeVisible();
-  await expect(page.getByRole('button', { name: /^Mark as taken/ })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /^Record as taken/ })).toHaveCount(0);
 
   // A later day is the plan; "Back to today" returns to the live list.
   await strip.getByRole('button', { name: 'Friday, October 9' }).click();
@@ -296,6 +285,6 @@ test('Medicine: tapping a day shows it right there, with scheduled and taken tim
   await expect(page.locator('.ring-card')).toContainText('doses planned');
   await page.getByRole('button', { name: 'Back to today' }).click();
   await expect(page.getByRole('heading', { name: 'Today', exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Mark as taken: Synthetic Vitamin D, 9:00 AM dose' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Record as taken: Synthetic Vitamin D, 9:00 AM dose' })).toBeVisible();
   await context.close();
 });

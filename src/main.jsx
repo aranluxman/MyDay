@@ -13,6 +13,8 @@ import './games.css';
 import './pages.css';
 // Loaded last: no see-through surfaces anywhere.
 import './solid.css';
+// The November 2026 green-and-white redesign: tokens, shell and pages.
+import './redesign.css';
 
 // iOS Safari only shows :active (the pressed look) while the page listens for
 // touches. Without this, buttons gave no feedback until the finger lifted.

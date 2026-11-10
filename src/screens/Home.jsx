@@ -7,7 +7,6 @@ import { useDayRefresh } from '../hooks/useDayRefresh.js';
 import { useAsync } from '../hooks/useAsync.js';
 import { Card, Button, Avatar, Skeleton, SkeletonCard, Modal, Toggle } from '../components/ui.jsx';
 import { Icon } from '../components/Icon.jsx';
-import { HeroArt } from '../components/HeroArt.jsx';
 import { MedCalendar, WeekStrip } from '../components/MedCalendar.jsx';
 import { DoseRow } from '../components/DoseRow.jsx';
 import { getNotificationPrefs, todaysDoses, upcomingAppointments, pastAppointments, playedTodayCount, listGuardians, listMedications, listContacts, listDiary, saveDiary, deleteDiary } from '../lib/db.js';
@@ -16,7 +15,7 @@ import { telHref } from '../lib/contacts.js';
 import { countdownLabel } from '../lib/appointments.js';
 import { MOODS, normalizeLayout, moveWidget, toggleWidget, todaysMood, widgetInfo, DEFAULT_LAYOUT, groupDoses } from '../lib/homeWidgets.js';
 import { profileCompleteness } from '../lib/appearance.js';
-import { summarise, doseState } from '../lib/doseState.js';
+import { summarise, doseState, sortForDisplay } from '../lib/doseState.js';
 import { deliveryStatus } from '../lib/notifications.js';
 import { pushSupported } from '../lib/push.js';
 import { platformTag } from '../lib/guardian.js';
@@ -137,24 +136,30 @@ export default function Home() {
 
   return (
     <div className="today stack">
-      <section className="today-hero" aria-labelledby="hero-hi">
-        <HeroArt />
-        <div className="today-hero__text">
-          <p className="today-hero__date"><Icon name="calendar" size={20} /> {prettyDate(localDateStr())}</p>
-          <h2 className="today-hero__hi" id="hero-hi">{greeting}, {firstName}</h2>
-          <p className="today-hero__sub">Here’s your MyDay for today.</p>
-        </div>
+      <section className="greet" aria-labelledby="hero-hi">
+        <h2 className="greet__hi" id="hero-hi">{greeting}, <span translate="no">{firstName}</span></h2>
+        <p className="greet__date">{prettyDate(localDateStr())}</p>
       </section>
 
-      {/* Never fail silently: if this device cannot deliver reminders, Today
-          says so rather than letting someone believe they are covered. */}
-      <ReminderWarning problem={reminderProblem} />
+      {/* The day in one line, with the words carrying the meaning. */}
+      {s.total > 0 && (
+        <button type="button" className={`daycount${s.missed + s.overdue ? ' daycount--attn' : ''}`} onClick={() => navigate('/medication')}>
+          <Icon name="pill" size={22} />
+          <span className="daycount__t">{s.taken + s.skipped} of {s.total} doses recorded</span>
+          {s.missed + s.overdue > 0 && <span className="daycount__flag"><Icon name="alert" size={16} stroke={2.6} /> {s.headline}</span>}
+          <Icon name="chevron" size={20} className="daycount__chev" />
+        </button>
+      )}
 
       {/* Medicines are the main task and always come first: the dominant
           column on a laptop, full width above everything else on a tablet or
           phone. Everything else is the person's own, arranged with Edit. */}
       <div className="today-grid">
         <div className="today-main">
+          <NextMedicine doses={doses} summary={s} opts={opts} actions={actions} />
+          {/* Never fail silently: if this device cannot deliver reminders, Home
+              says so, right under the dose it would have reminded about. */}
+          <ReminderWarning problem={reminderProblem} />
           <TodayMedicines doses={doses} summary={s} opts={opts} actions={actions} />
         </div>
         <div className="today-side">
@@ -316,11 +321,9 @@ function GuardianNudge({ guardians, quiet }) {
 function HomeSkeleton() {
   return (
     <div className="today stack" role="status" aria-label="Loading your day">
-      <div className="today-hero">
-        <div className="today-hero__text">
-          <Skeleton h={16} w="40%" />
-          <Skeleton h={34} w="60%" style={{ marginTop: 10 }} />
-        </div>
+      <div className="greet">
+        <Skeleton h={34} w="60%" />
+        <Skeleton h={16} w="40%" style={{ marginTop: 10 }} />
       </div>
       <div className="today-grid">
         <div className="today-main"><SkeletonCard lines={5} /></div>
@@ -541,50 +544,63 @@ function QuickCalls({ contacts }) {
   );
 }
 
-// Today's medicines: every dose of the day, grouped by time of day with quiet
-// labels, so the whole day reads at a glance and each dose can be recorded
-// (or a mistake corrected) right here. The summary is compact and secondary:
-// a line of words and a thin bar, never a score to feel bad about.
-function TodayMedicines({ doses, summary: s, opts, actions }) {
+// The dose that needs attention first, with its one action, inside the first
+// screen. Which dose that is comes from sortForDisplay(), the same order
+// Medicines uses; the row itself is the shared DoseRow, so recording,
+// correcting, "I took it earlier" and "Not today" behave exactly as they do
+// everywhere else. Opening the row shows the other choices.
+function NextMedicine({ doses, summary: s, opts, actions }) {
   const navigate = useNavigate();
-  const recorded = s.taken + s.skipped;
-  const attention = s.missed + s.overdue;
+  const open = sortForDisplay((doses || []).filter((d) => !d.as_needed), opts)
+    .filter((d) => !['taken', 'skipped'].includes(doseState(d, opts)));
+  const next = open[0];
   return (
-    <section className="tmed" aria-labelledby="tmed-t">
-      <header className="tmed__head">
-        <span className="tmed__ic" aria-hidden="true"><Icon name="pill" size={24} /></span>
-        <div className="tmed__titles">
-          <h2 className="tmed__t" id="tmed-t">Today’s medicines</h2>
-          <p className={`tmed__headline${attention ? ' tmed__headline--attn' : ''}`}>
-            {attention > 0 && <Icon name="alert" size={18} />} {s.headline}
-          </p>
-        </div>
-        {s.total > 0 && (
-          <div className="tmed__progress">
-            <span className="tmed__count">{recorded} of {s.total} recorded</span>
-            <span className="bar tmed__bar" role="img" aria-label={`${recorded} of ${s.total} doses recorded today`}>
-              <span className="bar__fill" style={{ width: `${Math.round((recorded / s.total) * 100)}%` }} />
-            </span>
-          </div>
-        )}
-      </header>
-
-      {!s.total ? (
-        <div className="tmed__empty">
+    <section className="nextmed" aria-labelledby="nextmed-t">
+      <h2 className="nextmed__t" id="nextmed-t">Next medicine</h2>
+      {next ? (
+        <ul className="drows nextmed__row">
+          <DoseRow key={next.id} dose={next} actions={actions} windowMinutes={opts.windowMinutes} />
+        </ul>
+      ) : s.total ? (
+        <p className="nextmed__done"><span className="nextmed__tick" aria-hidden="true"><Icon name="check" size={20} stroke={2.8} /></span> {s.headline}</p>
+      ) : (
+        <div className="nextmed__empty">
           <p>No medicines are scheduled today.</p>
           <Button variant="ghost" icon="plus" onClick={() => navigate('/medication', { state: { add: 'med' } })}>Add medicine</Button>
         </div>
-      ) : (
-        groupDoses(doses).map((g) => (
-          <div className="tmed__group" key={g.id} role="group" aria-labelledby={`tmed-g-${g.id}`}>
-            <h3 className="tmed__gt" id={`tmed-g-${g.id}`}>{g.label}</h3>
-            <ul className="drows">
-              {g.doses.map((d) => <DoseRow key={d.id} dose={d} actions={actions} windowMinutes={opts.windowMinutes} />)}
-            </ul>
-          </div>
-        ))
       )}
+    </section>
+  );
+}
 
+// The rest of today: every other dose, grouped by time of day with quiet
+// labels. Recorded doses stay short; tap one for its details or to correct it.
+function TodayMedicines({ doses, summary: s, opts, actions }) {
+  const navigate = useNavigate();
+  const scheduledOpen = sortForDisplay((doses || []).filter((d) => !d.as_needed), opts)
+    .filter((d) => !['taken', 'skipped'].includes(doseState(d, opts)));
+  const nextId = scheduledOpen[0]?.id;
+  const rest = (doses || []).filter((d) => d.id !== nextId);
+  if (!rest.length) {
+    return s.total ? (
+      <button type="button" className="tmed__all tmed__all--solo" onClick={() => navigate('/medication')}>
+        <Icon name="pill" size={22} /> Open Medicines <Icon name="chevron" size={20} />
+      </button>
+    ) : null;
+  }
+  return (
+    <section className="tmed" aria-labelledby="tmed-t">
+      <header className="tmed__head">
+        <h2 className="tmed__t" id="tmed-t">Also today</h2>
+      </header>
+      {groupDoses(rest).map((g) => (
+        <div className="tmed__group" key={g.id} role="group" aria-labelledby={`tmed-g-${g.id}`}>
+          <h3 className="tmed__gt" id={`tmed-g-${g.id}`}>{g.label}</h3>
+          <ul className="drows">
+            {g.doses.map((d) => <DoseRow key={d.id} dose={d} actions={actions} windowMinutes={opts.windowMinutes} />)}
+          </ul>
+        </div>
+      ))}
       <div className="tmed__foot">
         <button type="button" className="tmed__all" onClick={() => navigate('/medication')}>
           <Icon name="pill" size={22} /> Open Medicines <Icon name="chevron" size={20} />

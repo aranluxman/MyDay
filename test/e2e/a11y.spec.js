@@ -94,7 +94,7 @@ test('colour swatches have names and selected state; contact type is a radio gro
   const p2 = await openApp(browser, { path: '/profile' });
   await p2.page.getByRole('button', { name: /^My contacts/ }).click();
   await p2.page.getByRole('button', { name: 'Add a contact' }).click();
-  const pharmacy = p2.page.getByRole('radio', { name: 'Pharmacy' });
+  const pharmacy = p2.page.getByRole('radio', { name: 'Family or other' });
   await expect(pharmacy).toHaveAttribute('aria-checked', 'true');
   await expect(p2.page.getByRole('radiogroup', { name: 'Type' })).toBeVisible();
   // Phone validation on the emergency contact.
@@ -141,7 +141,7 @@ test('settings is one list; each row opens its own page with a back button', asy
   // "How to use MyDay" is the last row, and its old page sends you to Settings.
   await page.getByRole('button', { name: /^How to use MyDay/ }).click();
   await page.getByRole('button', { name: /Recording today/ }).click();
-  await expect(page.getByText(/tap the “Mark as taken” button/)).toBeVisible();
+  await expect(page.getByText(/tap the “Record as taken” button/)).toBeVisible();
   await page.goto('/help');
   await expect(page).toHaveURL(/\/profile/);
   await context.close();
