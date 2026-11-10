@@ -92,6 +92,7 @@ export function makeFixtures(now) {
     myday_guardian_devices: [],
     myday_game_results: [],
     myday_diary: [],
+    myday_health_logs: [],
     myday_cards: [],
     myday_refills: [],
     myday_account_guardians: [],

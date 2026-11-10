@@ -28,6 +28,9 @@ Built with **React + Vite (JSX)**, **Supabase** (Auth + Postgres + Edge Function
 - **Tab colours** — Medicine and Games are toasted orange, Appointments purple
   (light and dark); other screens keep the colour theme the person picked, and the
   High contrast theme is never recoloured.
+- **Health tracker** (`/health`, also the second half of the Diary tab) — water, sleep, weight, blood pressure and heart rate, plus mood and symptoms (which stay in the diary, where they always were). Each card shows the newest value with its unit and when it was logged, or "Not logged"; **Log** opens a form with the right fields (systolic and diastolic for blood pressure, hours and minutes for sleep, kg or lb for weight). **Trends & history** shows one bar per day and the full list, where an entry can be edited or deleted. A day with no entry is an empty dashed slot, never a zero. MyDay sets no targets and never judges a reading (`src/lib/healthLogs.js`, table `myday_health_logs`, private to its owner).
+- **Health profile** (Settings → Health profile) — name, birth date (age is worked out from it), gender, height, weight, conditions, allergies and goals. Every field is optional; a blank reads "Not entered", and "No known allergies" is its own answer. It shows "4 of 7 details entered", not a percentage.
+- **Reports** (`/reports`) — the signed-in person's own records for the last 7, 30 or 90 days: medication totals (with the denominator spelled out: scheduled doses whose time has passed; "not recorded" is not "not taken"), health logs and, only if ticked, diary notes. The page is the preview; **Save as PDF or print** opens the device's print dialog. Nothing is sent anywhere (`src/lib/report.js`).
 - **Health diary** (`/updates`) — *How are you feeling now?* tiles that start a note,
   a general **Chat with MyDay**, and a day-by-day timeline of notes (Edit / Delete
   behind "…").

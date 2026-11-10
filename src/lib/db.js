@@ -472,13 +472,46 @@ export async function pastAppointments(limit = 20, tz = deviceTimezone()) {
   return data || [];
 }
 export async function saveAppointment(a) {
-  const row = { appt_date: a.appt_date, appt_time: a.appt_time || null, doctor_name: a.doctor_name || null, location: a.location || null, reason: a.reason || null };
+  const row = { appt_date: a.appt_date, appt_time: a.appt_time || null, doctor_name: a.doctor_name || null, location: a.location || null, reason: a.reason || null, notes: a.notes || null };
   if (a.id) { const { error } = await supabase.from('myday_appointments').update(row).eq('id', a.id); if (error) throw error; }
   else { const { error } = await supabase.from('myday_appointments').insert(row); if (error) throw error; }
 }
 export async function deleteAppointment(id) {
   const { error } = await supabase.from('myday_appointments').delete().eq('id', id);
   if (error) throw error;
+}
+
+// ---------- health tracker ----------
+// Readings the person typed in (water, sleep, weight, blood pressure, heart
+// rate). RLS keeps them private to their owner; guardians cannot read them.
+export async function listHealthLogs({ fromIso = null, toIso = null, limit = 1000 } = {}) {
+  let q = supabase.from('myday_health_logs').select('*').order('logged_at', { ascending: false }).limit(limit);
+  if (fromIso) q = q.gte('logged_at', fromIso);
+  if (toIso) q = q.lte('logged_at', toIso);
+  const { data, error } = await q;
+  if (error) throw error;
+  return data || [];
+}
+// `row` comes from validateLog() in healthLogs.js, which has already checked
+// it; the database checks the same limits again.
+export async function saveHealthLog(row, id = null) {
+  const clean = { kind: row.kind, value: row.value, value2: row.value2 ?? null, unit: row.unit, note: row.note || null, logged_at: row.logged_at };
+  const q = id
+    ? supabase.from('myday_health_logs').update(clean).eq('id', id)
+    : supabase.from('myday_health_logs').insert(clean);
+  const { data, error } = await q.select().single();
+  if (error) throw new Error(healthErrorMessage(error));
+  return data;
+}
+export async function deleteHealthLog(id) {
+  const { error } = await supabase.from('myday_health_logs').delete().eq('id', id);
+  if (error) throw new Error(healthErrorMessage(error));
+}
+function healthErrorMessage(error) {
+  if (error?.code === '23514') return 'That reading was not accepted. Please check the numbers and try again.';
+  if (error?.code === '42501') return 'Your account does not have permission to save this.';
+  if (error?.message?.includes('Failed to fetch')) return 'No internet connection. Nothing was saved.';
+  return 'Could not save. Nothing was recorded.';
 }
 
 // ---------- diary / updates ----------

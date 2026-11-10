@@ -169,12 +169,20 @@ export default function Home() {
           })}
           {/* Optional setup sits below the daily tasks, never above them. */}
           <GuardianNudge guardians={guardians} quiet={!!reminderProblem.status} />
-          {completeness.pct < 100 && (
-            <button type="button" className="setup-line" onClick={() => navigate('/profile')}>
-              <span className="setup-line__ring" style={{ '--p': completeness.pct }} aria-hidden="true"><b>{completeness.pct}%</b></span>
+          <button type="button" className="setup-line" onClick={() => navigate('/health')}>
+            <span className="setup-line__ic" aria-hidden="true"><Icon name="heartPulse" size={22} /></span>
+            <span className="setup-line__main">
+              <span className="setup-line__t">Health tracker</span>
+              <span className="setup-line__d">Water, sleep and measurements</span>
+            </span>
+            <Icon name="chevron" size={20} />
+          </button>
+          {completeness.missing.length > 0 && (
+            <button type="button" className="setup-line" onClick={() => navigate('/profile?section=health')}>
+              <span className="setup-line__ic" aria-hidden="true"><Icon name="heart" size={22} /></span>
               <span className="setup-line__main">
-                <span className="setup-line__t">Finish your About me</span>
-                <span className="setup-line__d">{completeness.pct}% complete</span>
+                <span className="setup-line__t">Health profile</span>
+                <span className="setup-line__d">Some details are not entered yet</span>
               </span>
               <Icon name="chevron" size={20} />
             </button>

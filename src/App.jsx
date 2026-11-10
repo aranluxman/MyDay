@@ -19,6 +19,8 @@ const Appointments = lazy(() => import('./screens/Appointments.jsx'));
 const Profile = lazy(() => import('./screens/Profile.jsx'));
 const Games = lazy(() => import('./screens/Games.jsx'));
 const More = lazy(() => import('./screens/More.jsx'));
+const Health = lazy(() => import('./screens/Health.jsx'));
+const Reports = lazy(() => import('./screens/Reports.jsx'));
 const GuardianJoin = lazy(() => import('./screens/GuardianJoin.jsx'));
 const Guardian = lazy(() => import('./screens/Guardian.jsx'));
 const AccountGuardian = lazy(() => import('./screens/AccountGuardian.jsx'));
@@ -100,6 +102,8 @@ function Root() {
         <Route path="/profile/notifications" element={<Navigate to="/profile" state={{ open: 'alerts' }} replace />} />
         <Route path="/games" element={<LazyScreen><Games /></LazyScreen>} />
         <Route path="/more" element={<LazyScreen><More /></LazyScreen>} />
+        <Route path="/health" element={<LazyScreen><Health /></LazyScreen>} />
+        <Route path="/reports" element={<LazyScreen><Reports /></LazyScreen>} />
         {/* The guide now lives at the bottom of Settings; old links land there. */}
         <Route path="/help" element={<Navigate to="/profile?section=howto" replace />} />
         <Route path="*" element={<Navigate to="/" replace />} />
