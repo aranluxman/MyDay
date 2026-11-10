@@ -22,7 +22,7 @@ const TOPICS = [
     like: 'Like ticking a box on a paper chart — but MyDay keeps the chart for you.',
     steps: [
       'Open Home or Medicines. Each medicine shows its scheduled time.',
-      'After you have taken a dose, tap the “Mark as taken” button next to it. It turns green and says “Taken”.',
+      'After you have taken a dose, tap the “Record as taken” button next to it. It turns green and says “Taken”.',
       'Tapped it by mistake? Tap “Undo” on the message, or tap the medicine and choose “Remove this record”.',
       'If a dose says “Dose not recorded”, tap “Review dose”. If you already took it, record the time you took it. MyDay never tells you to take a late dose — ask your pharmacist or doctor if you are unsure.',
     ],

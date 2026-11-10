@@ -53,16 +53,16 @@ export default function Appointments() {
 
       {tab === 'upcoming' ? (
         <>
-          <QuickAdd onPick={setEditing} />
           <section className="stack" aria-labelledby="visits-up">
             <div className="section-head"><h3 id="visits-up">Upcoming appointments</h3></div>
             {upcoming.length ? list(upcoming, 'Upcoming appointments') : (
               <div className="vempty">
-                <p>Nothing booked yet. Tap one of the Quick add buttons above, or Add at the top.</p>
-                <Button icon="plus" onClick={() => setEditing({})}>Add an appointment</Button>
+                <p>Nothing booked yet.</p>
               </div>
             )}
+            <Button icon="plus" size="lg" onClick={() => setEditing({})}>Add appointment</Button>
           </section>
+          <QuickAdd onPick={setEditing} />
           {!!past.length && (
             <section className="stack" aria-labelledby="visits-past">
               <div className="section-head">

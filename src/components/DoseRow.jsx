@@ -15,7 +15,7 @@ const SKIP_REASONS = ['Doctor said to stop', 'I felt unwell', 'I ran out'];
 // with the counters elsewhere.
 //
 // The wording records what happened; it never tells anyone to take a
-// medicine. A dose in its window offers "Mark as taken". A dose whose window
+// medicine. A dose in its window offers "Record as taken". A dose whose window
 // has passed says "Dose not recorded" and offers "Review dose", which opens
 // the row to record the real time it was taken, or "Not today" — never a
 // prompt to take it late. A recorded dose can be removed if it was a mistake.
@@ -24,7 +24,7 @@ const SKIP_REASONS = ['Doctor said to stop', 'I felt unwell', 'I ran out'];
 // the instructions, why a later dose cannot be marked yet — sits one tap
 // away: tap the medicine to open it. `simple` (Home) leaves that out, and
 // `readOnly` (a past day) shows the record only. `lateMark` (yesterday) adds
-// one thing to a read-only row: "Mark as taken", with the time it was taken.
+// one thing to a read-only row: "Record as taken", with the time it was taken.
 //
 // Every row says when the dose was due and, once taken, when it was taken,
 // with an "On time" or "Late by …" tag so the day reads at a glance.
@@ -50,7 +50,7 @@ export function DoseRow({ dose, actions, windowMinutes, simple, readOnly, lateMa
   const prn = !!dose.as_needed;
   const flag = !prn && ['missed', 'overdue', 'due', 'skipped'].includes(st);
   const timing = doseTiming(dose, { windowMinutes });
-  // "Mark as taken" is too long to sit beside the name; it goes under the times.
+  // "Record as taken" is too long to sit beside the name; it goes under the times.
   const actBelow = !!lateMark && !settled;
   const takenClock = st === 'taken' && dose.taken_at ? prettyClock(new Date(dose.taken_at)) : null;
 
@@ -108,16 +108,16 @@ export function DoseRow({ dose, actions, windowMinutes, simple, readOnly, lateMa
   } else if (!readOnly && markable) {
     action = (
       <button type="button" className="drow__take" disabled={busy}
-        aria-label={`Mark as taken: ${name}, ${time} dose`} onClick={() => actions.take(dose)}>
-        <Icon name={busy ? 'clock' : 'check'} size={20} stroke={2.6} /> {busy ? 'Saving…' : 'Mark as taken'}
+        aria-label={`Record as taken: ${name}, ${time} dose`} onClick={() => actions.take(dose)}>
+        <Icon name={busy ? 'clock' : 'check'} size={20} stroke={2.6} /> {busy ? 'Saving…' : 'Record as taken'}
       </button>
     );
   } else if (lateMark && !settled && st !== 'skipped') {
     // Yesterday: "I took it, I just forgot to tap" — recorded with the real time.
     action = (
       <button type="button" className="drow__take drow__take--later" disabled={busy}
-        aria-label={`Mark as taken: ${name}, ${time} dose`} onClick={() => setEarlier(true)}>
-        <Icon name={busy ? 'clock' : 'check'} size={20} /> {busy ? 'Saving…' : 'Mark as taken'}
+        aria-label={`Record as taken: ${name}, ${time} dose`} onClick={() => setEarlier(true)}>
+        <Icon name={busy ? 'clock' : 'check'} size={20} /> {busy ? 'Saving…' : 'Record as taken'}
       </button>
     );
   } else if (expandable && !settled) {

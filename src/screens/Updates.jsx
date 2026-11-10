@@ -4,7 +4,6 @@ import { useUI } from '../context/UIContext.jsx';
 import { useAsync } from '../hooks/useAsync.js';
 import { Card, Button, Modal, Field, Input, Textarea, SegmentedControl, SkeletonCard } from '../components/ui.jsx';
 import { Icon } from '../components/Icon.jsx';
-import { HeroArt } from '../components/HeroArt.jsx';
 import { NoteChat } from '../components/NoteChat.jsx';
 import { listDiary, saveDiary, deleteDiary } from '../lib/db.js';
 import { prettyClock, prettyDate, localDateStr, present } from '../lib/format.js';
@@ -118,15 +117,7 @@ export default function Updates() {
 
   return (
     <div className="stack">
-      <div className="hero-wrap">
-        <section className="today-hero page-hero" aria-labelledby="diary-hi">
-          <HeroArt />
-          <div className="today-hero__text">
-            <h2 className="today-hero__hi" id="diary-hi">Your health diary</h2>
-            <p className="today-hero__sub">Track how you feel each day and chat with MyDay for support.</p>
-          </div>
-        </section>
-      </div>
+      <p className="page-intro">Track how you feel each day. Tap a feeling to add a note.</p>
 
       <FeelingTiles onPick={(draft) => setEditing(draft)} />
 

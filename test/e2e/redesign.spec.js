@@ -21,7 +21,7 @@ test('a diary note with missing fields never shows "null" or "undefined"', async
 test('Today puts the medicine list before the secondary cards, on every width', async ({ browser }) => {
   for (const [width, height] of [[390, 844], [820, 1180], [1180, 820], [1440, 900]]) {
     const { page, context } = await openApp(browser, { width, height, mobile: width < 1024 });
-    const meds = page.getByRole('heading', { name: 'Today’s medicines' });
+    const meds = page.getByRole('heading', { name: 'Next medicine' });
     await expect(meds).toBeVisible();
     const medsBox = await page.locator('.today-main').boundingBox();
     const moodBox = await page.getByRole('heading', { name: 'How are you feeling today?' }).boundingBox();
@@ -48,14 +48,14 @@ test('a dose past its window says "Dose not recorded" and offers a review, not "
 
 test('a recorded dose can be corrected later without a duplicate', async ({ browser }) => {
   const { page, context, mock } = await openApp(browser, { width: 1440, height: 900, mobile: false });
-  const btn = page.getByRole('button', { name: 'Mark as taken: Synthetic Vitamin D, 9:00 AM dose' });
+  const btn = page.getByRole('button', { name: 'Record as taken: Synthetic Vitamin D, 9:00 AM dose' });
   await btn.click();
   const row = page.locator('.tmed .drow', { hasText: 'Synthetic Vitamin D' });
   await expect(row.locator('.drow__done')).toBeVisible();
   await row.locator('.drow__btn').click();
   await row.getByRole('button', { name: 'Remove this record' }).click();
   await page.getByRole('alertdialog').getByRole('button', { name: 'Remove record' }).click();
-  await expect(page.getByRole('button', { name: 'Mark as taken: Synthetic Vitamin D, 9:00 AM dose' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Record as taken: Synthetic Vitamin D, 9:00 AM dose' })).toBeVisible();
   const vitd = mock.db.myday_doses.filter((d) => d.medication_id === 'm-vitd' && d.dose_date === '2026-10-07');
   expect(vitd).toHaveLength(1);
   expect(vitd[0].status).not.toBe('taken');
@@ -70,9 +70,10 @@ test('Appointments is one tap away at phone and tablet widths; Contacts, Games a
       await expect(nav.getByRole('link', { name: label, exact: true })).toBeVisible();
     }
     if (width < 1024) {
-      await nav.getByRole('button', { name: 'More' }).click();
+      await nav.getByRole('link', { name: 'More' }).click();
+      await expect(page).toHaveURL(/\/more$/);
       for (const label of ['Contacts', 'Games', 'Settings']) {
-        await expect(page.getByRole('dialog').getByRole('button', { name: new RegExp(`^${label}`) })).toBeVisible();
+        await expect(page.getByRole('main').getByRole('button', { name: new RegExp(`^${label}`) })).toBeVisible();
       }
     } else {
       for (const label of ['Contacts', 'Games', 'Settings']) await expect(nav.getByRole('link', { name: label, exact: true })).toBeVisible();
@@ -85,7 +86,7 @@ test('Appointments is one tap away at phone and tablet widths; Contacts, Games a
 test('nothing fixed covers the dose buttons, and no page scrolls sideways', async ({ browser }) => {
   for (const [width, height] of [[390, 844], [768, 1024], [820, 1180], [834, 1194], [1024, 768], [1180, 820], [1280, 800], [1366, 768], [1440, 900]]) {
     const { page, context } = await openApp(browser, { width, height, mobile: width < 1024 });
-    await expect(page.getByRole('heading', { name: 'Today’s medicines' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Next medicine' })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     expect(await page.locator('.fab').count()).toBe(0);
     await context.close();
@@ -101,7 +102,7 @@ test('every page wears the same colour: no page has a colour of its own', async 
     colours.add(await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--primary').trim()));
     expect(await page.evaluate(() => document.documentElement.hasAttribute('data-tab'))).toBe(false);
   }
-  expect([...colours]).toEqual(['#1e6b3c']);
+  expect([...colours]).toEqual(['#175c43']);
   await context.close();
 });
 

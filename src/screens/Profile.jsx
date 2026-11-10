@@ -14,6 +14,11 @@ import { THEMES, TEXT_SIZES, MODES, modeOf, themeForMode, profileCompleteness, c
 import { CONTACT_TYPES, validPhone, telHref } from '../lib/contacts.js';
 import { HowToGuide } from './HowTo.jsx';
 import { AlertsSettings } from '../components/AlertsSettings.jsx';
+import { InstallButton } from '../components/InstallButton.jsx';
+import { useInstallPrompt } from '../hooks/useInstallPrompt.js';
+import { deliveryStatus } from '../lib/notifications.js';
+import { pushSupported } from '../lib/push.js';
+import { platformTag } from '../lib/guardian.js';
 
 
 // A linking code now lives for 15 minutes, not 14 days, so it is counted in
@@ -63,7 +68,15 @@ export default function Profile({ only = null }) {
   const [uploading, setUploading] = useState(false);
   const [editProfile, setEditProfile] = useState(false);
   const [editContact, setEditContact] = useState(null);
+  const [contactTab, setContactTab] = useState('family');
   const completeness = profileCompleteness(profile);
+  const { installed } = useInstallPrompt();
+  // Whether THIS device can show alerts at all; the saved preference is a
+  // separate thing and is shown inside Alerts & reminders.
+  const deviceAlerts = deliveryStatus({
+    supported: pushSupported(), installed, platform: platformTag(),
+    permission: typeof Notification !== 'undefined' ? Notification.permission : 'default',
+  });
 
   async function onPickPhoto(e) {
     const file = e.target.files?.[0];
@@ -102,7 +115,8 @@ export default function Profile({ only = null }) {
   }, [location.key]);
   useEffect(() => {
     // Home's quick-call tiles send the kind of contact they need (doctor, pharmacy…).
-    if (location.state?.add === 'contact') { setEditContact({ type: location.state.contactType }); window.history.replaceState({}, ''); }
+    if (location.state?.editProfile) { setEditProfile(true); window.history.replaceState({}, ''); }
+    if (location.state?.add === 'contact') { if (MEDICAL_TYPES.has(location.state.contactType)) setContactTab('medical'); setEditContact({ type: location.state.contactType }); window.history.replaceState({}, ''); }
     if (location.state?.add === 'guardian' && !location.state.guardianId) { setInviteOpen(true); window.history.replaceState({}, ''); }
   }, [location.key]);
   // From Home's "Finish connecting…": put that guardian's fresh code on screen
@@ -116,6 +130,10 @@ export default function Profile({ only = null }) {
     const g = guardians.data.find((x) => x.id === id);
     if (g) newCode(g); else setInviteOpen(true);
   }, [location.key, guardians.data]);
+
+  // Contacts in two views: the medical team (prescribers, pharmacies, clinics,
+  // insurance) and everyone else. Every saved contact is in exactly one.
+  const shownContacts = (contacts.data || []).filter((c) => MEDICAL_TYPES.has(c.type) === (contactTab === 'medical'));
 
   const age = profile?.age ?? ageFromBirthday(profile?.birthday);
 
@@ -319,9 +337,12 @@ export default function Profile({ only = null }) {
         </>}
 
         {page === 'contacts' && <>
-        <Button icon="plus" size="lg" onClick={() => setEditContact({})}>Add a contact</Button>
+        <SegmentedControl label="Which contacts" value={contactTab} onChange={setContactTab} options={[
+          { value: 'family', label: 'Family' },
+          { value: 'medical', label: 'Medical team' },
+        ]} />
         <Card className="pref-list">
-          {CONTACT_KINDS.map((k) => (
+          {CONTACT_KINDS.filter((k) => k.group === contactTab).map((k) => (
             <button key={k.id} type="button" className="kind-row" onClick={() => setEditContact({ type: k.type, emergency: k.emergency })}>
               <span className={`kind-row__ic kind-row__ic--${k.tone}`} aria-hidden="true"><Icon name={k.icon} size={24} /></span>
               <span className="kind-row__main"><span className="kind-row__t">{k.title}</span><span className="kind-row__d">{k.desc}</span></span>
@@ -329,13 +350,16 @@ export default function Profile({ only = null }) {
             </button>
           ))}
         </Card>
-        {contacts.data?.length > 0 && <h3 className="settings-group">Saved contacts</h3>}
+        <Button icon="plus" size="lg" onClick={() => setEditContact({ type: contactTab === 'medical' ? 'provider' : 'other' })}>Add a contact</Button>
+        {shownContacts.length > 0 && <h3 className="settings-group">{contactTab === 'medical' ? 'Saved medical team' : 'Saved family and others'}</h3>}
         <Card>
-        {contacts.loading ? <Spinner label="" /> : !contacts.data?.length ? (
-          <EmptyState>Add your pharmacy, doctor, an emergency contact and more so they're one tap away.</EmptyState>
+        {contacts.loading ? <Spinner label="" /> : !shownContacts.length ? (
+          <EmptyState>{contactTab === 'medical'
+            ? 'Add your prescriber, pharmacy and clinic so they are one tap away.'
+            : 'Add family, an emergency contact and others so they are one tap away.'}</EmptyState>
         ) : (
           <ul className="stack contact-list">
-            {[...contacts.data].sort((a, b) => Number(!!b.is_emergency) - Number(!!a.is_emergency)).map((c) => {
+            {[...shownContacts].sort((a, b) => Number(!!b.is_emergency) - Number(!!a.is_emergency)).map((c) => {
               const m = typeMeta(c.type);
               const tel = telHref(c.phone);
               return (
@@ -465,36 +489,30 @@ export default function Profile({ only = null }) {
         </div>
       </Card>
 
-      <div>
-        <h2 className="settings-group">Safety &amp; Support</h2>
-        <p className="settings-group__d">Add family or trusted contacts for extra support.</p>
-      </div>
-      <div className="safety-tiles">
-        <button type="button" className={`safety-tile${guardians.data && !connected ? ' needs-attention' : ''}`} onClick={() => openPage('guardians')}>
-          <span className="safety-tile__ic safety-tile__ic--orange"><Icon name="user" size={26} /></span>
-          <span className="safety-tile__t">Guardians</span>
-          <span className="safety-tile__d">{!guardians.data ? '' : !connected ? 'Add a family guardian to enable safety alerts' : `${connected} connected`}</span>
-        </button>
-        <button type="button" className="safety-tile" onClick={() => navigate('/contacts')}>
-          <span className="safety-tile__ic safety-tile__ic--green"><Icon name="phone" size={26} /></span>
-          <span className="safety-tile__t">My contacts</span>
-          <span className="safety-tile__d">{contacts.data?.length ? `${contacts.data.length} saved` : 'Family, doctor and pharmacy'}</span>
-        </button>
-      </div>
+      <h2 className="rd-group">Personal</h2>
+      <ul className="rd-list">
+        <SettingsLink icon="heart" title="Health profile" desc={completeness.pct < 100 ? 'Some details are not entered yet' : 'Name, birthday, health and goals'} onClick={() => setEditProfile(true)} />
+        <SettingsLink icon="users" title="Dependants & caregivers"
+          desc={!guardians.data ? 'Guardians and people you support' : !connected ? 'No guardian connected yet' : `${connected} guardian${connected === 1 ? '' : 's'} connected`}
+          warn={!!guardians.data && !connected} onClick={() => openPage('guardians')} />
+        <SettingsLink icon="phone" title="My contacts" desc={contacts.data?.length ? `${contacts.data.length} saved` : 'Family, doctor and pharmacy'} onClick={() => navigate('/contacts')} />
+      </ul>
 
-      <h2 className="settings-group">Health &amp; App Preferences</h2>
-      <Card className="pref-list">
-        <MenuRow icon="eye" title="Accessibility" desc="Text size, contrast, buttons" onClick={() => openPage('access')} />
-        <MenuRow icon="bell" title="Alerts & reminders" desc="Notifications and sound" onClick={() => openPage('alerts')} />
-        <MenuRow icon="globe" title="Language" desc={languageName} onClick={() => openPage('language')} />
-        <MenuRow icon="sun" title="Appearance" desc={`${themeName} theme`} onClick={() => openPage('appearance')} />
-        <MenuRow icon="cross" title="My information" desc={completeness.pct < 100 ? `Profile ${completeness.pct}% complete` : 'Name, birthday, health and goals'} onClick={() => setEditProfile(true)} />
-      </Card>
+      <h2 className="rd-group">Preferences</h2>
+      <ul className="rd-list">
+        <SettingsLink icon="eye" title="Accessibility" desc="Text size, contrast, buttons" value={sizeName} onClick={() => openPage('access')} />
+        <SettingsLink icon="bell" title="Alerts & reminders" desc={deviceAlerts.ok ? 'Notifications and sound' : 'Device setup needed'} warn={!deviceAlerts.ok} onClick={() => openPage('alerts')} />
+        <SettingsLink icon="sun" title="Appearance" desc={`${themeName} theme`} onClick={() => openPage('appearance')} />
+        <SettingsLink icon="globe" title="Language" desc="Show MyDay in your language" value={languageName} onClick={() => openPage('language')} />
+      </ul>
 
-      <h2 className="settings-group">Help &amp; Information</h2>
-      <Card className="pref-list">
-        <MenuRow icon="info" title="How to use MyDay" desc="Step-by-step guide" onClick={() => openPage('howto')} />
-      </Card>
+      <h2 className="rd-group">Help</h2>
+      <ul className="rd-list">
+        <SettingsLink icon="help" title="How to use MyDay" desc="Step-by-step guide" onClick={() => openPage('howto')} />
+      </ul>
+      {/* Adding MyDay to the home screen lives here now, not in the top bar.
+          The button shows only where this device can still install it. */}
+      <InstallButton className="btn btn--soft btn--md btn--full" label="Add MyDay to this device" iconSize={20} />
 
       <Button variant="danger" icon="logout" onClick={onSignOut}>Sign out</Button>
       {renderOverlays()}
@@ -580,13 +598,33 @@ function FamilyPicture() {
 }
 
 // The quick ways to add a contact, as on the My contacts page.
+const MEDICAL_TYPES = new Set(['provider', 'pharmacy', 'clinic', 'insurance']);
 const CONTACT_KINDS = [
-  { id: 'family', title: 'Family', desc: 'Add family members', icon: 'user', tone: 'blue', type: 'other' },
-  { id: 'doctor', title: 'Doctor', desc: 'Add your doctor', icon: 'cross', tone: 'teal', type: 'provider' },
-  { id: 'pharmacy', title: 'Pharmacy', desc: 'Add your pharmacy', icon: 'pill', tone: 'red', type: 'pharmacy' },
-  { id: 'sos', title: 'Emergency contact', desc: 'Add an emergency contact', icon: 'phone', tone: 'rose', type: 'other', emergency: true },
-  { id: 'other', title: 'Other contact', desc: 'Add another contact', icon: 'more', tone: 'grey', type: 'other' },
+  { id: 'family', group: 'family', title: 'Family', desc: 'Add family members', icon: 'user', tone: 'blue', type: 'other' },
+  { id: 'sos', group: 'family', title: 'Emergency contact', desc: 'Add an emergency contact', icon: 'phone', tone: 'rose', type: 'other', emergency: true },
+  { id: 'other', group: 'family', title: 'Other contact', desc: 'Add another contact', icon: 'more', tone: 'grey', type: 'other' },
+  { id: 'doctor', group: 'medical', title: 'Prescribers', desc: 'Add your doctor or prescriber', icon: 'stethoscope', tone: 'teal', type: 'provider' },
+  { id: 'pharmacy', group: 'medical', title: 'Pharmacies', desc: 'Add your pharmacy', icon: 'pill', tone: 'red', type: 'pharmacy' },
+  { id: 'clinic', group: 'medical', title: 'Medical facilities', desc: 'Add a clinic or hospital', icon: 'building', tone: 'blue', type: 'clinic' },
 ];
+
+// One row of the Settings list: icon, title, a line of detail, and (where it
+// helps) the current choice on the right.
+function SettingsLink({ icon, title, desc, value, warn, onClick }) {
+  return (
+    <li>
+      <button type="button" className="rd-row" onClick={onClick}>
+        <span className="rd-row__ic" aria-hidden="true"><Icon name={icon} size={24} /></span>
+        <span className="rd-row__main">
+          <span className="rd-row__t">{title}</span>
+          {desc && <span className={`rd-row__d${warn ? ' rd-row__d--warn' : ''}`}>{desc}</span>}
+        </span>
+        {value && <span className="rd-row__v">{value}</span>}
+        <Icon name="chevron" size={22} className="rd-row__chev" />
+      </button>
+    </li>
+  );
+}
 
 const PAGE_IDS = { access: 1, alerts: 1, guardians: 1, contacts: 1, language: 1, appearance: 1, info: 1, howto: 1 };
 

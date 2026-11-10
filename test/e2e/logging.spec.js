@@ -7,7 +7,7 @@ const rpcCalls = (mock, fn) => mock.calls.filter((c) => c.path === `/rest/v1/rpc
 
 test('a double tap records one dose and the confirmation says exactly what', async ({ browser }) => {
   const { page, mock, context } = await openApp(browser, { path: '/medication' });
-  const btn = page.getByRole('button', { name: 'Mark as taken: Synthetic Vitamin D, 9:00 AM dose' });
+  const btn = page.getByRole('button', { name: 'Record as taken: Synthetic Vitamin D, 9:00 AM dose' });
   await btn.dblclick();
   const toast = page.locator('.toast').first();
   await expect(toast).toContainText('Recorded: Synthetic Vitamin D 1000 IU — 9:00 AM dose, taken at 9:30');
@@ -59,7 +59,7 @@ test('offline: nothing is reported as saved', async ({ browser }) => {
   await context.setOffline(true);
   await page.evaluate(() => window.dispatchEvent(new Event('offline')));
   await expect(page.locator('.offline-bar')).toContainText('Nothing you tap is saved');
-  await page.getByRole('button', { name: 'Mark as taken: Synthetic Vitamin D, 9:00 AM dose' }).click();
+  await page.getByRole('button', { name: 'Record as taken: Synthetic Vitamin D, 9:00 AM dose' }).click();
   await expect(page.locator('.toast--bad')).toContainText(/offline.*NOT saved|Nothing was recorded/);
   await expect(page.locator('.toast--good')).toHaveCount(0);
   const dose = mock.db.myday_doses.find((d) => d.id.startsWith('d-m-vitd') && d.dose_date === '2026-10-07');
