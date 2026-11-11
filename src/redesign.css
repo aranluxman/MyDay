@@ -460,3 +460,100 @@ html[data-text='xlarge'] .hl-pair, html[data-text='huge'] .hl-pair { grid-templa
 }
 .health .field, .reports .field { display: block; }
 .health .input--select, .reports .input--select { width: 100%; }
+
+/* =====================================================================
+   Phase 3 — Medication safety, caregiver mode
+   ===================================================================== */
+.safety-banner { margin: 0; display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border-radius: 16px; background: var(--primary-soft); font-size: 17px; line-height: 1.45; }
+.safety-banner svg { flex: none; margin-top: 2px; color: var(--primary-text, var(--primary)); }
+.safety-card, .safety-list { padding: 16px; }
+.safety-card__head { display: flex; gap: 12px; align-items: flex-start; margin-bottom: 8px; }
+.safety-card__t { margin: 0 0 6px; font-size: 21px; font-weight: 800; letter-spacing: -0.01em; }
+.safety-card__d { margin: 6px 0 0; font-size: 17px; line-height: 1.45; color: var(--ink-soft); }
+.safety-card__d b { color: var(--ink); }
+.safety-card__src { margin: 8px 0 0; font-size: 15px; color: var(--ink-soft); }
+.safety-findings { margin: 8px 0 0; padding-left: 20px; font-size: 17px; }
+
+.cg { min-height: 100vh; background: var(--bg); color: var(--ink); padding-bottom: calc(92px + env(safe-area-inset-bottom)); }
+.cg--person { padding-bottom: 0; }
+.cg-top { max-width: 760px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: max(12px, env(safe-area-inset-top)) 16px 6px; }
+.cg-top__brand { margin: 0; font-size: 28px; font-weight: 900; letter-spacing: 0.01em; color: var(--primary-text, var(--primary)); }
+.cg-main { max-width: 760px; margin: 0 auto; padding: 8px 16px 0; display: flex; flex-direction: column; gap: 14px; }
+.cg-main:focus { outline: none; }
+.cg-mode { display: flex; gap: 12px; align-items: center; padding: 12px 14px; border-radius: 18px; background: var(--primary-soft); border: 1px solid var(--line); }
+.cg-mode__t { margin: 0; font-size: 19px; font-weight: 800; }
+.cg-mode__d { margin: 2px 0 0; font-size: 16px; color: var(--ink-soft); }
+.cg-h { margin: 6px 0 0; font-size: 26px; font-weight: 800; letter-spacing: -0.02em; }
+.cg-h3 { margin: 6px 0 0; font-size: 20px; font-weight: 800; }
+.cg-warn, .cg-attn { display: flex; align-items: center; gap: 10px; margin: 0; padding: 12px 14px; border-radius: 16px; background: var(--warn-bg); color: var(--warn-ink); font-size: 17px; font-weight: 700; }
+.cg-attn { width: 100%; border: 0; font: inherit; font-size: 17px; font-weight: 700; text-align: left; cursor: pointer; min-height: 52px; }
+.cg-attn span { flex: 1; }
+.cg-foot { margin: 0; text-align: center; font-size: 15px; color: var(--ink-soft); }
+.cg-chip { align-self: flex-start; display: inline-flex; align-items: center; gap: 5px; padding: 2px 10px; border-radius: 999px; background: var(--primary-soft); color: var(--primary-text, var(--primary)); font-size: 15px; font-weight: 700; border: 1px solid var(--line); }
+.cg-card { padding: 16px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-card); display: flex; flex-direction: column; gap: 10px; }
+.cg-card__head { display: flex; gap: 12px; align-items: center; }
+.cg-card__who { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.cg-card__name { margin: 0; font-size: 22px; font-weight: 800; overflow-wrap: anywhere; }
+.cg-card__sum, .cg-card__stale { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border-radius: 14px; background: var(--surface-2); font-size: 17px; }
+.cg-card__sum svg, .cg-card__stale svg { flex: none; margin-top: 3px; }
+.cg-card__sum.is-attn, .cg-card__stale { background: var(--warn-bg); color: var(--warn-ink); }
+.cg-card__sum.is-ok { background: var(--good-bg); color: var(--good-ink); }
+.cg-card__sub { display: block; font-size: 16px; font-weight: 500; }
+.cg-card__line, .cg-card__sync { margin: 0; display: flex; gap: 8px; align-items: flex-start; font-size: 17px; }
+.cg-card__line svg, .cg-card__sync svg { flex: none; margin-top: 3px; color: var(--ink-soft); }
+.cg-card__sync { font-size: 15px; color: var(--ink-soft); }
+.cg-person, .cg-alert { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 12px 14px; }
+.cg-person__main, .cg-alert__main { flex: 1 1 150px; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.cg-person__name, .cg-alert__t { font-size: 19px; font-weight: 750; overflow-wrap: anywhere; }
+.cg-alert__d { font-size: 16px; color: var(--ink-soft); }
+.cg-person__acts { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+.cg-alert__ic { flex: none; width: 42px; height: 42px; display: grid; place-items: center; border-radius: 12px; background: var(--warn-bg); color: var(--warn-ink); }
+.cg-alert__ic--plain { background: var(--primary-soft); color: var(--primary-text, var(--primary)); }
+.cg-rules { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 8px; font-size: 17px; }
+.cg-rules li { display: flex; gap: 8px; align-items: flex-start; }
+.cg-rules svg { flex: none; margin-top: 3px; }
+.g-account-remove { min-height: 44px; border: 0; background: none; color: var(--bad-ink); font: inherit; font-size: 16px; font-weight: 700; cursor: pointer; text-decoration: underline; }
+.cg-nav {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; display: flex; gap: 2px; justify-content: center;
+  padding: 6px max(6px, env(safe-area-inset-right)) calc(6px + env(safe-area-inset-bottom)) max(6px, env(safe-area-inset-left));
+  background: var(--surface); border-top: 1px solid var(--line);
+}
+.cg-nav__item {
+  flex: 1 1 0; max-width: 180px; min-height: 56px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  border: 0; border-radius: 14px; background: none; color: var(--ink-soft); font: inherit; font-size: 13px; font-weight: 650; cursor: pointer;
+}
+.cg-nav__item.is-active { background: var(--primary-soft); color: var(--primary-text, var(--primary)); font-weight: 800; }
+.cg-nav__item:focus-visible, .cg :focus-visible { outline: 3px solid var(--primary-fill); outline-offset: 2px; }
+html[data-text='xlarge'] .cg-nav, html[data-text='huge'] .cg-nav { zoom: 0.8; }
+/* The person being viewed stays named at the top of their day. */
+.cg-viewing {
+  position: sticky; top: 0; z-index: 15; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: max(8px, env(safe-area-inset-top)) 14px 8px; background: var(--primary-soft); border-bottom: 1px solid var(--line);
+}
+.cg-viewing__back { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 10px 0 4px; border: 0; border-radius: 12px; background: none; color: var(--ink); font: inherit; font-size: 17px; font-weight: 700; cursor: pointer; }
+.cg-viewing__who { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.cg-viewing__main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.cg-viewing__name { font-size: 18px; font-weight: 800; overflow-wrap: anywhere; }
+
+/* Printing any page: just the content, no app chrome. */
+@media print {
+  .topbar, .subbar, .bottom-nav, .offline-bar, .toast-stack, .skip-link, .no-print { display: none !important; }
+  .app-shell { padding: 0 !important; }
+  .content { max-width: none; padding: 0 !important; margin: 0; }
+  html, body { background: #fff !important; zoom: 1 !important; }
+  .safety-list { border: 0; padding: 0; }
+  .safety-list * { color: #000 !important; }
+}
+.nextmed__later {
+  width: 100%; margin-top: 10px; display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 52px;
+  border: 1.5px solid var(--primary-fill); border-radius: 14px; background: var(--surface); color: var(--primary-text, var(--primary));
+  font: inherit; font-size: 18px; font-weight: 750; cursor: pointer;
+}
+.nextmed__later:disabled { opacity: 0.6; cursor: progress; }
+.nextmed__later:focus-visible { outline: 3px solid var(--primary-fill); outline-offset: 2px; }
+/* Caregiver screens at large zoom: everything wraps, nothing runs off the side. */
+.cg-top { flex-wrap: wrap; }
+.cg-top__brand, .cg-h, .cg-mode__t, .cg-mode__d, .cg-card__line span, .cg-card__sum span { min-width: 0; overflow-wrap: anywhere; }
+.cg-mode > div, .cg-card__sum > span, .cg-card__stale > span { min-width: 0; }
+.cg-nav__item { min-width: 0; }
+.cg .g-account-join, .cg .input { max-width: 100%; min-width: 0; }

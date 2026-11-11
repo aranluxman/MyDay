@@ -21,6 +21,7 @@ const Games = lazy(() => import('./screens/Games.jsx'));
 const More = lazy(() => import('./screens/More.jsx'));
 const Health = lazy(() => import('./screens/Health.jsx'));
 const Reports = lazy(() => import('./screens/Reports.jsx'));
+const MedSafety = lazy(() => import('./screens/MedSafety.jsx'));
 const GuardianJoin = lazy(() => import('./screens/GuardianJoin.jsx'));
 const Guardian = lazy(() => import('./screens/Guardian.jsx'));
 const AccountGuardian = lazy(() => import('./screens/AccountGuardian.jsx'));
@@ -94,6 +95,7 @@ function Root() {
         <Route path="/updates" element={<LazyScreen><Updates /></LazyScreen>} />
         <Route path="/medication" element={<LazyScreen><Medication /></LazyScreen>} />
         <Route path="/medication/ask" element={<LazyScreen><MedicineAsk /></LazyScreen>} />
+        <Route path="/medication/safety" element={<LazyScreen><MedSafety /></LazyScreen>} />
         <Route path="/appointments" element={<LazyScreen><Appointments /></LazyScreen>} />
         <Route path="/profile" element={<LazyScreen><Profile /></LazyScreen>} />
         <Route path="/contacts" element={<LazyScreen><Profile only="contacts" key="contacts" /></LazyScreen>} />

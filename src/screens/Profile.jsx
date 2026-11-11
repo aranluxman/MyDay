@@ -12,6 +12,7 @@ import { LANGUAGES, MORE_LANGUAGES, currentLanguage, setLanguage } from '../lib/
 import { ageFromBirthday, prettyClock, prettyDate, shortDate } from '../lib/format.js';
 import { GENDERS, genderLabel, heightWords, weightWords, allergyState, validateBody, cmToFtIn, kgToLb } from '../lib/healthLogs.js';
 import { listMedications } from '../lib/db.js';
+import { listAccountGuardians } from '../lib/guardianAccount.js';
 import { THEMES, TEXT_SIZES, MODES, modeOf, themeForMode, profileCompleteness, currentTheme } from '../lib/appearance.js';
 import { CONTACT_TYPES, validPhone, telHref } from '../lib/contacts.js';
 import { HowToGuide } from './HowTo.jsx';
@@ -71,6 +72,9 @@ export default function Profile({ only = null }) {
   const [editProfile, setEditProfile] = useState(false);
   const [editContact, setEditContact] = useState(null);
   const [contactTab, setContactTab] = useState('family');
+  const [careTab, setCareTab] = useState('mine');
+  // People who invited this account to see their records (view-only).
+  const supporting = useAsync(() => listAccountGuardians().catch(() => []), []);
   const completeness = profileCompleteness(profile);
   const { installed } = useInstallPrompt();
   // Whether THIS device can show alerts at all; the saved preference is a
@@ -216,7 +220,7 @@ export default function Profile({ only = null }) {
   const pages = {
     access: { title: 'Accessibility', desc: 'Make MyDay easier to see and use.' },
     alerts: { title: 'Alerts & reminders', desc: 'When MyDay reminds you, and how it sounds.' },
-    guardians: { title: 'Guardians', desc: 'Family who are told if you miss a medicine.' },
+    guardians: { title: 'Care team', desc: 'Who can see your records, and the people you support.' },
     contacts: { title: 'My contacts', desc: 'Family, doctor and pharmacy, one tap away.' },
     language: { title: 'Language', desc: 'Show MyDay in your language.' },
     appearance: { title: 'Appearance', desc: 'Light or dark, and your colour theme.' },
@@ -303,18 +307,49 @@ export default function Profile({ only = null }) {
 
         {page === 'alerts' && <AlertsSettings reveal={reveal?.id === 'alerts' ? reveal.n : null} />}
 
-        {page === 'guardians' && <>
+        {page === 'guardians' && (
+          <SegmentedControl label="Care team" value={careTab} onChange={setCareTab} options={[
+            { value: 'mine', label: 'My caregivers' },
+            { value: 'support', label: 'People I support' },
+          ]} />
+        )}
+        {page === 'guardians' && careTab === 'support' && (
+          <>
+            <h3 className="settings-group">People I support</h3>
+            {supporting.loading ? <Spinner label="" /> : supporting.error ? (
+              <Card><p style={{ margin: '0 0 10px' }}>Could not load the people you support.</p><Button variant="ghost" onClick={supporting.reload}>Try again</Button></Card>
+            ) : supporting.data?.length ? (
+              <ul className="rd-list">
+                {supporting.data.map((p) => (
+                  <li key={p.id}>
+                    <button type="button" className="rd-row" onClick={() => navigate('/guardian', { state: { linkId: p.id } })}>
+                      <span className="rd-row__ic" aria-hidden="true"><Icon name="user" size={24} /></span>
+                      <span className="rd-row__main"><span className="rd-row__t" translate="no">{p.name}</span><span className="rd-row__d">View-only · their medicine records and appointments</span></span>
+                      <Icon name="chevron" size={22} className="rd-row__chev" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : <Card><p style={{ margin: 0 }}>You are not supporting anyone yet.</p></Card>}
+            {supporting.data?.length > 0 && <Button icon="users" size="lg" onClick={() => navigate('/guardian')}>Open caregiver dashboard</Button>}
+            <Button variant={supporting.data?.length ? 'ghost' : 'primary'} icon="plus" size="lg" onClick={() => navigate('/guardian')}>Add someone with their code</Button>
+            <p className="settings-note settings-note--lock"><Icon name="lock" size={22} />
+              <span><b>You cannot add a person yourself.</b> They invite you from their own MyDay and read you a 6-digit code.
+              Your access is view-only: you cannot record a dose or change their medicines or appointments, and they can remove you at any time.</span></p>
+          </>
+        )}
+        {page === 'guardians' && careTab === 'mine' && <>
         {guardians.data && !connected && (
           <p className="g-banner" role="status"><Icon name="shield" size={22} />
-            <span><b>No one gets an alert yet if you miss a medicine.</b><br />Add a family guardian to turn on safety alerts.</span></p>
+            <span><b>No one gets an alert yet when a dose has no record.</b><br />Add a family guardian to turn on safety alerts.</span></p>
         )}
         <FamilyPicture />
         <p className="g-lead">
-          A guardian is someone in your family who can check on their own phone or tablet whether you have
-          taken your medicines, and gets an alert if you miss one. They don't need an account.
+          A guardian is someone in your family who can check on their own phone or tablet whether your doses
+          have been recorded, and gets an alert when one has no record. They don't need an account. You choose who can see your information.
         </p>
         <Button icon="plus" size="lg" onClick={() => setInviteOpen(true)}>Invite a guardian</Button>
-        <Button variant="soft" icon="user" size="lg" onClick={() => navigate('/guardian')}>Become a guardian</Button>
+        <Button variant="soft" icon="user" size="lg" onClick={() => setCareTab('support')}>Become a guardian</Button>
         <p className="muted" style={{ margin: 0, fontSize: 16 }}>
           <b>Become a guardian</b> if a family member gave you their 6-digit code, so you can check on their medicines.
         </p>
@@ -721,9 +756,10 @@ function GuardianRow({ guardian: g, onShowCode, onRevokeDevice, onToggleDiary, o
           <div className="guardian__name">{g.name}</div>
           <div className={`guardian__state${connected ? ' guardian__state--on' : ''}`}>
             {connected
-              ? <><Icon name="check" size={16} /> {g.deviceCount} device{g.deviceCount === 1 ? '' : 's'} connected</>
-              : <><Icon name="clock" size={16} /> Not connected yet</>}
+              ? <><Icon name="check" size={16} /> Accepted · {g.deviceCount} device{g.deviceCount === 1 ? '' : 's'} connected</>
+              : <><Icon name="clock" size={16} /> Invitation pending · not connected yet</>}
           </div>
+          <div className="guardian__seen">{connected ? 'Can view' : 'Will be able to view'}: medicine records and appointments{g.share_diary ? ', diary notes' : ''}. View-only.</div>
           {connected && <div className="guardian__seen">{lastSeenWords(g.lastSeenAt)}</div>}
         </div>
         <button className="icon-btn" aria-label={`Remove ${g.name}`} onClick={onRemove}>
@@ -764,9 +800,9 @@ function GuardianRow({ guardian: g, onShowCode, onRevokeDevice, onToggleDiary, o
             {g.name} can see, and cannot change:
           </p>
           <ul className="g-can">
-            <li className="g-can__yes"><Icon name="check" size={18} /> Today's medicines and whether each was taken</li>
+            <li className="g-can__yes"><Icon name="check" size={18} /> Today's medicines and whether each has been recorded</li>
             <li className="g-can__yes"><Icon name="check" size={18} /> Your upcoming appointments</li>
-            <li className="g-can__yes"><Icon name="check" size={18} /> Your taken and missed dose history</li>
+            <li className="g-can__yes"><Icon name="check" size={18} /> Your history of recorded and unrecorded doses</li>
             <li className="g-can__yes"><Icon name="check" size={18} /> The phone numbers of your saved contacts</li>
             <li className="g-can__no"><Icon name="close" size={18} /> They cannot change or add anything</li>
             <li className="g-can__no"><Icon name="close" size={18} /> They cannot mark a dose as taken</li>

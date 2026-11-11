@@ -41,7 +41,7 @@ export default function Reports() {
 
   return (
     <div className="stack reports">
-      <div className="report-controls stack">
+      <div className="report-controls no-print stack">
         <p className="page-intro">Review your own records, choose what to include, then save or print the page.</p>
         <div className="field">
           <label className="field__label" htmlFor="rep-range">Period</label>

@@ -178,6 +178,8 @@ const SIDE_BY_SIDE = 780;
 // month is one tap away under Calendar; that choice is remembered. Picking
 // another day swaps in its record (or plan), with a clear way back to today.
 function TodayView({ state, meds, actions, onAdd, onHistory, onManage, windowMinutes }) {
+  const goTo = useNavigate();
+  const onSafety = () => goTo('/medication/safety');
   const today = localDateStr();
   const [boxRef, width] = useWidth();
   const wide = width >= SIDE_BY_SIDE;
@@ -262,6 +264,11 @@ function TodayView({ state, meds, actions, onAdd, onHistory, onManage, windowMin
       <button type="button" className="medlink" onClick={onHistory}>
         <span className="medlink__ic" aria-hidden="true"><Icon name="history" size={24} /></span>
         <span className="medlink__t">Your history</span>
+        <Icon name="chevron" size={22} />
+      </button>
+      <button type="button" className="medlink" onClick={onSafety}>
+        <span className="medlink__ic" aria-hidden="true"><Icon name="shield" size={24} /></span>
+        <span className="medlink__t">Medication safety</span>
         <Icon name="chevron" size={22} />
       </button>
       <button type="button" className="medlink" onClick={onManage}>

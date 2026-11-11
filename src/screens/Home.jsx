@@ -9,7 +9,7 @@ import { Card, Button, Avatar, Skeleton, SkeletonCard, Modal, Toggle } from '../
 import { Icon } from '../components/Icon.jsx';
 import { MedCalendar, WeekStrip } from '../components/MedCalendar.jsx';
 import { DoseRow } from '../components/DoseRow.jsx';
-import { getNotificationPrefs, todaysDoses, upcomingAppointments, pastAppointments, playedTodayCount, listGuardians, listMedications, listContacts, listDiary, saveDiary, deleteDiary } from '../lib/db.js';
+import { getNotificationPrefs, todaysDoses, upcomingAppointments, pastAppointments, playedTodayCount, listGuardians, listMedications, listContacts, listDiary, saveDiary, deleteDiary, serverFeatures } from '../lib/db.js';
 import { prettyTime, prettyDate, localDateStr, present } from '../lib/format.js';
 import { telHref } from '../lib/contacts.js';
 import { countdownLabel } from '../lib/appointments.js';
@@ -562,6 +562,8 @@ function NextMedicine({ doses, summary: s, opts, actions }) {
   const open = sortForDisplay((doses || []).filter((d) => !d.as_needed), opts)
     .filter((d) => !['taken', 'skipped'].includes(doseState(d, opts)));
   const next = open[0];
+  const [canRemind, setCanRemind] = useState(false);
+  useEffect(() => { let live = true; serverFeatures().then((f) => { if (live) setCanRemind(f?.remind_later === true); }); return () => { live = false; }; }, []);
   return (
     <section className="nextmed" aria-labelledby="nextmed-t">
       <h2 className="nextmed__t" id="nextmed-t">Next medicine</h2>
@@ -576,6 +578,15 @@ function NextMedicine({ doses, summary: s, opts, actions }) {
           <p>No medicines are scheduled today.</p>
           <Button variant="ghost" icon="plus" onClick={() => navigate('/medication', { state: { add: 'med' } })}>Add medicine</Button>
         </div>
+      )}
+      {/* Only offered when the server really will send the postponed reminder,
+          and only for a dose that is due now (not one whose window has passed). */}
+      {next && canRemind && ['due', 'overdue'].includes(doseState(next, opts)) && (
+        <button type="button" className="nextmed__later" disabled={actions.pending.has(next.id)}
+          aria-label={`Remind me later: ${next.medication?.name || 'this medicine'}. This postpones the reminder only.`}
+          onClick={() => actions.remindLater(next)}>
+          <Icon name="clock" size={20} /> Remind me later
+        </button>
       )}
     </section>
   );

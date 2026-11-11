@@ -10,6 +10,7 @@
 // It deliberately cannot read anything, cannot touch another dose, and cannot
 // be replayed. A leaked payload is worth one dose marked taken, nothing more.
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
+import { snoozeUntil } from '../_shared/notificationRules.js';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -52,14 +53,36 @@ Deno.serve(async (req) => {
   }
 
   if (action === 'snooze') {
-    // Snoozing does not change the dose — it only clears `notified` so the
-    // reminder can legitimately come round again. The dose's own status, and
-    // therefore missed-dose detection, is untouched.
-    await admin.from('myday_doses').update({ notified: false }).eq('id', row.dose_id);
+    // Snoozing postpones the REMINDER only: `snoozed_until` is the one thing
+    // written, and send-reminders is the one thing that reads it. The dose's
+    // scheduled time and status, and therefore missed-dose detection, are
+    // untouched. The token is spent either way.
     await admin.from('myday_dose_action_tokens')
       .update({ used_at: new Date().toISOString() }).eq('token_hash', row.token_hash);
+
+    const [{ data: dose }, { data: prefs }, { data: prof }] = await Promise.all([
+      admin.from('myday_doses')
+        .select('id, status, due_at, medication:myday_medications(alert_window_override)')
+        .eq('id', row.dose_id).eq('user_id', row.user_id).maybeSingle(),
+      admin.from('myday_notification_prefs').select('snooze_minutes').eq('user_id', row.user_id).maybeSingle(),
+      admin.from('myday_profiles').select('alert_window_minutes').eq('user_id', row.user_id).maybeSingle(),
+    ]);
+    if (!dose || dose.status !== 'pending') {
+      console.log(JSON.stringify({ fn: 'dose-action', action, outcome: 'not_pending' }));
+      return json({ ok: false, action: 'snooze', reason: 'not_pending' });
+    }
+    const until = snoozeUntil(new Date().toISOString(), prefs || {});
+    const windowMinutes = Number((dose as any).medication?.alert_window_override ?? prof?.alert_window_minutes ?? 60) || 60;
+    // After the dose's recording window closes no reminder is sent, so do not
+    // promise one.
+    if (new Date(until).getTime() > new Date(dose.due_at).getTime() + windowMinutes * 60_000) {
+      console.log(JSON.stringify({ fn: 'dose-action', action, outcome: 'too_late' }));
+      return json({ ok: false, action: 'snooze', reason: 'too_late' });
+    }
+    await admin.from('myday_doses').update({ snoozed_until: until, notified: false }).eq('id', row.dose_id);
+    const minutes = Math.round((new Date(until).getTime() - Date.now()) / 60_000);
     console.log(JSON.stringify({ fn: 'dose-action', action, outcome: 'ok' }));
-    return json({ ok: true, action: 'snooze' });
+    return json({ ok: true, action: 'snooze', until, minutes });
   }
 
   // Mark taken through the same atomic, idempotent function the app uses

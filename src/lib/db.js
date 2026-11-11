@@ -421,6 +421,25 @@ export async function logAsNeededDose(medicationId, clientId, takenAt = null) {
 // "Not today": a deliberate decision, not a failure. It is its own status so
 // the sweep never turns it into a missed-dose alert and the adherence history
 // does not count it against the person. A taken dose is not overwritten.
+// "Remind me later": postpones the REMINDER for one pending dose. The dose's
+// scheduled time and status are not changed (migration 20261111090000).
+export async function snoozeDose(id, minutes = null) {
+  const { data, error } = await supabase.rpc('myday_snooze_dose', { p_dose_id: id, p_minutes: minutes });
+  if (error) throw new DoseError('failed', 'Could not set the reminder. Nothing was changed.');
+  return data;
+}
+// What the deployed server supports. Asked once per visit; any failure (for
+// example the function not existing yet) means "not supported", so the app
+// never offers a reminder the server would not send.
+let featuresPromise = null;
+export function serverFeatures() {
+  if (!featuresPromise) {
+    featuresPromise = supabase.rpc('myday_features').then(({ data, error }) => (error || !data ? {} : data)).catch(() => ({}));
+  }
+  return featuresPromise;
+}
+export function resetServerFeatures() { featuresPromise = null; }
+
 export async function markDoseSkipped(id, reason) {
   const trimmed = String(reason || '').trim().slice(0, 80);
   const { data, error } = await supabase.from('myday_doses')

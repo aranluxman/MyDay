@@ -7,7 +7,7 @@ import { useUI } from '../context/UIContext.jsx';
 import { analyzeMedicines } from '../lib/ai.js';
 import { medsSignature } from '../lib/aiParse.js';
 
-// "How your medicines work together": what each one is for, its benefits, and
+// "What your medicines are for": what each one is for, its benefits, and
 // how the list serves shared goals (heart, bones, blood sugar…).
 //
 // Only runs when asked — each run costs money — and the answer is kept on this
@@ -75,7 +75,7 @@ export function MedicineInsights({ meds }) {
         onClick={() => setOpen(true)}>
         <span className="insights-mini__ic" aria-hidden="true"><Icon name="sparkle" size={20} /></span>
         <span className="insights-mini__main">
-          <span className="insights-mini__t">How your medicines work together</span>
+          <span className="insights-mini__t">What your medicines are for</span>
           <span className="insights-mini__s">{result ? (stale ? 'Your list changed — tap to update' : 'Tap to open') : 'Tap to see what each one is for'}</span>
         </span>
         <Icon name="chevron" size={20} />
@@ -86,9 +86,9 @@ export function MedicineInsights({ meds }) {
   return (
     <Card className="insights" id={bodyId}>
       <div className="section-title">
-        <h2 className="section-title__l insights__h"><Icon name="sparkle" size={22} /> <span>How your medicines work together</span></h2>
+        <h2 className="section-title__l insights__h"><Icon name="sparkle" size={22} /> <span>What your medicines are for</span></h2>
         <Button variant="ghost" size="sm" full={false} icon="minus" onClick={() => setOpen(false)}
-          aria-expanded="true" aria-controls={bodyId} aria-label="Minimize how your medicines work together">Minimize</Button>
+          aria-expanded="true" aria-controls={bodyId} aria-label="Minimize what your medicines are for">Minimize</Button>
       </div>
 
       {busy ? (
@@ -191,7 +191,7 @@ export function MedicineInsights({ meds }) {
             <span className="insights__ask-ic" aria-hidden="true"><Icon name="chat" size={22} /></span>
             <span className="insights__ask-main">
               <span className="insights__ask-t">Have a question?</span>
-              <span className="insights__ask-d">Ask about how your medicines work together</span>
+              <span className="insights__ask-d">Ask about what your medicines are for</span>
             </span>
             <Icon name="chevron" size={22} />
           </button>

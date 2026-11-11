@@ -5,10 +5,11 @@ import { Icon } from '../components/Icon.jsx';
 // Only pages that exist are listed: nothing here leads to a dead end.
 const LINKS = [
   { to: '/health', icon: 'heartPulse', title: 'Health tracker', desc: 'Water, sleep and measurements' },
+  { to: '/medication/safety', icon: 'shield', title: 'Medication safety', desc: 'Information and your pharmacist list' },
   { to: '/reports', icon: 'chart', title: 'Reports', desc: 'Review, then save or print' },
-  { to: '/contacts', icon: 'users', title: 'Contacts', desc: 'Family and medical team' },
+  { to: '/contacts', icon: 'phone', title: 'Contacts', desc: 'Family and medical team' },
   { to: '/games', icon: 'brain', title: 'Games', desc: 'A little time for you' },
-  { to: '/profile?section=guardians', icon: 'shield', title: 'Care team', desc: 'Guardians and people you support' },
+  { to: '/profile?section=guardians', icon: 'users', title: 'Care team', desc: 'Guardians and people you support' },
   { to: '/profile', icon: 'gear', title: 'Settings', desc: 'Profile, alerts and accessibility' },
   { to: '/profile?section=howto', icon: 'help', title: 'How to use MyDay', desc: 'A step-by-step guide' },
 ];

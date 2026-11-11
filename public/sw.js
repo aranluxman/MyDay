@@ -137,12 +137,20 @@ self.addEventListener('notificationclick', (e) => {
   }
 
   if (e.action === 'snooze' && d.actionToken) {
-    e.waitUntil(doseAction(d.actionToken, 'snooze').then(() =>
-      self.registration.showNotification('Reminder snoozed', {
-        body: 'We will remind you again shortly.',
-        icon: '/icons/icon-192.png', badge: '/icons/badge-72.png',
-        tag: 'myday-ack', silent: true,
-      })));
+    // Say what actually happened: when the reminder comes back, or that it
+    // could not be postponed. Never "snoozed" for a request that failed.
+    e.waitUntil(snoozeAction(d.actionToken).then((r) => {
+      const ok = r && r.ok === true;
+      const title = ok ? 'Reminder postponed' : 'Could not postpone the reminder';
+      const body = ok
+        ? (r.minutes ? `MyDay will remind you again in about ${r.minutes} minutes. Your dose time has not changed.` : 'MyDay will remind you again shortly. Your dose time has not changed.')
+        : r && r.reason === 'too_late' ? 'It is too late to postpone this one. Tap to open MyDay and record the dose there.'
+          : 'Tap to open MyDay and record the dose there.';
+      return self.registration.showNotification(title, {
+        body, icon: '/icons/icon-192.png', badge: '/icons/badge-72.png',
+        tag: 'myday-ack', silent: ok, data: { url: '/medication' },
+      });
+    }));
     return;
   }
 
@@ -168,6 +176,20 @@ self.addEventListener('notificationclick', (e) => {
 
 // Posts a notification action to the dose-action endpoint. Returns true only
 // on a definite success, so the caller can tell the person the truth.
+// Snooze needs the reply itself (when it comes back, or why not).
+async function snoozeAction(token) {
+  try {
+    const res = await fetch(`${API}/dose-action`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, action: 'snooze' }),
+    });
+    return await res.json().catch(() => null);
+  } catch {
+    return null;
+  }
+}
+
 async function doseAction(token, action) {
   try {
     const res = await fetch(`${API}/dose-action`, {

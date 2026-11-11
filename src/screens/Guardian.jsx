@@ -184,7 +184,7 @@ export function Dashboard({ onUnlinked, accountLinkId = null, accountToken = nul
       {(!accountLinkId || accountToken) && !d.notifications?.push_enabled && (
         <section className="card">
           <p className="lead">Medication alerts are off on this device.</p>
-          <p className="muted">Turn them on so this phone buzzes and rings when {d.patient?.name} misses a medicine — even when MyDay is closed.</p>
+          <p className="muted">Turn them on so this phone buzzes and rings when no dose has been recorded for {d.patient?.name} — even when MyDay is closed.</p>
           {/* A button, not an href="#…" link: the hash jump looked like a fresh
               app launch to the router and bounced signed-in people to Home. */}
           <button type="button" className="btn btn--primary btn--sm btn--full" onClick={() => {
@@ -256,7 +256,7 @@ function StatusHeader({ patient, guardianName, summary, date }) {
   return (
     <section className={`g-status g-status--${tone}`} aria-label="Today's overall state">
       <div className="g-status__who">
-        <span className="g-status__eyebrow">Caring for</span>
+        <span className="g-status__eyebrow">Viewing · View-only</span>
         <h1 className="g-status__name">{patient?.name}</h1>
         <p className="g-status__date">{prettyDate(date)}</p>
         {guardianName && <p className="g-status__date">Connected as {guardianName}</p>}
@@ -267,9 +267,9 @@ function StatusHeader({ patient, guardianName, summary, date }) {
       </p>
       {summary.total > 0 && (
         <div className="g-status__counts">
-          <Count n={summary.taken} label="Taken" kind="taken" />
-          <Count n={summary.missed} label="Missed" kind="missed" />
-          <Count n={summary.toTake} label="To take" kind="pending" />
+          <Count n={summary.taken} label="Recorded taken" kind="taken" />
+          <Count n={summary.missed} label="Not recorded" kind="missed" />
+          <Count n={summary.toTake} label="Still open" kind="pending" />
         </div>
       )}
     </section>
@@ -454,7 +454,7 @@ function HistoryPanel({ history, opts }) {
           <div className="g-adherence__pct">{last7.pct}%</div>
           <div>
             <div className="g-adherence__t">Last 7 days</div>
-            <div className="g-adherence__d">Took {last7.taken} of {last7.total} doses</div>
+            <div className="g-adherence__d">{last7.taken} of {last7.total} doses recorded as taken</div>
           </div>
         </div>
       )}
@@ -605,7 +605,7 @@ function AlertsPanel({ notifications, patient, token, onChanged }) {
       const reg = await navigator.serviceWorker?.ready;
       if (!reg || Notification.permission !== 'granted') throw new Error();
       await reg.showNotification('MyDay test alert', {
-        body: `This is how a missed medicine for ${patient} will look on this phone.`,
+        body: `This is how an alert about an unrecorded dose for ${patient} will look on this phone.`,
         icon: '/icons/icon-192.png', badge: '/icons/badge-72.png', tag: 'myday-test',
         requireInteraction: true, renotify: true, vibrate: [800, 200, 800, 200, 800, 200, 1200],
         data: { url: '/guardian', kind: 'test' },
@@ -684,7 +684,7 @@ function AlertsPanel({ notifications, patient, token, onChanged }) {
           <button className="btn btn--primary btn--sm btn--full" disabled={busy} onClick={testDevice}>
             <Icon name="bell" size={18} /><span>Test the alarm on this device</span>
           </button>
-          <p className="muted">Shows what a missed-dose alert looks and sounds like on this phone.</p>
+          <p className="muted">Shows what an alert about an unrecorded dose looks and sounds like on this phone.</p>
           <button className="btn btn--ghost btn--sm btn--full" disabled={busy} onClick={turnOff}>
             Turn off alerts on this device
           </button>
@@ -720,7 +720,7 @@ function IntroSheet({ permissions, patient, accountMode, onClose }) {
       <ul className="g-can">
         <li className="g-can__yes"><Icon name="check" size={20} /> Today's medicines and whether each was taken</li>
         <li className="g-can__yes"><Icon name="check" size={20} /> Their upcoming appointments</li>
-        <li className="g-can__yes"><Icon name="check" size={20} /> A history of taken and missed doses</li>
+        <li className="g-can__yes"><Icon name="check" size={20} /> A history of recorded and unrecorded doses</li>
         {permissions?.can_read?.includes('diary') && (
           <li className="g-can__yes"><Icon name="check" size={20} /> Their recent health notes</li>
         )}

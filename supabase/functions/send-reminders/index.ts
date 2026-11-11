@@ -20,6 +20,7 @@ import { sendPush, type Vapid } from '../_shared/webpush.ts';
 // screen's promises.
 import {
   shouldSend, dedupeKey, localHHMM, appointmentReminderAt, repeatTimes, PREF_DEFAULTS,
+  snoozeDecision, snoozeAttempt,
 } from '../_shared/notificationRules.js';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
@@ -128,18 +129,25 @@ Deno.serve(async (req) => {
     // ---------- dose reminders ----------
     if (shouldSend({ type: 'dose_due', at: new Date(now).toISOString() }, prefs, ctx).send) {
       const { data: due } = await admin.from('myday_doses')
-        .select('id, due_at, scheduled_time, status, medication:myday_medications(name, dose, note, reminders_enabled)')
+        .select('id, due_at, scheduled_time, status, snoozed_until, medication:myday_medications(name, dose, note, reminders_enabled)')
         .eq('user_id', userId).eq('dose_date', today).eq('status', 'pending')
         // Reaches back far enough to catch "Remind me again" repeats of doses
         // that are still not taken.
-        .gte('due_at', new Date(now - (WINDOW_MINUTES + repeatLookback(prefs)) * 60_000).toISOString())
+        // A postponed reminder ("Remind me later") can come due after that
+        // look-back, so postponed doses are always included.
+        .or(`due_at.gte.${new Date(now - (WINDOW_MINUTES + repeatLookback(prefs)) * 60_000).toISOString()},snoozed_until.not.is.null`)
         .lte('due_at', new Date(now + 60_000).toISOString());
 
       for (const dose of due || []) {
         // Which reminder is due now: 0 is the first, 1.. are the repeats.
-        const attempt = [dose.due_at, ...repeatTimes(dose.due_at, prefs)]
-          .findIndex((at) => inWindow(new Date(at).getTime(), now));
-        if (attempt < 0) continue;
+        // A postponed reminder holds everything back until its time, then is
+        // sent once; after that the ordinary repeats carry on.
+        const snooze = snoozeDecision(dose.snoozed_until, now, WINDOW_MINUTES * 60_000);
+        if (snooze === 'hold') { skipped++; continue; }
+        const attempt: number | string = snooze === 'fire'
+          ? snoozeAttempt(dose.snoozed_until)
+          : [dose.due_at, ...repeatTimes(dose.due_at, prefs)].findIndex((at) => inWindow(new Date(at).getTime(), now));
+        if (typeof attempt === 'number' && attempt < 0) continue;
         // A medicine with its own reminders switched off still tracks doses.
         if (dose.medication?.reminders_enabled === false) { skipped++; continue; }
         // Re-check per dose: status may have changed since the query.
@@ -170,7 +178,8 @@ Deno.serve(async (req) => {
             tag: `myday-dose-${dose.id}`,
             doseId: dose.id,
             actionToken: token,
-            actions: [{ action: 'taken', title: 'I took it' }, { action: 'snooze', title: 'Snooze 15 min' }],
+            actions: [{ action: 'taken', title: 'I took it' }, { action: 'snooze', title: `Snooze ${snoozeMinutes(prefs)} min` }],
+            snoozeMinutes: snoozeMinutes(prefs),
             vibrate: prefs.vibrate,
             silent: !prefs.sound,
           },
@@ -305,6 +314,12 @@ Deno.serve(async (req) => {
 /** True when a reminder time falls inside this cron run's window. */
 function inWindow(atMs: number, now: number) {
   return atMs >= now - WINDOW_MINUTES * 60_000 && atMs <= now + 60_000;
+}
+
+/** The person's snooze length, limited to the lengths the settings offer. */
+function snoozeMinutes(prefs: any) {
+  const n = Number(prefs.snooze_minutes);
+  return [5, 10, 15, 30].includes(n) ? n : 15;
 }
 
 /** How far after a dose's time its last repeat can land, in minutes. */

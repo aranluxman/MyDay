@@ -11,7 +11,7 @@ import { askAboutMedicines } from '../lib/ai.js';
 import { medsSignature, normaliseMedicineReply } from '../lib/aiParse.js';
 import { MEDICINE_CHAT_UNAVAILABLE } from '../lib/aiErrors.js';
 
-// "Have a question?" after "How your medicines work together": a page for
+// "Have a question?" after "What your medicines are for": a page for
 // follow-up questions about the person's own list. General information only —
 // it says so at the top, under every answer, and the server refuses anything
 // that is really a dosing decision and points to the pharmacist instead.

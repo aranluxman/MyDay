@@ -157,6 +157,29 @@ export function snoozeUntil(from, prefs = {}) {
 }
 
 /**
+ * What a postponed reminder ("Remind me later" / "Snooze") means for this run
+ * of the sender:
+ *   'none' — not postponed, or the postponed reminder has already gone by:
+ *            the ordinary first reminder and repeats apply;
+ *   'hold' — postponed to a time still ahead: send nothing for this dose now;
+ *   'fire' — the postponed time falls in this run's window: send it.
+ * Only the reminder is postponed. The dose's time and status are not read
+ * or changed here.
+ */
+export function snoozeDecision(snoozedUntil, now, windowMs = 6 * MINUTE) {
+  if (!snoozedUntil) return 'none';
+  const at = new Date(snoozedUntil).getTime();
+  if (!Number.isFinite(at)) return 'none';
+  if (at > now + MINUTE) return 'hold';
+  if (at >= now - windowMs) return 'fire';
+  return 'none';
+}
+/** The dedupe "attempt" for a postponed reminder: one per postponed time. */
+export function snoozeAttempt(snoozedUntil) {
+  return `s${Math.floor(new Date(snoozedUntil).getTime() / MINUTE)}`;
+}
+
+/**
  * A stable identity for one notification, so the same alert is not delivered
  * twice across a phone, a tablet and an installed PWA. The attempt number is
  * part of it, otherwise a repeat would be swallowed as a duplicate.

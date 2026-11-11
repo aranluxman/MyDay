@@ -290,6 +290,19 @@ function rpc(db, fn, a, now) {
   const doses = db.myday_doses;
   const meds = db.myday_medications;
   if (fn === 'myday_refresh_doses' || fn === 'myday_sync_medication_doses') return null;
+  // Phase 3: "Remind me later" (migration 20261111090000). Off unless a test
+  // switches it on, exactly like a server whose reminder sender is not deployed.
+  if (fn === 'myday_features') return { remind_later: db.__remind_later === true };
+  if (fn === 'myday_snooze_dose') {
+    const d = doses.find((x) => x.id === a.p_dose_id);
+    if (!d) return { outcome: 'not_found' };
+    if (d.status !== 'pending') return { outcome: 'not_pending' };
+    if (Date.parse(d.due_at) > now + 30 * 60000) return { outcome: 'not_due' };
+    const until = now + 15 * 60000;
+    if (until > Date.parse(d.due_at) + 60 * 60000) return { outcome: 'too_late' };
+    d.snoozed_until = new Date(until).toISOString();
+    return { outcome: 'snoozed', until: d.snoozed_until, minutes: 15 };
+  }
   if (fn === 'myday_take_dose') {
     const d = doses.find((x) => x.id === a.p_dose_id);
     if (!d) return { outcome: 'not_found' };

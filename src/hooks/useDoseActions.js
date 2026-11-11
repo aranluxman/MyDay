@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from 'react';
 import { useUI } from '../context/UIContext.jsx';
-import { markDoseTaken, markDoseSkipped, undoDose, logAsNeededDose } from '../lib/db.js';
+import { markDoseTaken, markDoseSkipped, undoDose, logAsNeededDose, snoozeDose } from '../lib/db.js';
 import { prettyTime, prettyClock } from '../lib/format.js';
 
 // Logging a dose, the same way from every screen.
@@ -99,6 +99,27 @@ export function useDoseActions(onChange) {
     } finally { unlock(key); }
   }, [onChange, ui]);
 
+  // "Remind me later": postpones only the reminder. The words say exactly
+  // that, and say when it will come back, or plainly that it cannot be done.
+  const remindLater = useCallback(async (dose) => {
+    if (!lock(dose.id)) return;
+    const name = dose.medication?.name || 'this medicine';
+    try {
+      const r = await snoozeDose(dose.id);
+      if (r?.outcome === 'snoozed') {
+        ui.toast(`Reminder for ${name} postponed to ${prettyClock(new Date(r.until))}. The dose time has not changed, and it is not recorded yet.`, 'info');
+      } else if (r?.outcome === 'too_late') {
+        ui.toast('It is too late to postpone this reminder. You can still record the dose here.', 'bad');
+      } else if (r?.outcome === 'not_pending') {
+        ui.toast('This dose already has a record, so there is no reminder to postpone.', 'info');
+        onChange?.();
+      } else {
+        ui.toast('Could not set the reminder. Nothing was changed.', 'bad');
+      }
+    } catch (e) { ui.toast(e.message || 'Could not set the reminder. Nothing was changed.', 'bad'); }
+    finally { unlock(dose.id); }
+  }, [onChange, ui]);
+
   // Correcting a record after the toast's Undo has gone: asks first, then
   // removes the taken / "Not today" record so the dose is open again. The
   // server keeps one row per scheduled dose, so this can never duplicate.
@@ -118,5 +139,5 @@ export function useDoseActions(onChange) {
     finally { unlock(dose.id); }
   }, [onChange, ui]);
 
-  return { take, skip, takeAsNeeded, undo, pending };
+  return { take, skip, takeAsNeeded, undo, remindLater, pending };
 }

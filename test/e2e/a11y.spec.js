@@ -147,10 +147,10 @@ test('settings is one list; each row opens its own page with a back button', asy
   await context.close();
 });
 
-test('"How your medicines work together" minimizes and stays minimized', async ({ browser }) => {
+test('"What your medicines are for" minimizes and stays minimized', async ({ browser }) => {
   const { page, context } = await openApp(browser, { path: '/medication' });
   await page.getByRole('button', { name: 'Manage medicines' }).click();
-  await page.getByRole('button', { name: 'Minimize how your medicines work together' }).click();
+  await page.getByRole('button', { name: 'Minimize what your medicines are for' }).click();
   const mini = page.locator('.insights-mini');
   await expect(mini).toBeVisible();
   await expect(page.getByRole('button', { name: 'Explain my medicines' })).toHaveCount(0);

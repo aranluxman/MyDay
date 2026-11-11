@@ -90,7 +90,7 @@ test('the guide’s "Open Guardians" opens and scrolls to Guardians', async ({ b
   await page.getByRole('button', { name: /Letting family keep an eye out/ }).click();
   await page.getByRole('button', { name: 'Open Guardians' }).click();
   await expect(page).toHaveURL(/section=guardians/);
-  await expect(page.getByRole('heading', { name: 'Guardians' })).toBeInViewport();
+  await expect(page.getByRole('heading', { name: 'Care team' })).toBeInViewport();
   await context.close();
 });
 

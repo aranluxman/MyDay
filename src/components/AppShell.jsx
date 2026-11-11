@@ -19,6 +19,7 @@ const TITLES = {
   '/health': 'Health tracker',
   '/reports': 'Reports',
   '/medication/ask': 'Ask about medicines',
+  '/medication/safety': 'Medication safety',
 };
 
 // Pages reached from another page say where "back" goes, above their title.
@@ -29,6 +30,7 @@ const BACK = {
   '/reports': { to: '/more', label: 'More' },
   '/health': { to: '/updates', label: 'Diary' },
   '/medication/ask': { to: '/medication', label: 'Medicines' },
+  '/medication/safety': { to: '/medication', label: 'Medicines' },
 };
 
 // Each main page has one "Add" beside the profile chip, never floating over

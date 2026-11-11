@@ -162,6 +162,9 @@ export function AlertsSettings({ reveal }) {
     meds: meds.data || [], devices: devices.data || [], myEndpoint,
   });
   const warnings = ready.filter((r) => r.state === 'warn').length;
+  // 'info' means not yet known (for example, no test has been seen): never
+  // summarised as fine.
+  const unknowns = ready.filter((r) => r.state === 'info').length;
   // Like the rest of Profile, each part below is one line until tapped; the
   // delivery status and the master switch always stay in view.
 
@@ -203,7 +206,7 @@ export function AlertsSettings({ reveal }) {
         {status.code === 'unsupported' && (
           <p className="muted" style={{ margin: '10px 0 0' }}>
             You can still use the reminders inside the app, and a family member can receive your
-            missed-dose alerts on their own phone — set that up under <b>Guardians</b> in Profile.
+            alerts about unrecorded doses on their own phone — set that up under <b>Dependants &amp; caregivers</b> in Settings.
           </p>
         )}
 
@@ -221,7 +224,7 @@ export function AlertsSettings({ reveal }) {
           whenever something needs attention, so a problem is never folded away. ---- */}
       <Collapsible id="ns-ready" icon="check" title="Will reminders reach me?" defaultOpen={warnings > 0}
         attention={warnings > 0}
-        summary={warnings ? `${warnings} ${warnings === 1 ? 'thing needs' : 'things need'} attention` : 'Everything checked'}>
+        summary={warnings ? `${warnings} ${warnings === 1 ? 'thing needs' : 'things need'} attention` : unknowns ? `${unknowns} ${unknowns === 1 ? 'thing is' : 'things are'} not confirmed yet` : 'Set up. Only a test you see proves delivery'}>
         <ul className="ready-list">
           {ready.map((r) => (
             <li key={r.id} className={`ready ready--${r.state}`}>
@@ -299,7 +302,7 @@ export function AlertsSettings({ reveal }) {
             </select>
           </Row>
         )}
-        <Row id="ns-snooze" title="Snooze length" desc='What "Snooze" on a notification does.' control="select">
+        <Row id="ns-snooze" title="Snooze length" desc='How long "Snooze" on a notification and "Remind me later" wait. Your dose time does not change.' control="select">
           <select id="ns-snooze-c" className="input input--select" value={prefs.snooze_minutes} aria-describedby="ns-snooze-d"
             onChange={(e) => update({ snooze_minutes: Number(e.target.value) })}>
             {SNOOZE_CHOICES.map((n) => <option key={n} value={n}>{n} minutes</option>)}
