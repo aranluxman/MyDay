@@ -240,12 +240,19 @@ To make it say MyDay (about 2 minutes):
 The sender name ("Supabase Auth") only changes with custom SMTP (Authentication → Emails → SMTP
 Settings, e.g. Brevo or Resend) — set the sender name to `MyDay` there when you're ready.
 
-### AI helpers setup (OpenAI)
-The OpenAI key is a Supabase **function secret** — never put it in the frontend.
+### AI helpers setup (Gemini or OpenAI)
+The AI key is a Supabase **function secret** — never put it in the frontend.
+If `GEMINI_API_KEY` is set, `ai-assist` uses Google Gemini; otherwise it uses OpenAI.
 
 ```bash
-supabase secrets set OPENAI_API_KEY=sk-...          # required
-supabase secrets set OPENAI_MODEL=gpt-4o-mini       # optional; must support images + JSON schema
+# Gemini (Google AI Studio key)
+supabase secrets set GEMINI_API_KEY=AIza...
+supabase secrets set GEMINI_MODEL=gemini-2.5-flash  # optional; must support images + JSON schema
+
+# or OpenAI
+supabase secrets set OPENAI_API_KEY=sk-...
+supabase secrets set OPENAI_MODEL=gpt-4o-mini       # optional
+
 supabase functions deploy ai-assist
 ```
 
