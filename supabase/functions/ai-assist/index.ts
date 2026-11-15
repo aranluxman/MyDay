@@ -28,9 +28,19 @@ const UNAVAILABLE = 'Chat is unavailable right now. You can still use your healt
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-const OPENAI_KEY = Deno.env.get('OPENAI_API_KEY') || '';
-// Vision + structured output. Override with the OPENAI_MODEL secret.
-const MODEL = Deno.env.get('OPENAI_MODEL') || 'gpt-4o-mini';
+// Provider: Gemini if GEMINI_API_KEY is set (via Google's OpenAI-compatible
+// endpoint), otherwise OpenAI. Same request/response shape either way.
+const GEMINI_KEY = Deno.env.get('GEMINI_API_KEY') || '';
+const OPENAI_KEY = GEMINI_KEY ? '' : (Deno.env.get('OPENAI_API_KEY') || '');
+const USE_GEMINI = !!GEMINI_KEY;
+const AI_KEY = USE_GEMINI ? GEMINI_KEY : OPENAI_KEY;
+const AI_URL = USE_GEMINI
+  ? 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions'
+  : 'https://api.openai.com/v1/chat/completions';
+// Vision + structured output. Override with GEMINI_MODEL / OPENAI_MODEL.
+const MODEL = USE_GEMINI
+  ? (Deno.env.get('GEMINI_MODEL') || 'gemini-2.5-flash')
+  : (Deno.env.get('OPENAI_MODEL') || 'gpt-4o-mini');
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -263,16 +273,19 @@ The person's current settings and profile: ${JSON.stringify(state)}`;
 /* -------------------------------- OpenAI -------------------------------- */
 
 async function openai(messages: unknown[], schemaName: string, schema: unknown, maxTokens: number) {
-  const res = await fetch('https://api.openai.com/v1/chat/completions', {
+  const res = await fetch(AI_URL, {
     method: 'POST',
-    headers: { Authorization: `Bearer ${OPENAI_KEY}`, 'Content-Type': 'application/json' },
+    headers: { Authorization: `Bearer ${AI_KEY}`, 'Content-Type': 'application/json' },
     signal: AbortSignal.timeout(25_000),
     body: JSON.stringify({
       model: MODEL,
       messages,
-      // Newer reasoning models reject a custom temperature; gpt-4* take it.
-      ...(MODEL.startsWith('gpt-4') ? { temperature: 0.2 } : {}),
-      max_completion_tokens: maxTokens,
+      // Newer reasoning models reject a custom temperature; gpt-4* and Gemini take it.
+      ...(USE_GEMINI || MODEL.startsWith('gpt-4') ? { temperature: 0.2 } : {}),
+      // Gemini 2.5 "thinking" tokens count against the limit, so keep thinking
+      // low and leave headroom or the JSON answer gets cut off.
+      ...(USE_GEMINI ? { reasoning_effort: 'low' } : {}),
+      max_completion_tokens: USE_GEMINI ? maxTokens + 2048 : maxTokens,
       response_format: { type: 'json_schema', json_schema: { name: schemaName, strict: true, schema } },
     }),
   });
@@ -299,7 +312,7 @@ Deno.serve(async (req) => {
   const json = (o: unknown, s = 200) =>
     new Response(JSON.stringify(o), { status: s, headers: { ...CORS, 'Content-Type': 'application/json' } });
 
-  if (!OPENAI_KEY) return json({ error: UNAVAILABLE, code: 'ai_unavailable', retryable: false }, 503);
+  if (!AI_KEY) return json({ error: UNAVAILABLE, code: 'ai_unavailable', retryable: false }, 503);
 
   // Signed-in MyDay users only: this spends real money per call.
   const token = (req.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '');

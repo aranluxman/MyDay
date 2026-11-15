@@ -11,20 +11,23 @@ import { CHAT_UNAVAILABLE } from '../src/lib/aiErrors.js';
 const source = (await readFile(new URL('../supabase/functions/ai-assist/index.ts', import.meta.url), 'utf8'))
   .replace(/^import .*?;\r?\n/gm, '');
 const { code } = await transform(source, { loader: 'ts' });
-function setup({ configured = true, status = 200, result = { reply: 'What would you like to record?', suggestions: [], urgent: false }, detail = '' } = {}) {
+function setup({ configured = true, gemini = false, status = 200, result = { reply: 'What would you like to record?', suggestions: [], urgent: false }, detail = '' } = {}) {
   let handler;
   const calls = [];
-  const deno = { env: { get: (key) => key === 'OPENAI_API_KEY' ? (configured ? 'synthetic-test-key' : '') : 'synthetic' }, serve: (fn) => { handler = fn; } };
+  const urls = [];
+  const deno = { env: { get: (key) => key === 'OPENAI_API_KEY' ? (configured ? 'synthetic-test-key' : '') : key === 'GEMINI_API_KEY' ? (gemini && configured ? 'synthetic-gemini-key' : '') : key === 'OPENAI_MODEL' || key === 'GEMINI_MODEL' ? '' : 'synthetic' }, serve: (fn) => { handler = fn; } };
   const shared = ['CHAT_BOUNDARY', 'clinicalRequest', 'safeChatResult', 'urgentChatResult', 'MEDICINE_BOUNDARY', 'MEDICINE_DISCLAIMER', 'dosingRequest', 'safeMedicineResult'];
   new Function('createClient', 'Deno', 'fetch', ...shared, code)(
     () => ({ auth: { getUser: async () => ({ data: { user: { id: 'synthetic-user' } } }) } }), deno,
-    async (_, options) => {
+    async (url, options) => {
+      urls.push(url);
       calls.push(JSON.parse(options.body));
       return new Response(status === 200 ? JSON.stringify({ choices: [{ message: { content: JSON.stringify(result) } }] }) : detail, { status });
     }, ...shared.map((k) => safety[k]),
   );
   return {
     calls,
+    urls,
     run: (body = {}) => handler(new Request('https://example.test', { method: 'POST', headers: { Authorization: 'Bearer synthetic-token' },
       body: JSON.stringify({ mode: 'note_chat', entry: { title: 'My diary' }, ...body }) })),
   };
@@ -36,6 +39,18 @@ test('missing AI configuration returns a calm non-retryable response without a p
   assert.equal(response.status, 503);
   assert.deepEqual(await response.json(), { error: CHAT_UNAVAILABLE, code: 'ai_unavailable', retryable: false });
   assert.equal(s.calls.length, 0);
+});
+
+test('a Gemini key routes the same request to Google\'s OpenAI-compatible endpoint', async () => {
+  const s = setup({ gemini: true });
+  const r = await s.run({ message: 'Help me record a walk.' });
+  assert.equal(r.status, 200);
+  assert.match(s.urls[0], /generativelanguage\.googleapis\.com\/v1beta\/openai\/chat\/completions/);
+  assert.match(s.calls[0].model, /^gemini/);
+  assert.equal(s.calls[0].response_format.type, 'json_schema');
+  const o = setup();
+  await o.run({ message: 'Help me record a walk.' });
+  assert.match(o.urls[0], /api\.openai\.com/);
 });
 
 test('credential/quota failures cannot be retried, but transient overload can', async () => {
