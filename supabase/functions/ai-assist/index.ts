@@ -39,7 +39,7 @@ const AI_URL = USE_GEMINI
   : 'https://api.openai.com/v1/chat/completions';
 // Vision + structured output. Override with GEMINI_MODEL / OPENAI_MODEL.
 const MODEL = USE_GEMINI
-  ? (Deno.env.get('GEMINI_MODEL') || 'gemini-2.5-flash')
+  ? (Deno.env.get('GEMINI_MODEL') || 'gemini-3.8-flash')
   : (Deno.env.get('OPENAI_MODEL') || 'gpt-4o-mini');
 
 const CORS = {

@@ -247,7 +247,7 @@ If `GEMINI_API_KEY` is set, `ai-assist` uses Google Gemini; otherwise it uses Op
 ```bash
 # Gemini (Google AI Studio key)
 supabase secrets set GEMINI_API_KEY=AIza...
-supabase secrets set GEMINI_MODEL=gemini-2.5-flash  # optional; must support images + JSON schema
+supabase secrets set GEMINI_MODEL=gemini-3.8-flash  # optional; must support images + JSON schema
 
 # or OpenAI
 supabase secrets set OPENAI_API_KEY=sk-...
